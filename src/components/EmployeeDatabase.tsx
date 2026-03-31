@@ -5,11 +5,10 @@ import EmployeeForm from './EmployeeForm';
 interface EmployeeDatabaseProps {
   employees: Employee[];
   onSaveEmployee: (emp: Employee) => void;
-  onDeleteEmployee: (id: string) => void;
   company: string;
 }
 
-const EmployeeDatabase: React.FC<EmployeeDatabaseProps> = ({ employees, onSaveEmployee, onDeleteEmployee, company }) => {
+const EmployeeDatabase: React.FC<EmployeeDatabaseProps> = ({ employees, onSaveEmployee, company }) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
 
@@ -25,12 +24,6 @@ const EmployeeDatabase: React.FC<EmployeeDatabaseProps> = ({ employees, onSaveEm
     }
     setIsFormOpen(false);
     setEditingEmployee(null);
-  };
-
-  const handleDelete = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this employee?')) {
-      onDeleteEmployee(id);
-    }
   };
 
   return (
@@ -49,23 +42,6 @@ const EmployeeDatabase: React.FC<EmployeeDatabaseProps> = ({ employees, onSaveEm
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {employees.map((emp) => (
           <div key={emp.id} className="bg-white p-6 rounded-3xl border border-outline-variant/10 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-              <button 
-                onClick={() => { setEditingEmployee(emp); setIsFormOpen(true); }}
-                className="p-2 bg-stone-100 text-stone-600 rounded-full hover:bg-primary hover:text-on-primary transition-colors"
-                title="Edit Employee"
-              >
-                <span className="material-symbols-outlined text-sm">edit</span>
-              </button>
-              <button 
-                onClick={() => handleDelete(emp.id)}
-                className="p-2 bg-stone-100 text-error rounded-full hover:bg-error hover:text-white transition-colors"
-                title="Delete Employee"
-              >
-                <span className="material-symbols-outlined text-sm">delete</span>
-              </button>
-            </div>
-            
             <div className="flex items-center gap-4 mb-6">
               <div className="w-16 h-16 rounded-2xl bg-stone-100 overflow-hidden shrink-0">
                 <img

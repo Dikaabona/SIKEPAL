@@ -4,7 +4,8 @@ export type UserRole = 'owner' | 'super' | 'admin' | 'employee';
 
 export type ActiveTab = 
   | 'home' 
-  | 'database' 
+  | 'employee_database' 
+  | 'store_database' 
   | 'attendance' 
   | 'absen' 
   | 'submissions' 
@@ -156,4 +157,21 @@ export interface AdvertisingRecord {
   impressions: number;
   clicks: number;
   conversions: number;
+}
+
+export interface Store {
+  id: string;
+  namaToko: string;
+  grade: string;
+  namaPIC: string;
+  nomorPIC?: string;
+  linkGmaps: string;
+  kategori: string;
+  harga: string;
+  pembayaran: string;
+  operasional: string;
+  kurir: string;
+  note: string;
+  company: string;
+  updatedAt: string;
 }

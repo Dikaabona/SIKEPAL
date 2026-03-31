@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from './lib/supabase';
-import { ActiveTab, Employee, AttendanceRecord, Submission, Broadcast, LiveSchedule, Shift, ShiftAssignment } from './types';
+import StoreDatabase from './components/StoreDatabase';
+import { ActiveTab, Employee, AttendanceRecord, Submission, Broadcast, LiveSchedule, Shift, ShiftAssignment, Store } from './types';
 import { Icons, DEFAULT_SHIFTS } from './constants';
 import Dashboard from './components/Dashboard';
 import AttendanceModule from './components/AttendanceModule';
@@ -122,6 +123,7 @@ const MOCK_SUBMISSIONS: Submission[] = [
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
   const [expandedMenus, setExpandedMenus] = useState<string[]>(['attendance']);
+  const [stores, setStores] = useState<Store[]>([]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
@@ -190,6 +192,10 @@ export default function App() {
         if (assignError) throw assignError;
         setShiftAssignments(assignData || []);
 
+        // Fetch Stores
+        const { data: storesData, error: storesError } = await supabase.from('stores').select('*');
+        if (!storesError && storesData) setStores(storesData);
+
       } catch (error) {
         console.error('Error fetching data from Supabase:', error);
       } finally {
@@ -218,10 +224,17 @@ export default function App() {
       if (payload.eventType === 'DELETE') setSubmissions(prev => prev.filter(s => s.id !== payload.old.id));
     }).subscribe();
 
+    const storeSubscription = supabase.channel('stores_changes').on('postgres_changes', { event: '*', schema: 'public', table: 'stores' }, payload => {
+      if (payload.eventType === 'INSERT') setStores(prev => [...prev, payload.new as Store]);
+      if (payload.eventType === 'UPDATE') setStores(prev => prev.map(s => s.id === payload.new.id ? payload.new as Store : s));
+      if (payload.eventType === 'DELETE') setStores(prev => prev.filter(s => s.id !== payload.old.id));
+    }).subscribe();
+
     return () => {
       supabase.removeChannel(empSubscription);
       supabase.removeChannel(attSubscription);
       supabase.removeChannel(subSubscription);
+      supabase.removeChannel(storeSubscription);
     };
   }, []);
 
@@ -235,24 +248,22 @@ export default function App() {
       const { error } = await supabase.from('employees').upsert(employee);
       if (error) throw error;
       // State will be updated via real-time subscription
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving employee:', error);
-      // Fallback: update local state if subscription fails or is slow
+      
+      // If it's an RLS error, alert the user
+      if (error.code === '42501') {
+        alert('Gagal menyimpan ke database: Masalah Izin (RLS Policy). Silakan ikuti instruksi SQL di dashboard Supabase Anda.');
+      } else {
+        alert('Gagal menyimpan ke database: ' + (error.message || 'Unknown error'));
+      }
+
+      // Fallback: update local state so the UI reflects the change temporarily
       setEmployees(prev => {
         const exists = prev.find(e => e.id === employee.id);
         if (exists) return prev.map(e => e.id === employee.id ? employee : e);
         return [...prev, employee];
       });
-    }
-  };
-
-  const handleDeleteEmployee = async (id: string) => {
-    try {
-      const { error } = await supabase.from('employees').delete().eq('id', id);
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error deleting employee:', error);
-      setEmployees(prev => prev.filter(e => e.id !== id));
     }
   };
 
@@ -284,6 +295,36 @@ export default function App() {
     }
   };
 
+  const handleSaveStore = async (store: Store) => {
+    try {
+      const { error } = await supabase.from('stores').upsert(store);
+      if (error) throw error;
+      
+      setStores(prev => {
+        const exists = prev.find(s => s.id === store.id);
+        if (exists) return prev.map(s => s.id === store.id ? store : s);
+        return [...prev, store];
+      });
+    } catch (error) {
+      console.error('Error saving store:', error);
+      alert('Gagal menyimpan data toko. Pastikan tabel "stores" sudah dibuat di Supabase.');
+    }
+  };
+
+  const handleDeleteAllStores = async () => {
+    try {
+      const { error } = await supabase
+        .from('stores')
+        .delete()
+        .neq('id', ''); // Delete all rows
+      if (error) throw error;
+      setStores([]);
+    } catch (error) {
+      console.error('Error deleting all stores:', error);
+      alert('Gagal menghapus data toko.');
+    }
+  };
+
   const toggleMenu = (menuId: string) => {
     setExpandedMenus(prev => 
       prev.includes(menuId) ? prev.filter(id => id !== menuId) : [...prev, menuId]
@@ -301,7 +342,8 @@ export default function App() {
         { id: 'selfie_attendance', label: 'Absen Selfie', icon: 'photo_camera' },
       ]
     },
-    { id: 'database', label: 'Employee DB', icon: 'database' },
+    { id: 'database', label: 'Database', icon: 'database' },
+    { id: 'employee_database', label: 'Employee DB', icon: 'badge' },
     { id: 'inbox', label: 'Inbox', icon: 'mail' },
     { id: 'schedule', label: 'Schedule', icon: 'calendar_month' },
     { id: 'finance', label: 'Finance', icon: 'payments' },
@@ -355,10 +397,18 @@ export default function App() {
         );
       case 'database':
         return (
+          <StoreDatabase
+            stores={stores}
+            onSaveStore={handleSaveStore}
+            onDeleteAllStores={handleDeleteAllStores}
+            company={userCompany}
+          />
+        );
+      case 'employee_database':
+        return (
           <EmployeeDatabase
             employees={employees}
             onSaveEmployee={handleSaveEmployee}
-            onDeleteEmployee={handleDeleteEmployee}
             company={userCompany}
           />
         );
