@@ -1,0 +1,159 @@
+import { LucideIcon } from 'lucide-react';
+
+export type UserRole = 'owner' | 'super' | 'admin' | 'employee';
+
+export type ActiveTab = 
+  | 'home' 
+  | 'database' 
+  | 'attendance' 
+  | 'absen' 
+  | 'submissions' 
+  | 'inbox' 
+  | 'schedule' 
+  | 'minvis' 
+  | 'settings' 
+  | 'shift' 
+  | 'live_map' 
+  | 'finance' 
+  | 'inventory' 
+  | 'kpi' 
+  | 'calendar' 
+  | 'recruitment' 
+  | 'mobile_history'
+  | 'advertising'
+  | 'sales';
+
+export interface Employee {
+  id: string;
+  idKaryawan: string;
+  nama: string;
+  email: string;
+  company: string;
+  role: UserRole;
+  jabatan: string;
+  division: string;
+  gender?: string;
+  tempatLahir?: string;
+  tanggalLahir?: string;
+  alamat?: string;
+  noKtp?: string;
+  noHandphone?: string;
+  tanggalMasuk: string;
+  bank?: string;
+  noRekening?: string;
+  hutang: number;
+  lokasiKerja?: string;
+  statusKaryawan?: string;
+  resigned_at?: string;
+  resign_reason?: string;
+  deleted_at?: string | null;
+  lastLatitude?: number;
+  lastLongitude?: number;
+  lastLocationUpdate?: string;
+  isTrackingActive?: boolean;
+  salaryConfig?: {
+    gapok: number;
+    tunjanganMakan: number;
+    tunjanganTransport: number;
+    tunjanganKomunikasi: number;
+    tunjanganKesehatan: number;
+    tunjanganJabatan: number;
+    bpjstk: number;
+    pph21: number;
+    lembur: number;
+    bonus: number;
+    thr: number;
+    potonganHutang: number;
+    potonganLain: number;
+  };
+}
+
+export interface AttendanceRecord {
+  id: string;
+  employeeId: string;
+  company: string;
+  date: string;
+  status: 'Hadir' | 'Izin' | 'Sakit' | 'Cuti' | 'Alpa' | 'Lembur' | 'Libur';
+  clockIn?: string;
+  clockOut?: string;
+  photoIn?: string;
+  photoOut?: string;
+  notes?: string;
+  submittedAt: string;
+}
+
+export interface LiveSchedule {
+  id: string;
+  employeeId: string;
+  company: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  platform: string;
+  account: string;
+  hostName: string;
+}
+
+export type SubmissionType = 'Izin' | 'Sakit' | 'Cuti' | 'Lembur' | 'Overtime' | 'Leave' | 'Reimbursement';
+
+export interface Submission {
+  id: string;
+  employeeId: string;
+  employeeName?: string;
+  company: string;
+  type: SubmissionType;
+  startDate?: string;
+  endDate?: string;
+  reason?: string;
+  notes?: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  submittedAt: string;
+}
+
+export interface Broadcast {
+  id: string;
+  title: string;
+  message: string;
+  company: string;
+  targetEmployeeIds: string[];
+  sentAt: string;
+}
+
+export interface LiveReport {
+  id: string;
+  scheduleId: string;
+  employeeId: string;
+  company: string;
+  tanggal: string;
+  omzet: number;
+  pesanan: number;
+  viewers: number;
+  notes?: string;
+}
+
+export interface ShiftAssignment {
+  id: string;
+  employeeId: string;
+  company: string;
+  date: string;
+  shiftId: string;
+}
+
+export interface Shift {
+  id: string;
+  name: string;
+  startTime: string;
+  endTime: string;
+  color: string;
+}
+
+export interface AdvertisingRecord {
+  id: string;
+  company: string;
+  date: string;
+  platform: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  conversions: number;
+}

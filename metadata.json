@@ -1,0 +1,8 @@
+{
+  "name": "SIKEPAL",
+  "description": "Data Sikepal",
+  "requestFramePermissions": [
+    "geolocation",
+    "camera"
+  ]
+}

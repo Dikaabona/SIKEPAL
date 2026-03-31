@@ -1,0 +1,19 @@
+import React from 'react';
+
+interface LegalModalProps {
+  type: 'privacy' | 'tos' | 'contact';
+  onClose: () => void;
+}
+
+const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
+  return (
+    <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-3xl p-8 max-w-2xl w-full">
+        <h2 className="text-2xl font-bold mb-4 uppercase">{type}</h2>
+        <button onClick={onClose} className="mt-4 px-4 py-2 bg-slate-200 rounded-xl">Tutup</button>
+      </div>
+    </div>
+  );
+};
+
+export default LegalModal;
