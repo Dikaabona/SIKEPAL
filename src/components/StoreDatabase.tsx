@@ -138,6 +138,8 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
         // G (6): Harga Sikepal
         // H (7): Pembayaran
         // I (8): Hari Operasional
+        // J (9): Pengirim (Kurir)
+        // K (10): Note
         const store: Store = {
           id: storeId,
           namaToko: storeName,
@@ -149,8 +151,8 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
           harga: row[6] || '',
           pembayaran: row[7] || '',
           operasional: row[8] || '',
-          kurir: '', 
-          note: '', 
+          kurir: row[9] || '', 
+          note: row[10] || '', 
           company,
           updatedAt: new Date().toISOString(),
         };
@@ -255,6 +257,8 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
                 <th className="px-6 py-4 text-xs font-bold text-stone-500 uppercase tracking-wider font-label">Harga</th>
                 <th className="px-6 py-4 text-xs font-bold text-stone-500 uppercase tracking-wider font-label">Pembayaran</th>
                 <th className="px-6 py-4 text-xs font-bold text-stone-500 uppercase tracking-wider font-label">Operasional</th>
+                <th className="px-6 py-4 text-xs font-bold text-stone-500 uppercase tracking-wider font-label">Kurir</th>
+                <th className="px-6 py-4 text-xs font-bold text-stone-500 uppercase tracking-wider font-label">Note</th>
                 <th className="px-6 py-4 text-xs font-bold text-stone-500 uppercase tracking-wider font-label text-right">Actions</th>
               </tr>
             </thead>
@@ -296,6 +300,8 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
                     <td className="px-6 py-4 text-sm text-stone-600 font-mono">{store.harga}</td>
                     <td className="px-6 py-4 text-sm text-stone-600">{store.pembayaran}</td>
                     <td className="px-6 py-4 text-sm text-stone-600">{store.operasional}</td>
+                    <td className="px-6 py-4 text-sm text-stone-600">{store.kurir}</td>
+                    <td className="px-6 py-4 text-sm text-stone-600 max-w-[150px] truncate" title={store.note}>{store.note}</td>
                     <td className="px-6 py-4 text-right">
                       <button 
                         onClick={() => {
@@ -311,7 +317,7 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
                 ))
               ) : (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center text-stone-400">
+                  <td colSpan={11} className="px-6 py-12 text-center text-stone-400">
                     <span className="material-symbols-outlined text-4xl mb-2 opacity-20">storefront</span>
                     <p className="text-sm font-medium">No stores found</p>
                   </td>

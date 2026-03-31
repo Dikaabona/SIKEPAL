@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from './lib/supabase';
 import StoreDatabase from './components/StoreDatabase';
-import { ActiveTab, Employee, AttendanceRecord, Submission, Broadcast, LiveSchedule, Shift, ShiftAssignment, Store } from './types';
+import OrderDatabase from './components/OrderDatabase';
+import { ActiveTab, Employee, AttendanceRecord, Submission, Broadcast, LiveSchedule, Shift, ShiftAssignment, Store, Order } from './types';
 import { Icons, DEFAULT_SHIFTS } from './constants';
 import Dashboard from './components/Dashboard';
 import AttendanceModule from './components/AttendanceModule';
@@ -122,8 +123,9 @@ const MOCK_SUBMISSIONS: Submission[] = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
-  const [expandedMenus, setExpandedMenus] = useState<string[]>(['attendance']);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(['attendance', 'database']);
   const [stores, setStores] = useState<Store[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
@@ -196,6 +198,10 @@ export default function App() {
         const { data: storesData, error: storesError } = await supabase.from('stores').select('*');
         if (!storesError && storesData) setStores(storesData);
 
+        // Fetch Orders
+        const { data: ordersData, error: ordersError } = await supabase.from('orders').select('*');
+        if (!ordersError && ordersData) setOrders(ordersData);
+
       } catch (error) {
         console.error('Error fetching data from Supabase:', error);
       } finally {
@@ -230,11 +236,18 @@ export default function App() {
       if (payload.eventType === 'DELETE') setStores(prev => prev.filter(s => s.id !== payload.old.id));
     }).subscribe();
 
+    const orderSubscription = supabase.channel('orders_changes').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, payload => {
+      if (payload.eventType === 'INSERT') setOrders(prev => [...prev, payload.new as Order]);
+      if (payload.eventType === 'UPDATE') setOrders(prev => prev.map(o => o.id === payload.new.id ? payload.new as Order : o));
+      if (payload.eventType === 'DELETE') setOrders(prev => prev.filter(o => o.id !== payload.old.id));
+    }).subscribe();
+
     return () => {
       supabase.removeChannel(empSubscription);
       supabase.removeChannel(attSubscription);
       supabase.removeChannel(subSubscription);
       supabase.removeChannel(storeSubscription);
+      supabase.removeChannel(orderSubscription);
     };
   }, []);
 
@@ -325,6 +338,36 @@ export default function App() {
     }
   };
 
+  const handleSaveOrder = async (order: Order) => {
+    try {
+      const { error } = await supabase.from('orders').upsert(order);
+      if (error) throw error;
+      
+      setOrders(prev => {
+        const exists = prev.find(o => o.id === order.id);
+        if (exists) return prev.map(o => o.id === order.id ? order : o);
+        return [...prev, order];
+      });
+    } catch (error) {
+      console.error('Error saving order:', error);
+      alert('Gagal menyimpan data orderan. Pastikan tabel "orders" sudah dibuat di Supabase.');
+    }
+  };
+
+  const handleDeleteAllOrders = async () => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .delete()
+        .neq('id', ''); 
+      if (error) throw error;
+      setOrders([]);
+    } catch (error) {
+      console.error('Error deleting all orders:', error);
+      alert('Gagal menghapus data orderan.');
+    }
+  };
+
   const toggleMenu = (menuId: string) => {
     setExpandedMenus(prev => 
       prev.includes(menuId) ? prev.filter(id => id !== menuId) : [...prev, menuId]
@@ -342,7 +385,15 @@ export default function App() {
         { id: 'selfie_attendance', label: 'Absen Selfie', icon: 'photo_camera' },
       ]
     },
-    { id: 'database', label: 'Database', icon: 'database' },
+    { 
+      id: 'database', 
+      label: 'Database', 
+      icon: 'database',
+      subItems: [
+        { id: 'store_database', label: 'Data Toko', icon: 'storefront' },
+        { id: 'order_database', label: 'Data Orderan', icon: 'receipt_long' },
+      ]
+    },
     { id: 'employee_database', label: 'Employee DB', icon: 'badge' },
     { id: 'inbox', label: 'Inbox', icon: 'mail' },
     { id: 'schedule', label: 'Schedule', icon: 'calendar_month' },
@@ -395,12 +446,21 @@ export default function App() {
             initialSelfieMode={activeTab === 'selfie_attendance'}
           />
         );
-      case 'database':
+      case 'store_database':
         return (
           <StoreDatabase
             stores={stores}
             onSaveStore={handleSaveStore}
             onDeleteAllStores={handleDeleteAllStores}
+            company={userCompany}
+          />
+        );
+      case 'order_database':
+        return (
+          <OrderDatabase
+            orders={orders}
+            onSaveOrder={handleSaveOrder}
+            onDeleteAllOrders={handleDeleteAllOrders}
             company={userCompany}
           />
         );

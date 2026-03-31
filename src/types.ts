@@ -6,6 +6,7 @@ export type ActiveTab =
   | 'home' 
   | 'employee_database' 
   | 'store_database' 
+  | 'order_database'
   | 'attendance' 
   | 'absen' 
   | 'submissions' 
@@ -172,6 +173,29 @@ export interface Store {
   operasional: string;
   kurir: string;
   note: string;
+  company: string;
+  updatedAt: string;
+}
+
+export interface Order {
+  id: string;
+  tanggal: string;
+  namaKurir: string;
+  namaLokasi: string;
+  tunaPedes: number;
+  tunaMayo: number;
+  ayamMayo: number;
+  ayamPedes: number;
+  menuBulanan: number;
+  jumlahKirim: number;
+  hargaSikepal: number;
+  periodeBayar: string;
+  sisa: number;
+  jumlahPiutang: number;
+  jumlahUang: number;
+  pembayaran: string;
+  tanggalBayar: string;
+  diskon: number;
   company: string;
   updatedAt: string;
 }
