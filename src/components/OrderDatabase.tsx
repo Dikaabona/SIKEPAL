@@ -134,47 +134,79 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
         return result;
       });
 
+      const headers = rows[0].map(h => h.trim().toUpperCase());
+      
+      const getIndex = (name: string) => {
+        const n = name.toUpperCase();
+        const exact = headers.indexOf(n);
+        if (exact !== -1) return exact;
+        return headers.findIndex(h => h.includes(n));
+      };
+
+      const idx = {
+        tanggal: getIndex('TANGGAL'),
+        kurir: getIndex('KURIR'),
+        lokasi: getIndex('LOKASI'),
+        tunaPedes: getIndex('TUNA PEDES'),
+        tunaMayo: getIndex('TUNA MAYO'),
+        ayamMayo: getIndex('AYAM MAYO'),
+        ayamPedes: getIndex('AYAM PEDES'),
+        menuBulanan: getIndex('MENU BULANAN'),
+        jumlahKirim: getIndex('JUMLAH KIRIM'),
+        hargaSikepal: getIndex('HARGA SIKEPAL'),
+        periodeBayar: getIndex('PERIODE BAYAR'),
+        sisa: getIndex('SISA'),
+        jumlahPiutang: getIndex('JUMLAH PIUTANG'),
+        jumlahUang: getIndex('JUMLAH UANG'),
+        pembayaran: getIndex('PEMBAYARAN'),
+        tanggalBayar: getIndex('TANGGAL BAYAR'),
+        diskon: getIndex('DISKON'),
+      };
+
       const dataRows = rows.slice(1); // Skip header
       let syncCount = 0;
       let skippedCount = 0;
 
-      for (const row of dataRows) {
-        if (row.length < 3 || !row[0]) continue;
+      const parseNum = (val: string | undefined) => {
+        if (!val) return 0;
+        // If it looks like a date (contains / or -), it's likely the wrong column
+        if (val.includes('/') || (val.includes('-') && val.length > 5)) return 0;
+        const cleaned = val.replace(/[^\d]/g, '');
+        return parseInt(cleaned) || 0;
+      };
 
-        const tanggal = row[1] || row[0] || '';
+      for (const row of dataRows) {
+        if (row.length < 3) continue;
+
+        const tanggalValue = row[idx.tanggal] || '';
         
         // Filter for year 2026 only
-        if (!tanggal.includes('2026')) {
+        if (!tanggalValue.includes('2026') && !tanggalValue.includes('/26') && !tanggalValue.includes('-26')) {
           skippedCount++;
           continue;
         }
 
-        // Mapping based on columns (shifted by +2 to account for Timestamp at index 0 and No PIC at index 3):
-        // 1: Tanggal, 2: Nama Kurir, 3: No PIC, 4: Nama Lokasi, 5: Tuna Pedes, 6: Tuna Mayo, 7: Ayam Mayo, 8: Ayam Pedes, 
-        // 9: Menu Bulanan, 10: Jumlah Kirim, 11: Harga Sikepal, 12: Periode Bayar, 13: Sisa, 14: Jumlah Piutang,
-        // 15: Jumlah Uang, 16: Pembayaran, 17: Tanggal Bayar, 18: Diskon
-        
-        const orderId = `order_${tanggal}_${row[4]}`.toLowerCase().replace(/[^a-z0-9]/g, '_');
+        const orderId = `order_${tanggalValue}_${row[idx.lokasi] || Math.random().toString(36).substr(2, 9)}`.toLowerCase().replace(/[^a-z0-9]/g, '_');
 
         const order: Order = {
           id: orderId,
-          tanggal: tanggal,
-          namaKurir: row[2] || '',
-          namaLokasi: row[4] || '',
-          tunaPedes: parseInt(row[5]?.replace(/[^\d]/g, '')) || 0,
-          tunaMayo: parseInt(row[6]?.replace(/[^\d]/g, '')) || 0,
-          ayamMayo: parseInt(row[7]?.replace(/[^\d]/g, '')) || 0,
-          ayamPedes: parseInt(row[8]?.replace(/[^\d]/g, '')) || 0,
-          menuBulanan: parseInt(row[9]?.replace(/[^\d]/g, '')) || 0,
-          jumlahKirim: parseInt(row[10]?.replace(/[^\d]/g, '')) || 0,
-          hargaSikepal: parseInt(row[11]?.replace(/[^\d]/g, '')) || 0,
-          periodeBayar: row[12] || '',
-          sisa: parseInt(row[13]?.replace(/[^\d]/g, '')) || 0,
-          jumlahPiutang: parseInt(row[14]?.replace(/[^\d]/g, '')) || 0,
-          jumlahUang: parseInt(row[15]?.replace(/[^\d]/g, '')) || 0,
-          pembayaran: row[16] || '',
-          tanggalBayar: row[17] || '',
-          diskon: parseInt(row[18]?.replace(/[^\d]/g, '')) || 0,
+          tanggal: tanggalValue,
+          namaKurir: row[idx.kurir] || '',
+          namaLokasi: row[idx.lokasi] || '',
+          tunaPedes: parseNum(row[idx.tunaPedes]),
+          tunaMayo: parseNum(row[idx.tunaMayo]),
+          ayamMayo: parseNum(row[idx.ayamMayo]),
+          ayamPedes: parseNum(row[idx.ayamPedes]),
+          menuBulanan: parseNum(row[idx.menuBulanan]),
+          jumlahKirim: parseNum(row[idx.jumlahKirim]),
+          hargaSikepal: parseNum(row[idx.hargaSikepal]),
+          periodeBayar: row[idx.periodeBayar] || '',
+          sisa: parseNum(row[idx.sisa]),
+          jumlahPiutang: parseNum(row[idx.jumlahPiutang]),
+          jumlahUang: parseNum(row[idx.jumlahUang]),
+          pembayaran: row[idx.pembayaran] || '',
+          tanggalBayar: row[idx.tanggalBayar] || '',
+          diskon: parseNum(row[idx.diskon]),
           company,
           updatedAt: new Date().toISOString(),
         };
@@ -275,23 +307,23 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
           <table className="w-full text-left border-collapse min-w-[1500px]">
             <thead>
               <tr className="bg-stone-50/50">
-                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">Tanggal</th>
-                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">Kurir</th>
-                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">Lokasi</th>
-                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider text-center">Tuna Pedes</th>
-                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider text-center">Tuna Mayo</th>
-                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider text-center">Ayam Mayo</th>
-                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider text-center">Ayam Pedes</th>
-                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider text-center">Bulanan</th>
-                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider text-center">Kirim</th>
-                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">Harga</th>
-                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">Periode</th>
-                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">Sisa</th>
-                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">Piutang</th>
-                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">Uang</th>
-                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">Bayar</th>
-                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">Tgl Bayar</th>
-                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">Diskon</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">TANGGAL</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">NAMA KURIR</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">NAMA LOKASI</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider text-center">TUNA PEDES</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider text-center">TUNA MAYO</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider text-center">AYAM MAYO</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider text-center">AYAM PEDES</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider text-center">MENU BULANAN</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider text-center">JUMLAH KIRIM</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">HARGA SIKEPAL</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">PERIODE BAYAR</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">SISA</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">JUMLAH PIUTANG</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">JUMLAH UANG</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">PEMBAYARAN</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">TANGGAL BAYAR</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">DISKON</th>
                 <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
