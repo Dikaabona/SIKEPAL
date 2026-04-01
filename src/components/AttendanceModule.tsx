@@ -6,6 +6,7 @@ interface AttendanceModuleProps {
   employees: Employee[];
   records: AttendanceRecord[];
   onSaveRecord: (record: AttendanceRecord) => void;
+  onDeleteRecord: (recordId: string) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   userRole: UserRole;
@@ -22,7 +23,7 @@ interface AttendanceModuleProps {
   initialSelfieMode?: boolean;
 }
 
-const AttendanceModule: React.FC<AttendanceModuleProps> = ({ employees, records, onSaveRecord, searchQuery, setSearchQuery, currentEmployee, company, initialSelfieMode }) => {
+const AttendanceModule: React.FC<AttendanceModuleProps> = ({ employees, records, onSaveRecord, onDeleteRecord, searchQuery, setSearchQuery, currentEmployee, company, initialSelfieMode }) => {
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
   const filteredEmployees = employees.filter(emp => 
@@ -160,9 +161,15 @@ const AttendanceModule: React.FC<AttendanceModuleProps> = ({ employees, records,
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="text-stone-300 hover:text-primary transition-colors">
-                        <span className="material-symbols-outlined">more_vert</span>
-                      </button>
+                      {record && (
+                        <button 
+                          onClick={() => onDeleteRecord(record.id)}
+                          className="text-stone-300 hover:text-red-500 transition-colors"
+                          title="Hapus Absensi"
+                        >
+                          <span className="material-symbols-outlined">delete</span>
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );

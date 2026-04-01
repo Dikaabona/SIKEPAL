@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Order } from '../types';
-import { supabase } from '../lib/supabase';
+import { getPaginationRange } from '../lib/utils';
 
 interface OrderDatabaseProps {
   orders: Order[];
@@ -18,6 +18,11 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [filterKurir, setFilterKurir] = useState('');
+  const [filterLokasi, setFilterLokasi] = useState('');
+  const [filterPembayaran, setFilterPembayaran] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -43,12 +48,38 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
     company: company
   });
 
+  const kurirOptions = useMemo(() => {
+    const kurirs = new Set(orders.map(o => o.namaKurir).filter(Boolean));
+    return Array.from(kurirs).sort();
+  }, [orders]);
+
+  const lokasiOptions = useMemo(() => {
+    const lokasis = new Set(orders.map(o => o.namaLokasi).filter(Boolean));
+    return Array.from(lokasis).sort();
+  }, [orders]);
+
+  const pembayaranOptions = useMemo(() => {
+    const options = new Set(orders.map(o => o.pembayaran).filter(Boolean));
+    return Array.from(options).sort();
+  }, [orders]);
+
   const filteredOrders = useMemo(() => {
-    return orders.filter(order => 
-      order.namaLokasi.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.namaKurir.toLowerCase().includes(searchQuery.toLowerCase())
-    ).sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
-  }, [orders, searchQuery]);
+    return orders.filter(order => {
+      const matchesSearch = 
+        order.namaLokasi.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.namaKurir.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const orderDate = new Date(order.tanggal);
+      const matchesStartDate = !startDate || orderDate >= new Date(startDate);
+      const matchesEndDate = !endDate || orderDate <= new Date(endDate);
+      
+      const matchesKurir = !filterKurir || order.namaKurir === filterKurir;
+      const matchesLokasi = !filterLokasi || order.namaLokasi === filterLokasi;
+      const matchesPembayaran = !filterPembayaran || order.pembayaran === filterPembayaran;
+
+      return matchesSearch && matchesStartDate && matchesEndDate && matchesKurir && matchesLokasi && matchesPembayaran;
+    }).sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
+  }, [orders, searchQuery, startDate, endDate, filterKurir, filterLokasi, filterPembayaran]);
 
   const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -287,19 +318,97 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
       </div>
 
       <div className="bg-white rounded-3xl border border-stone-200 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-stone-100 bg-stone-50/50 flex items-center gap-3">
-          <div className="flex-1 relative">
-            <span className="material-symbols-outlined absolute left-3 top-2.5 text-stone-400 text-sm">search</span>
-            <input 
-              type="text" 
-              placeholder="Cari lokasi atau kurir..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full pl-10 pr-4 py-2 bg-white border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-            />
+        <div className="p-4 border-b border-stone-100 bg-stone-50/50 space-y-4">
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-1 relative">
+              <span className="material-symbols-outlined absolute left-3 top-2.5 text-stone-400 text-sm">search</span>
+              <input 
+                type="text" 
+                placeholder="Cari lokasi atau kurir..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full pl-10 pr-4 py-2 bg-white border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-stone-200">
+                <span className="text-[10px] font-bold text-stone-400 uppercase">Dari</span>
+                <input 
+                  type="date" 
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="text-xs font-medium outline-none bg-transparent"
+                />
+              </div>
+              <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-stone-200">
+                <span className="text-[10px] font-bold text-stone-400 uppercase">Sampai</span>
+                <input 
+                  type="date" 
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="text-xs font-medium outline-none bg-transparent"
+                />
+              </div>
+              <button 
+                onClick={() => {
+                  const today = new Date().toISOString().split('T')[0];
+                  setStartDate(today);
+                  setEndDate(today);
+                  setCurrentPage(1);
+                }}
+                className="text-xs font-bold text-primary hover:underline"
+              >
+                Today
+              </button>
+              {(startDate || endDate || filterKurir || filterLokasi || filterPembayaran || searchQuery) && (
+                <button 
+                  onClick={() => {
+                    setStartDate('');
+                    setEndDate('');
+                    setFilterKurir('');
+                    setFilterLokasi('');
+                    setFilterPembayaran('');
+                    setSearchQuery('');
+                    setCurrentPage(1);
+                  }}
+                  className="text-xs font-bold text-stone-400 hover:text-stone-600 transition-colors"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <select 
+              value={filterKurir}
+              onChange={(e) => setFilterKurir(e.target.value)}
+              className="px-3 py-1.5 bg-white border border-stone-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="">Semua Kurir</option>
+              {kurirOptions.map(k => <option key={k} value={k}>{k}</option>)}
+            </select>
+
+            <select 
+              value={filterLokasi}
+              onChange={(e) => setFilterLokasi(e.target.value)}
+              className="px-3 py-1.5 bg-white border border-stone-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="">Semua Lokasi</option>
+              {lokasiOptions.map(l => <option key={l} value={l}>{l}</option>)}
+            </select>
+
+            <select 
+              value={filterPembayaran}
+              onChange={(e) => setFilterPembayaran(e.target.value)}
+              className="px-3 py-1.5 bg-white border border-stone-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="">Semua Pembayaran</option>
+              {pembayaranOptions.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
           </div>
         </div>
 
@@ -387,15 +496,17 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                 <span className="material-symbols-outlined">chevron_left</span>
               </button>
               <div className="flex items-center gap-1">
-                {[...Array(totalPages)].map((_, i) => (
+                {getPaginationRange(currentPage, totalPages).map((page, i) => (
                   <button
-                    key={i + 1}
-                    onClick={() => setCurrentPage(i + 1)}
+                    key={i}
+                    onClick={() => typeof page === 'number' && setCurrentPage(page)}
+                    disabled={page === '...'}
                     className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
-                      currentPage === i + 1 ? 'bg-primary text-on-primary' : 'hover:bg-stone-200 text-stone-600'
+                      currentPage === page ? 'bg-primary text-on-primary' : 
+                      page === '...' ? 'cursor-default text-stone-400' : 'hover:bg-stone-200 text-stone-600'
                     }`}
                   >
-                    {i + 1}
+                    {page}
                   </button>
                 ))}
               </div>

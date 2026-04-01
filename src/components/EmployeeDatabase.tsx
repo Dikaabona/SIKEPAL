@@ -5,10 +5,11 @@ import EmployeeForm from './EmployeeForm';
 interface EmployeeDatabaseProps {
   employees: Employee[];
   onSaveEmployee: (emp: Employee) => void;
+  onDeleteEmployee: (id: string) => void;
   company: string;
 }
 
-const EmployeeDatabase: React.FC<EmployeeDatabaseProps> = ({ employees, onSaveEmployee, company }) => {
+const EmployeeDatabase: React.FC<EmployeeDatabaseProps> = ({ employees, onSaveEmployee, onDeleteEmployee, company }) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
 
@@ -42,6 +43,20 @@ const EmployeeDatabase: React.FC<EmployeeDatabaseProps> = ({ employees, onSaveEm
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {employees.map((emp) => (
           <div key={emp.id} className="bg-white p-6 rounded-3xl border border-outline-variant/10 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
+            <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button 
+                onClick={() => { setEditingEmployee(emp); setIsFormOpen(true); }}
+                className="w-8 h-8 rounded-xl bg-stone-100 text-stone-600 flex items-center justify-center hover:bg-primary hover:text-on-primary transition-all"
+              >
+                <span className="material-symbols-outlined text-sm">edit</span>
+              </button>
+              <button 
+                onClick={() => onDeleteEmployee(emp.id)}
+                className="w-8 h-8 rounded-xl bg-stone-100 text-stone-600 flex items-center justify-center hover:bg-error hover:text-on-error transition-all"
+              >
+                <span className="material-symbols-outlined text-sm">delete</span>
+              </button>
+            </div>
             <div className="flex items-center gap-4 mb-6">
               <div className="w-16 h-16 rounded-2xl bg-stone-100 overflow-hidden shrink-0">
                 <img

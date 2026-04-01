@@ -10,9 +10,10 @@ interface ShiftModuleProps {
   onClose: () => void;
   globalShifts: Shift[];
   onRefreshShifts: () => void;
+  onDeleteShift: (id: string) => void;
 }
 
-const ShiftModule: React.FC<ShiftModuleProps> = ({ globalShifts, onClose }) => {
+const ShiftModule: React.FC<ShiftModuleProps> = ({ globalShifts, onClose, onDeleteShift }) => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -33,7 +34,10 @@ const ShiftModule: React.FC<ShiftModuleProps> = ({ globalShifts, onClose }) => {
               <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
                 <span className="material-symbols-outlined text-primary">schedule</span>
               </div>
-              <button className="text-stone-300 hover:text-error transition-colors">
+              <button 
+                onClick={() => onDeleteShift(shift.id)}
+                className="text-stone-300 hover:text-error transition-colors"
+              >
                 <span className="material-symbols-outlined">delete</span>
               </button>
             </div>

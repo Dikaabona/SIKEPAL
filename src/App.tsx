@@ -144,66 +144,79 @@ export default function App() {
 
   // Fetch data from Supabase
   useEffect(() => {
+    const handleSupabaseError = (error: any, operation: string, table: string) => {
+      const errInfo = {
+        error: error.message || String(error),
+        operationType: operation,
+        table,
+        authInfo: {
+          userId: null, // Will be updated if needed
+          email: null,
+        }
+      };
+      console.error('Supabase Error:', JSON.stringify(errInfo));
+    };
+
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // Fetch Employees
+        // Employees
         const { data: empData, error: empError } = await supabase.from('employees').select('*');
         if (empError) throw empError;
-        
-        if (empData && empData.length > 0) {
+        if (empData && empData.length === 0) {
+          await supabase.from('employees').upsert(MOCK_EMPLOYEES);
+          setEmployees(MOCK_EMPLOYEES);
+        } else if (empData) {
           setEmployees(empData);
-        } else {
-          // Seed initial data if empty
-          const { data: seededEmp, error: seedError } = await supabase.from('employees').insert(MOCK_EMPLOYEES).select();
-          if (!seedError && seededEmp) setEmployees(seededEmp);
         }
 
-        // Fetch Attendance
+        // Attendance
         const { data: attData, error: attError } = await supabase.from('attendance').select('*');
         if (attError) throw attError;
-        if (attData && attData.length > 0) {
+        if (attData && attData.length === 0) {
+          await supabase.from('attendance').upsert(MOCK_ATTENDANCE);
+          setAttendanceRecords(MOCK_ATTENDANCE);
+        } else if (attData) {
           setAttendanceRecords(attData);
-        } else {
-          const { data: seededAtt, error: seedAttError } = await supabase.from('attendance').insert(MOCK_ATTENDANCE).select();
-          if (!seedAttError && seededAtt) setAttendanceRecords(seededAtt);
         }
 
-        // Fetch Submissions
+        // Submissions
         const { data: subData, error: subError } = await supabase.from('submissions').select('*');
         if (subError) throw subError;
-        if (subData && subData.length > 0) {
+        if (subData && subData.length === 0) {
+          await supabase.from('submissions').upsert(MOCK_SUBMISSIONS);
+          setSubmissions(MOCK_SUBMISSIONS);
+        } else if (subData) {
           setSubmissions(subData);
-        } else {
-          const { data: seededSub, error: seedSubError } = await supabase.from('submissions').insert(MOCK_SUBMISSIONS).select();
-          if (!seedSubError && seededSub) setSubmissions(seededSub);
         }
 
-        // Fetch Shifts
+        // Shifts
         const { data: shiftData, error: shiftError } = await supabase.from('shifts').select('*');
         if (shiftError) throw shiftError;
-        if (shiftData && shiftData.length > 0) {
+        if (shiftData && shiftData.length === 0) {
+          await supabase.from('shifts').upsert(DEFAULT_SHIFTS);
+          setShifts(DEFAULT_SHIFTS);
+        } else if (shiftData) {
           setShifts(shiftData);
-        } else {
-          const { data: seededShifts, error: seedShiftError } = await supabase.from('shifts').insert(DEFAULT_SHIFTS).select();
-          if (!seedShiftError && seededShifts) setShifts(seededShifts);
         }
 
-        // Fetch Shift Assignments
+        // Shift Assignments
         const { data: assignData, error: assignError } = await supabase.from('shift_assignments').select('*');
         if (assignError) throw assignError;
-        setShiftAssignments(assignData || []);
+        if (assignData) setShiftAssignments(assignData);
 
-        // Fetch Stores
-        const { data: storesData, error: storesError } = await supabase.from('stores').select('*');
-        if (!storesError && storesData) setStores(storesData);
+        // Stores
+        const { data: storeData, error: storeError } = await supabase.from('stores').select('*');
+        if (storeError) throw storeError;
+        if (storeData) setStores(storeData);
 
-        // Fetch Orders
-        const { data: ordersData, error: ordersError } = await supabase.from('orders').select('*');
-        if (!ordersError && ordersData) setOrders(ordersData);
+        // Orders
+        const { data: orderData, error: orderError } = await supabase.from('orders').select('*');
+        if (orderError) throw orderError;
+        if (orderData) setOrders(orderData);
 
-      } catch (error) {
-        console.error('Error fetching data from Supabase:', error);
+      } catch (err) {
+        handleSupabaseError(err, 'fetch', 'all');
       } finally {
         setIsLoading(false);
       }
@@ -212,47 +225,22 @@ export default function App() {
     fetchData();
 
     // Set up real-time subscriptions
-    const empSubscription = supabase.channel('employees_changes').on('postgres_changes', { event: '*', schema: 'public', table: 'employees' }, payload => {
-      if (payload.eventType === 'INSERT') setEmployees(prev => [...prev, payload.new as Employee]);
-      if (payload.eventType === 'UPDATE') setEmployees(prev => prev.map(e => e.id === payload.new.id ? payload.new as Employee : e));
-      if (payload.eventType === 'DELETE') setEmployees(prev => prev.filter(e => e.id !== payload.old.id));
-    }).subscribe();
-
-    const attSubscription = supabase.channel('attendance_changes').on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, payload => {
-      if (payload.eventType === 'INSERT') setAttendanceRecords(prev => [...prev, payload.new as AttendanceRecord]);
-      if (payload.eventType === 'UPDATE') setAttendanceRecords(prev => prev.map(r => r.id === payload.new.id ? payload.new as AttendanceRecord : r));
-      if (payload.eventType === 'DELETE') setAttendanceRecords(prev => prev.filter(r => r.id !== payload.old.id));
-    }).subscribe();
-
-    const subSubscription = supabase.channel('submissions_changes').on('postgres_changes', { event: '*', schema: 'public', table: 'submissions' }, payload => {
-      if (payload.eventType === 'INSERT') setSubmissions(prev => [...prev, payload.new as Submission]);
-      if (payload.eventType === 'UPDATE') setSubmissions(prev => prev.map(s => s.id === payload.new.id ? payload.new as Submission : s));
-      if (payload.eventType === 'DELETE') setSubmissions(prev => prev.filter(s => s.id !== payload.old.id));
-    }).subscribe();
-
-    const storeSubscription = supabase.channel('stores_changes').on('postgres_changes', { event: '*', schema: 'public', table: 'stores' }, payload => {
-      if (payload.eventType === 'INSERT') setStores(prev => [...prev, payload.new as Store]);
-      if (payload.eventType === 'UPDATE') setStores(prev => prev.map(s => s.id === payload.new.id ? payload.new as Store : s));
-      if (payload.eventType === 'DELETE') setStores(prev => prev.filter(s => s.id !== payload.old.id));
-    }).subscribe();
-
-    const orderSubscription = supabase.channel('orders_changes').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, payload => {
-      if (payload.eventType === 'INSERT') setOrders(prev => [...prev, payload.new as Order]);
-      if (payload.eventType === 'UPDATE') setOrders(prev => prev.map(o => o.id === payload.new.id ? payload.new as Order : o));
-      if (payload.eventType === 'DELETE') setOrders(prev => prev.filter(o => o.id !== payload.old.id));
-    }).subscribe();
+    const channels = [
+      supabase.channel('employees').on('postgres_changes', { event: '*', schema: 'public', table: 'employees' }, fetchData).subscribe(),
+      supabase.channel('attendance').on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, fetchData).subscribe(),
+      supabase.channel('submissions').on('postgres_changes', { event: '*', schema: 'public', table: 'submissions' }, fetchData).subscribe(),
+      supabase.channel('shifts').on('postgres_changes', { event: '*', schema: 'public', table: 'shifts' }, fetchData).subscribe(),
+      supabase.channel('shift_assignments').on('postgres_changes', { event: '*', schema: 'public', table: 'shift_assignments' }, fetchData).subscribe(),
+      supabase.channel('stores').on('postgres_changes', { event: '*', schema: 'public', table: 'stores' }, fetchData).subscribe(),
+      supabase.channel('orders').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchData).subscribe(),
+    ];
 
     return () => {
-      supabase.removeChannel(empSubscription);
-      supabase.removeChannel(attSubscription);
-      supabase.removeChannel(subSubscription);
-      supabase.removeChannel(storeSubscription);
-      supabase.removeChannel(orderSubscription);
+      channels.forEach(channel => channel.unsubscribe());
     };
   }, []);
 
   const refreshData = () => {
-    // Re-fetch logic if needed
     console.log('Refreshing data from Supabase...');
   };
 
@@ -260,23 +248,9 @@ export default function App() {
     try {
       const { error } = await supabase.from('employees').upsert(employee);
       if (error) throw error;
-      // State will be updated via real-time subscription
     } catch (error: any) {
       console.error('Error saving employee:', error);
-      
-      // If it's an RLS error, alert the user
-      if (error.code === '42501') {
-        alert('Gagal menyimpan ke database: Masalah Izin (RLS Policy). Silakan ikuti instruksi SQL di dashboard Supabase Anda.');
-      } else {
-        alert('Gagal menyimpan ke database: ' + (error.message || 'Unknown error'));
-      }
-
-      // Fallback: update local state so the UI reflects the change temporarily
-      setEmployees(prev => {
-        const exists = prev.find(e => e.id === employee.id);
-        if (exists) return prev.map(e => e.id === employee.id ? employee : e);
-        return [...prev, employee];
-      });
+      alert('Gagal menyimpan ke database: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -286,11 +260,6 @@ export default function App() {
       if (error) throw error;
     } catch (error) {
       console.error('Error saving attendance:', error);
-      setAttendanceRecords(prev => {
-        const exists = prev.find(r => r.id === record.id);
-        if (exists) return prev.map(r => r.id === record.id ? record : r);
-        return [...prev, record];
-      });
     }
   };
 
@@ -300,11 +269,6 @@ export default function App() {
       if (error) throw error;
     } catch (error) {
       console.error('Error saving submission:', error);
-      setSubmissions(prev => {
-        const exists = prev.find(s => s.id === submission.id);
-        if (exists) return prev.map(s => s.id === submission.id ? submission : s);
-        return [...prev, submission];
-      });
     }
   };
 
@@ -312,26 +276,16 @@ export default function App() {
     try {
       const { error } = await supabase.from('stores').upsert(store);
       if (error) throw error;
-      
-      setStores(prev => {
-        const exists = prev.find(s => s.id === store.id);
-        if (exists) return prev.map(s => s.id === store.id ? store : s);
-        return [...prev, store];
-      });
     } catch (error) {
       console.error('Error saving store:', error);
-      alert('Gagal menyimpan data toko. Pastikan tabel "stores" sudah dibuat di Supabase.');
+      alert('Gagal menyimpan data toko. Pastikan Supabase sudah dikonfigurasi.');
     }
   };
 
   const handleDeleteAllStores = async () => {
     try {
-      const { error } = await supabase
-        .from('stores')
-        .delete()
-        .neq('id', ''); // Delete all rows
+      const { error } = await supabase.from('stores').delete().neq('id', '0');
       if (error) throw error;
-      setStores([]);
     } catch (error) {
       console.error('Error deleting all stores:', error);
       alert('Gagal menghapus data toko.');
@@ -342,26 +296,16 @@ export default function App() {
     try {
       const { error } = await supabase.from('orders').upsert(order);
       if (error) throw error;
-      
-      setOrders(prev => {
-        const exists = prev.find(o => o.id === order.id);
-        if (exists) return prev.map(o => o.id === order.id ? order : o);
-        return [...prev, order];
-      });
     } catch (error) {
       console.error('Error saving order:', error);
-      alert('Gagal menyimpan data orderan. Pastikan tabel "orders" sudah dibuat di Supabase.');
+      alert('Gagal menyimpan data orderan. Pastikan Supabase sudah dikonfigurasi.');
     }
   };
 
   const handleDeleteAllOrders = async () => {
     try {
-      const { error } = await supabase
-        .from('orders')
-        .delete()
-        .neq('id', ''); 
+      const { error } = await supabase.from('orders').delete().neq('id', '0');
       if (error) throw error;
-      setOrders([]);
     } catch (error) {
       console.error('Error deleting all orders:', error);
       alert('Gagal menghapus data orderan.');
@@ -625,10 +569,6 @@ export default function App() {
               />
             </div>
             <div className="flex items-center gap-2">
-              <button className="p-2 text-stone-500 hover:bg-orange-50 rounded-full transition-colors relative">
-                <span className="material-symbols-outlined">notifications</span>
-                <span className="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
-              </button>
               <div className="w-8 h-8 rounded-full overflow-hidden ml-2 border border-stone-200 bg-white shadow-sm flex items-center justify-center">
                 <img
                   alt="User Profile"

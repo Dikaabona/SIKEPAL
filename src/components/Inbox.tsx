@@ -4,12 +4,13 @@ import { Submission, Broadcast, Employee, UserRole } from '../types';
 interface InboxProps {
   submissions: Submission[];
   onSaveSubmission: (submission: Submission) => void;
+  onDeleteSubmission: (submissionId: string) => void;
   employees: Employee[];
   userRole: UserRole;
   currentEmployeeId: string;
 }
 
-const Inbox: React.FC<InboxProps> = ({ submissions, onSaveSubmission, employees, userRole, currentEmployeeId }) => {
+const Inbox: React.FC<InboxProps> = ({ submissions, onSaveSubmission, onDeleteSubmission, employees, userRole, currentEmployeeId }) => {
   const handleAction = (id: string, status: 'Approved' | 'Rejected') => {
     const submission = submissions.find(sub => sub.id === id);
     if (submission) {
@@ -64,7 +65,7 @@ const Inbox: React.FC<InboxProps> = ({ submissions, onSaveSubmission, employees,
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                   <div className="flex items-center gap-3">
                     {sub.status === 'Pending' ? (
                       <>
                         <button 
@@ -81,11 +82,20 @@ const Inbox: React.FC<InboxProps> = ({ submissions, onSaveSubmission, employees,
                         </button>
                       </>
                     ) : (
-                      <span className={`px-4 py-2 rounded-xl font-bold text-sm ${
-                        sub.status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                      }`}>
-                        {sub.status.toUpperCase()}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        <span className={`px-4 py-2 rounded-xl font-bold text-sm ${
+                          sub.status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        }`}>
+                          {sub.status.toUpperCase()}
+                        </span>
+                        <button 
+                          onClick={() => onDeleteSubmission(sub.id)}
+                          className="p-2 text-stone-300 hover:text-red-500 transition-colors"
+                          title="Hapus Pengajuan"
+                        >
+                          <span className="material-symbols-outlined">delete</span>
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>

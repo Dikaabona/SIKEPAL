@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Store } from '../types';
 import { Icons } from '../constants';
-import { supabase } from '../lib/supabase';
+import { getPaginationRange } from '../lib/utils';
 
 interface StoreDatabaseProps {
   stores: Store[];
@@ -194,7 +194,7 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
             onClick={syncFromSpreadsheet}
             disabled={isSyncing}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all shadow-sm ${
-              isSyncing ? 'bg-stone-100 text-stone-400 cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700'
+              isSyncing ? 'bg-stone-100 text-stone-400 cursor-not-allowed' : 'bg-white text-green-600 border border-green-600 hover:bg-green-50'
             }`}
           >
             <span className={`material-symbols-outlined text-lg ${isSyncing ? 'animate-spin' : ''}`}>
@@ -245,64 +245,68 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full text-left border-collapse min-w-[1200px]">
             <thead>
               <tr className="bg-stone-50/50">
-                <th className="px-6 py-4 text-xs font-bold text-stone-500 uppercase tracking-wider font-label">Nama Toko</th>
-                <th className="px-6 py-4 text-xs font-bold text-stone-500 uppercase tracking-wider font-label">Grade</th>
-                <th className="px-6 py-4 text-xs font-bold text-stone-500 uppercase tracking-wider font-label">PIC</th>
-                <th className="px-6 py-4 text-xs font-bold text-stone-500 uppercase tracking-wider font-label">No PIC</th>
-                <th className="px-6 py-4 text-xs font-bold text-stone-500 uppercase tracking-wider font-label">Kategori</th>
-                <th className="px-6 py-4 text-xs font-bold text-stone-500 uppercase tracking-wider font-label">Harga</th>
-                <th className="px-6 py-4 text-xs font-bold text-stone-500 uppercase tracking-wider font-label">Pembayaran</th>
-                <th className="px-6 py-4 text-xs font-bold text-stone-500 uppercase tracking-wider font-label">Operasional</th>
-                <th className="px-6 py-4 text-xs font-bold text-stone-500 uppercase tracking-wider font-label">Kurir</th>
-                <th className="px-6 py-4 text-xs font-bold text-stone-500 uppercase tracking-wider font-label">Note</th>
-                <th className="px-6 py-4 text-xs font-bold text-stone-500 uppercase tracking-wider font-label text-right">Actions</th>
+                <th className="px-6 py-4 text-[10px] font-black text-stone-500 uppercase tracking-widest whitespace-nowrap">Nama Toko</th>
+                <th className="px-6 py-4 text-[10px] font-black text-stone-500 uppercase tracking-widest whitespace-nowrap text-center">Grade</th>
+                <th className="px-6 py-4 text-[10px] font-black text-stone-500 uppercase tracking-widest whitespace-nowrap">PIC</th>
+                <th className="px-6 py-4 text-[10px] font-black text-stone-500 uppercase tracking-widest whitespace-nowrap">No PIC</th>
+                <th className="px-6 py-4 text-[10px] font-black text-stone-500 uppercase tracking-widest whitespace-nowrap">Kategori</th>
+                <th className="px-6 py-4 text-[10px] font-black text-stone-500 uppercase tracking-widest whitespace-nowrap">Harga</th>
+                <th className="px-6 py-4 text-[10px] font-black text-stone-500 uppercase tracking-widest whitespace-nowrap">Pembayaran</th>
+                <th className="px-6 py-4 text-[10px] font-black text-stone-500 uppercase tracking-widest whitespace-nowrap">Operasional</th>
+                <th className="px-6 py-4 text-[10px] font-black text-stone-500 uppercase tracking-widest whitespace-nowrap">Kurir</th>
+                <th className="px-6 py-4 text-[10px] font-black text-stone-500 uppercase tracking-widest whitespace-nowrap">Note</th>
+                <th className="px-6 py-4 text-[10px] font-black text-stone-500 uppercase tracking-widest whitespace-nowrap text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
               {paginatedStores.length > 0 ? (
                 paginatedStores.map((store) => (
                   <tr key={store.id} className="hover:bg-stone-50/50 transition-colors group">
-                    <td className="px-6 py-4">
-                      <div className="font-bold text-stone-800">{store.namaToko}</div>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="font-black text-stone-800 text-sm">{store.namaToko}</div>
                       {store.linkGmaps && (
                         <a 
                           href={store.linkGmaps} 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="text-[10px] text-primary hover:underline flex items-center gap-1 mt-1"
+                          className="text-[9px] font-bold text-primary hover:underline flex items-center gap-1 mt-0.5 opacity-70 hover:opacity-100 transition-opacity"
                         >
-                          <span className="material-symbols-outlined text-[12px]">location_on</span>
+                          <span className="material-symbols-outlined text-[11px]">location_on</span>
                           View on Maps
                         </a>
                       )}
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase ${
-                        store.grade === 'A' ? 'bg-green-100 text-green-700' :
-                        store.grade === 'B' ? 'bg-blue-100 text-blue-700' :
-                        store.grade === 'C' ? 'bg-yellow-100 text-yellow-700' :
-                        store.grade === 'D' ? 'bg-orange-100 text-orange-700' :
-                        store.grade === 'E' ? 'bg-red-100 text-red-700' :
-                        'bg-stone-100 text-stone-600'
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-lg text-[11px] font-black shadow-sm ${
+                        store.grade === 'A' ? 'bg-green-500 text-white' :
+                        store.grade === 'B' ? 'bg-blue-500 text-white' :
+                        store.grade === 'C' ? 'bg-yellow-500 text-white' :
+                        store.grade === 'D' ? 'bg-orange-500 text-white' :
+                        store.grade === 'E' ? 'bg-red-500 text-white' :
+                        'bg-stone-200 text-stone-600'
                       }`}>
-                        Grade {store.grade || '-'}
+                        {store.grade || '-'}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-stone-600 font-medium">{store.namaPIC}</div>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-xs text-stone-700 font-bold uppercase tracking-tight">{store.namaPIC || '-'}</div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-stone-600">{store.nomorPIC}</td>
-                    <td className="px-6 py-4 text-sm text-stone-600">{store.kategori}</td>
-                    <td className="px-6 py-4 text-sm text-stone-600 font-mono">{store.harga}</td>
-                    <td className="px-6 py-4 text-sm text-stone-600">{store.pembayaran}</td>
-                    <td className="px-6 py-4 text-sm text-stone-600">{store.operasional}</td>
-                    <td className="px-6 py-4 text-sm text-stone-600">{store.kurir}</td>
-                    <td className="px-6 py-4 text-sm text-stone-600 max-w-[150px] truncate" title={store.note}>{store.note}</td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-stone-500 font-medium">{store.nomorPIC || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="px-2 py-1 bg-stone-100 text-stone-600 rounded-md text-[10px] font-bold uppercase">{store.kategori || '-'}</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-stone-600 font-bold">{store.harga || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-stone-500 font-medium uppercase">{store.pembayaran || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-xs text-stone-500 font-medium uppercase">{store.operasional || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-xs text-stone-700 font-bold uppercase">{store.kurir || '-'}</span>
+                    </td>
+                    <td className="px-6 py-4 text-xs text-stone-500 font-medium max-w-[200px] truncate" title={store.note}>{store.note || '-'}</td>
+                    <td className="px-6 py-4 text-right whitespace-nowrap">
                       <button 
                         onClick={() => {
                           setNewStore(store);
@@ -342,15 +346,17 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
                 <span className="material-symbols-outlined">chevron_left</span>
               </button>
               <div className="flex items-center gap-1">
-                {[...Array(totalPages)].map((_, i) => (
+                {getPaginationRange(currentPage, totalPages).map((page, i) => (
                   <button
-                    key={i + 1}
-                    onClick={() => setCurrentPage(i + 1)}
+                    key={i}
+                    onClick={() => typeof page === 'number' && setCurrentPage(page)}
+                    disabled={page === '...'}
                     className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
-                      currentPage === i + 1 ? 'bg-primary text-on-primary' : 'hover:bg-stone-200 text-stone-600'
+                      currentPage === page ? 'bg-primary text-on-primary' : 
+                      page === '...' ? 'cursor-default text-stone-400' : 'hover:bg-stone-200 text-stone-600'
                     }`}
                   >
-                    {i + 1}
+                    {page}
                   </button>
                 ))}
               </div>
