@@ -23,6 +23,8 @@ import RecruitmentModule from './components/RecruitmentModule';
 import { InvoiceModule } from './components/InvoiceModule';
 import { AdvertisingModule } from './components/AdvertisingModule';
 import SalesReport from './components/SalesReport';
+import PrintAdmin from './components/PrintAdmin';
+import OrderReport from './components/OrderReport';
 
 // Mock Data
 const MOCK_EMPLOYEES: Employee[] = [
@@ -123,7 +125,7 @@ const MOCK_SUBMISSIONS: Submission[] = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
-  const [expandedMenus, setExpandedMenus] = useState<string[]>(['attendance', 'database']);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(['attendance', 'database', 'report']);
   const [stores, setStores] = useState<Store[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -343,6 +345,16 @@ export default function App() {
     { id: 'schedule', label: 'Schedule', icon: 'calendar_month' },
     { id: 'finance', label: 'Finance', icon: 'payments' },
     { id: 'inventory', label: 'Inventory', icon: 'inventory_2' },
+    { 
+      id: 'report', 
+      label: 'Sales Report', 
+      icon: 'assessment',
+      subItems: [
+        { id: 'sales_report', label: 'Sales Report', icon: 'trending_up' },
+        { id: 'report_order', label: 'Order', icon: 'receipt_long' },
+        { id: 'print_admin', label: 'Print Admin', icon: 'print' },
+      ]
+    },
     { id: 'settings', label: 'Settings', icon: 'settings' },
   ];
 
@@ -428,6 +440,13 @@ export default function App() {
         );
       case 'settings':
         return <SettingsModule userCompany={userCompany} userEmail={userEmail} userRole={userRole} />;
+      case 'report':
+      case 'sales_report':
+        return <SalesReport company={userCompany} />;
+      case 'print_admin':
+        return <PrintAdmin company={userCompany} />;
+      case 'report_order':
+        return <OrderReport company={userCompany} />;
       default:
         return (
           <div className="flex items-center justify-center h-full text-stone-400">

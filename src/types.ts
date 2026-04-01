@@ -23,7 +23,11 @@ export type ActiveTab =
   | 'recruitment' 
   | 'mobile_history'
   | 'advertising'
-  | 'sales';
+  | 'sales'
+  | 'report'
+  | 'sales_report'
+  | 'print_admin'
+  | 'report_order';
 
 export interface Employee {
   id: string;

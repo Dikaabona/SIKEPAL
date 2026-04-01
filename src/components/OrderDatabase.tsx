@@ -24,6 +24,11 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
   const [filterLokasi, setFilterLokasi] = useState('');
   const [filterPembayaran, setFilterPembayaran] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncYear, setSyncYear] = useState('2026');
+  const [syncMonth, setSyncMonth] = useState('Semua');
+  const [syncDay, setSyncDay] = useState('Semua');
+  const [syncGid, setSyncGid] = useState('0');
+  const [showSyncSettings, setShowSyncSettings] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -63,27 +68,116 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
     return Array.from(options).sort();
   }, [orders]);
 
+  const parseIndoDate = (dateStr: string) => {
+    if (!dateStr) return null;
+    const cleanStr = dateStr.trim();
+
+    // Handle "Rabu, 1, April, 2026" or "Rabu, 1 April 2026" format
+    if (cleanStr.includes(',') || cleanStr.split(' ').length >= 3) {
+      const parts = cleanStr.split(/[,\s]+/).map(p => p.trim()).filter(Boolean);
+      
+      // We expect at least [Day, Month, Year] or [DayName, Day, Month, Year]
+      if (parts.length >= 3) {
+        const year = parseInt(parts[parts.length - 1]);
+        const monthName = parts[parts.length - 2].toLowerCase();
+        const day = parseInt(parts[parts.length - 3]);
+
+        const months: { [key: string]: number } = {
+          'januari': 0, 'februari': 1, 'maret': 2, 'april': 3, 'mei': 4, 'juni': 5,
+          'juli': 6, 'agustus': 7, 'september': 8, 'oktober': 9, 'november': 10, 'desember': 11,
+          'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'jun': 5,
+          'jul': 6, 'agu': 7, 'sep': 8, 'okt': 9, 'nov': 10, 'des': 11
+        };
+
+        const month = months[monthName];
+        if (!isNaN(day) && month !== undefined && !isNaN(year)) {
+          let finalYear = year;
+          if (finalYear < 100) finalYear += 2000;
+          return new Date(finalYear, month, day);
+        }
+      }
+    }
+
+    // Handle YYYY-MM-DD (from input date)
+    if (cleanStr.includes('-') && cleanStr.split('-')[0].length === 4) {
+      return new Date(cleanStr);
+    }
+    // Handle DD/MM/YYYY or DD-MM-YYYY
+    const parts = cleanStr.split(/[/-]/);
+    if (parts.length === 3) {
+      const d = parseInt(parts[0]);
+      const m = parseInt(parts[1]) - 1;
+      let y = parseInt(parts[2]);
+      if (y < 100) y += 2000;
+      return new Date(y, m, d);
+    }
+    const d = new Date(cleanStr);
+    return isNaN(d.getTime()) ? null : d;
+  };
+
   const filteredOrders = useMemo(() => {
     return orders.filter(order => {
       const matchesSearch = 
         order.namaLokasi.toLowerCase().includes(searchQuery.toLowerCase()) ||
         order.namaKurir.toLowerCase().includes(searchQuery.toLowerCase());
       
-      const orderDate = new Date(order.tanggal);
-      const matchesStartDate = !startDate || orderDate >= new Date(startDate);
-      const matchesEndDate = !endDate || orderDate <= new Date(endDate);
+      const orderDate = parseIndoDate(order.tanggal);
+      const start = startDate ? parseIndoDate(startDate) : null;
+      const end = endDate ? parseIndoDate(endDate) : null;
+
+      const matchesStartDate = !start || (orderDate && orderDate >= start);
+      const matchesEndDate = !end || (orderDate && orderDate <= end);
       
       const matchesKurir = !filterKurir || order.namaKurir === filterKurir;
       const matchesLokasi = !filterLokasi || order.namaLokasi === filterLokasi;
       const matchesPembayaran = !filterPembayaran || order.pembayaran === filterPembayaran;
 
       return matchesSearch && matchesStartDate && matchesEndDate && matchesKurir && matchesLokasi && matchesPembayaran;
-    }).sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
+    }).sort((a, b) => {
+      const dateA = parseIndoDate(a.tanggal);
+      const dateB = parseIndoDate(b.tanggal);
+      return (dateB?.getTime() || 0) - (dateA?.getTime() || 0);
+    });
   }, [orders, searchQuery, startDate, endDate, filterKurir, filterLokasi, filterPembayaran]);
 
   const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedOrders = filteredOrders.slice(startIndex, startIndex + itemsPerPage);
+
+  const summary = useMemo(() => {
+    return filteredOrders.reduce((acc, order) => {
+      acc.tunaPedes += order.tunaPedes;
+      acc.tunaMayo += order.tunaMayo;
+      acc.ayamMayo += order.ayamMayo;
+      acc.ayamPedes += order.ayamPedes;
+      acc.menuBulanan += order.menuBulanan;
+      acc.jumlahKirim += order.jumlahKirim;
+      acc.sisa += order.sisa;
+      return acc;
+    }, {
+      tunaPedes: 0,
+      tunaMayo: 0,
+      ayamMayo: 0,
+      ayamPedes: 0,
+      menuBulanan: 0,
+      jumlahKirim: 0,
+      sisa: 0
+    });
+  }, [filteredOrders]);
+
+  const percentageSisa = summary.jumlahKirim > 0 ? (summary.sisa / summary.jumlahKirim) * 100 : 0;
+
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '-';
+    const date = parseIndoDate(dateStr);
+    if (!date) return dateStr;
+    
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    
+    return `${day}/${month}/${year}`;
+  };
 
   const handleSave = async () => {
     if (!newOrder.namaLokasi || !newOrder.tanggal) {
@@ -141,7 +235,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
   const syncFromSpreadsheet = async () => {
     setIsSyncing(true);
     try {
-      const sheetUrl = "https://docs.google.com/spreadsheets/d/1FdhqqzioWvySOgK0o4mw6q9-DTUJdLwoDToYr1xKgwA/export?format=csv&gid=0";
+      const sheetUrl = `https://docs.google.com/spreadsheets/d/1FdhqqzioWvySOgK0o4mw6q9-DTUJdLwoDToYr1xKgwA/export?format=csv&gid=${syncGid}`;
       const response = await fetch(sheetUrl);
       const csvText = await response.text();
       
@@ -211,10 +305,35 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
 
         const tanggalValue = row[idx.tanggal] || '';
         
-        // Filter for year 2026 only
-        if (!tanggalValue.includes('2026') && !tanggalValue.includes('/26') && !tanggalValue.includes('-26')) {
+        // Parse date for filtering using the new helper
+        const rowDate = parseIndoDate(tanggalValue);
+        const isValidDate = rowDate !== null;
+
+        // Filter for selected year
+        const shortYear = syncYear.slice(-2);
+        const yearMatch = tanggalValue.includes(syncYear) || tanggalValue.includes(`/${shortYear}`) || tanggalValue.includes(`-${shortYear}`);
+        
+        if (!yearMatch) {
           skippedCount++;
           continue;
+        }
+
+        // Filter for selected month
+        if (syncMonth !== 'Semua' && isValidDate) {
+          const monthNum = parseInt(syncMonth);
+          if (rowDate.getMonth() + 1 !== monthNum) {
+            skippedCount++;
+            continue;
+          }
+        }
+
+        // Filter for selected day
+        if (syncDay !== 'Semua' && isValidDate) {
+          const dayNum = parseInt(syncDay);
+          if (rowDate.getDate() !== dayNum) {
+            skippedCount++;
+            continue;
+          }
         }
 
         const orderId = `order_${tanggalValue}_${row[idx.lokasi] || Math.random().toString(36).substr(2, 9)}`.toLowerCase().replace(/[^a-z0-9]/g, '_');
@@ -246,7 +365,10 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
         syncCount++;
       }
 
-      alert(`Berhasil sinkronisasi ${syncCount} data orderan tahun 2026. (${skippedCount} data tahun lain dilewati)`);
+      const monthLabel = syncMonth === 'Semua' ? '' : ` bulan ${new Date(2000, parseInt(syncMonth) - 1).toLocaleString('id-ID', { month: 'long' })}`;
+      const dayLabel = syncDay === 'Semua' ? '' : ` tanggal ${syncDay}`;
+      alert(`Berhasil sinkronisasi ${syncCount} data orderan tahun ${syncYear}${monthLabel}${dayLabel}. (${skippedCount} data lain dilewati)`);
+      setShowSyncSettings(false);
     } catch (error) {
       console.error('Sync error:', error);
       alert('Gagal sinkronisasi data. Pastikan URL spreadsheet benar dan dapat diakses publik.');
@@ -276,7 +398,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
             Clear All
           </button>
           <button 
-            onClick={syncFromSpreadsheet}
+            onClick={() => setShowSyncSettings(true)}
             disabled={isSyncing}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all shadow-sm ${
               isSyncing ? 'bg-stone-100 text-stone-400 cursor-not-allowed' : 'bg-white text-primary border border-primary hover:bg-primary/5'
@@ -412,6 +534,79 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
           </div>
         </div>
 
+        {/* Summary Section */}
+        <div className="p-6 border-b border-stone-100 bg-white overflow-x-auto">
+          <div className="min-w-[800px]">
+            <div className="grid grid-cols-10 gap-4 mb-4">
+              <div className="col-span-2 flex flex-col justify-center">
+                <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">TANGGAL</span>
+                <span className="text-sm font-black text-stone-800">
+                  {startDate === endDate && startDate ? formatDate(startDate) : 'Multiple Dates'}
+                </span>
+              </div>
+              <div className="col-span-8 grid grid-cols-8 gap-2">
+                <div className="text-center">
+                  <span className="block text-[9px] font-black text-pink-500 uppercase leading-tight">TUNA<br/>PEDES</span>
+                </div>
+                <div className="text-center">
+                  <span className="block text-[9px] font-black text-blue-600 uppercase leading-tight">TUNA<br/>MAYO</span>
+                </div>
+                <div className="text-center">
+                  <span className="block text-[9px] font-black text-yellow-600 uppercase leading-tight">AYAM<br/>MAYO</span>
+                </div>
+                <div className="text-center">
+                  <span className="block text-[9px] font-black text-red-700 uppercase leading-tight">AYAM<br/>PEDES</span>
+                </div>
+                <div className="text-center">
+                  <span className="block text-[9px] font-black text-green-800 uppercase leading-tight">MENU<br/>BULANAN</span>
+                </div>
+                <div className="text-center">
+                  <span className="block text-[9px] font-black text-stone-800 uppercase leading-tight pt-2">JUMLAH</span>
+                </div>
+                <div className="text-center">
+                  <span className="block text-[9px] font-black text-stone-800 uppercase leading-tight pt-2">SISA</span>
+                </div>
+                <div className="text-center">
+                  <span className="block text-[9px] font-black text-stone-800 uppercase leading-tight pt-2">%</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-10 gap-4 items-center">
+              <div className="col-span-2 flex flex-col justify-center">
+                <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">NAMA</span>
+                <span className="text-sm font-black text-stone-800 uppercase">{filterKurir || 'SEMUA KURIR'}</span>
+              </div>
+              <div className="col-span-8 grid grid-cols-8 gap-2">
+                <div className="text-center py-2 bg-stone-50 rounded-xl border border-stone-100">
+                  <span className="text-sm font-black text-stone-800">{summary.tunaPedes}</span>
+                </div>
+                <div className="text-center py-2 bg-stone-50 rounded-xl border border-stone-100">
+                  <span className="text-sm font-black text-stone-800">{summary.tunaMayo}</span>
+                </div>
+                <div className="text-center py-2 bg-stone-50 rounded-xl border border-stone-100">
+                  <span className="text-sm font-black text-stone-800">{summary.ayamMayo}</span>
+                </div>
+                <div className="text-center py-2 bg-stone-50 rounded-xl border border-stone-100">
+                  <span className="text-sm font-black text-stone-800">{summary.ayamPedes}</span>
+                </div>
+                <div className="text-center py-2 bg-stone-50 rounded-xl border border-stone-100">
+                  <span className="text-sm font-black text-stone-800">{summary.menuBulanan}</span>
+                </div>
+                <div className="text-center py-2 bg-stone-100 rounded-xl border border-stone-200">
+                  <span className="text-sm font-black text-stone-900">{summary.jumlahKirim}</span>
+                </div>
+                <div className="text-center py-2 bg-stone-50 rounded-xl border border-stone-100">
+                  <span className="text-sm font-black text-stone-800">{summary.sisa}</span>
+                </div>
+                <div className="text-center py-2 bg-stone-50 rounded-xl border border-stone-100">
+                  <span className="text-sm font-black text-stone-800">{percentageSisa.toFixed(2)}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[1500px]">
             <thead>
@@ -440,7 +635,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
               {paginatedOrders.length > 0 ? (
                 paginatedOrders.map((order) => (
                   <tr key={order.id} className="hover:bg-stone-50/50 transition-colors group">
-                    <td className="px-4 py-4 text-xs text-stone-600">{order.tanggal}</td>
+                    <td className="px-4 py-4 text-xs text-stone-600">{formatDate(order.tanggal)}</td>
                     <td className="px-4 py-4 text-xs font-bold text-stone-800">{order.namaKurir}</td>
                     <td className="px-4 py-4 text-xs font-bold text-stone-800">{order.namaLokasi}</td>
                     <td className="px-4 py-4 text-xs text-stone-600 text-center">{order.tunaPedes}</td>
@@ -455,7 +650,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                     <td className="px-4 py-4 text-xs text-red-600 font-bold">{order.jumlahPiutang.toLocaleString()}</td>
                     <td className="px-4 py-4 text-xs text-green-600 font-bold">Rp{order.jumlahUang.toLocaleString()}</td>
                     <td className="px-4 py-4 text-xs text-stone-600">{order.pembayaran}</td>
-                    <td className="px-4 py-4 text-xs text-stone-600">{order.tanggalBayar}</td>
+                    <td className="px-4 py-4 text-xs text-stone-600">{formatDate(order.tanggalBayar)}</td>
                     <td className="px-4 py-4 text-xs text-stone-600">Rp{order.diskon.toLocaleString()}</td>
                     <td className="px-4 py-4 text-right">
                       <button 
@@ -521,6 +716,126 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
           </div>
         )}
       </div>
+
+      {/* Sync Settings Modal */}
+      <AnimatePresence>
+        {showSyncSettings && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => !isSyncing && setShowSyncSettings(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-6 border-b border-stone-100 flex justify-between items-center bg-stone-50/50">
+                <h3 className="text-lg font-black text-stone-800 uppercase tracking-tight">Pengaturan Sinkronisasi</h3>
+                <button 
+                  onClick={() => setShowSyncSettings(false)}
+                  disabled={isSyncing}
+                  className="w-8 h-8 rounded-full hover:bg-stone-200 flex items-center justify-center text-stone-400 transition-colors disabled:opacity-30"
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Tahun</label>
+                    <select 
+                      value={syncYear}
+                      onChange={(e) => setSyncYear(e.target.value)}
+                      disabled={isSyncing}
+                      className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all disabled:opacity-50"
+                    >
+                      <option value="2024">2024</option>
+                      <option value="2025">2025</option>
+                      <option value="2026">2026</option>
+                      <option value="2027">2027</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Bulan</label>
+                    <select 
+                      value={syncMonth}
+                      onChange={(e) => setSyncMonth(e.target.value)}
+                      disabled={isSyncing}
+                      className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all disabled:opacity-50"
+                    >
+                      <option value="Semua">Semua</option>
+                      {Array.from({ length: 12 }, (_, i) => (
+                        <option key={i + 1} value={i + 1}>
+                          {new Date(2000, i).toLocaleString('id-ID', { month: 'long' })}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Hari</label>
+                    <select 
+                      value={syncDay}
+                      onChange={(e) => setSyncDay(e.target.value)}
+                      disabled={isSyncing}
+                      className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all disabled:opacity-50"
+                    >
+                      <option value="Semua">Semua</option>
+                      {Array.from({ length: 31 }, (_, i) => (
+                        <option key={i + 1} value={i + 1}>{i + 1}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Sheet ID (GID)</label>
+                  <input 
+                    type="text" 
+                    value={syncGid}
+                    onChange={(e) => setSyncGid(e.target.value)}
+                    disabled={isSyncing}
+                    placeholder="Contoh: 0"
+                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all disabled:opacity-50"
+                  />
+                  <p className="text-[10px] text-stone-500 ml-1 italic">GID dari URL spreadsheet (biasanya 0 untuk sheet pertama).</p>
+                </div>
+
+                <div className="pt-4 flex gap-3">
+                  <button 
+                    onClick={() => setShowSyncSettings(false)}
+                    disabled={isSyncing}
+                    className="flex-1 px-6 py-2 border border-stone-200 text-stone-600 rounded-xl font-bold text-sm hover:bg-stone-50 transition-all disabled:opacity-50"
+                  >
+                    Batal
+                  </button>
+                  <button 
+                    onClick={syncFromSpreadsheet}
+                    disabled={isSyncing}
+                    className="flex-1 px-6 py-2 bg-primary text-on-primary rounded-xl font-bold text-sm hover:bg-primary/90 transition-all shadow-md shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isSyncing ? (
+                      <>
+                        <span className="material-symbols-outlined text-sm animate-spin">sync</span>
+                        Syncing...
+                      </>
+                    ) : (
+                      'Mulai Tarik Data'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Add/Edit Modal */}
       <AnimatePresence>
