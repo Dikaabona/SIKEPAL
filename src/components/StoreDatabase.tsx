@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Store } from '../types';
+import { Store, UserRole } from '../types';
 import { Icons } from '../constants';
 import { getPaginationRange } from '../lib/utils';
 
@@ -9,9 +9,10 @@ interface StoreDatabaseProps {
   onSaveStore: (store: Store) => void;
   onDeleteAllStores: () => void;
   company: string;
+  userRole: UserRole;
 }
 
-const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDeleteAllStores, company }) => {
+const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDeleteAllStores, company, userRole }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
@@ -178,53 +179,61 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
           <p className="text-stone-500 text-sm font-medium">Manage and sync store information</p>
         </div>
         
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => {
-              if (confirm('Apakah Anda yakin ingin menghapus SEMUA data toko? Tindakan ini tidak dapat dibatalkan.')) {
-                onDeleteAllStores();
-              }
-            }}
-            className="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100 transition-all flex items-center gap-2"
-          >
-            <span className="material-symbols-outlined text-sm">delete_sweep</span>
-            Clear All
-          </button>
-          <button 
-            onClick={syncFromSpreadsheet}
-            disabled={isSyncing}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all shadow-sm ${
-              isSyncing ? 'bg-stone-100 text-stone-400 cursor-not-allowed' : 'bg-white text-green-600 border border-green-600 hover:bg-green-50'
-            }`}
-          >
-            <span className={`material-symbols-outlined text-lg ${isSyncing ? 'animate-spin' : ''}`}>
-              sync
-            </span>
-            {isSyncing ? 'Syncing...' : 'Sync Spreadsheet'}
-          </button>
-          
-          <button 
-            onClick={() => {
-              setNewStore({
-                namaToko: '',
-                grade: '',
-                namaPIC: '',
-                nomorPIC: '',
-                linkGmaps: '',
-                kategori: '',
-                harga: '',
-                pembayaran: '',
-                operasional: '',
-                kurir: '',
-                note: '',
-              });
-              setIsAdding(true);
-            }}
-            className="flex items-center gap-2 bg-primary text-on-primary font-bold text-sm px-4 py-2 rounded-xl hover:bg-primary/90 transition-all shadow-md shadow-primary/20"
-          >
-            <span className="material-symbols-outlined text-lg">add_business</span>
-            Add New Store
-          </button>
+        <div className="flex flex-wrap items-center gap-2 md:gap-3">
+          {userRole === 'owner' && (
+            <button 
+              onClick={() => {
+                if (confirm('Apakah Anda yakin ingin menghapus SEMUA data toko? Tindakan ini tidak dapat dibatalkan.')) {
+                  onDeleteAllStores();
+                }
+              }}
+              className="px-3 md:px-4 py-2 bg-red-50 text-red-600 rounded-xl text-[10px] md:text-xs font-bold hover:bg-red-100 transition-all flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined text-sm">delete_sweep</span>
+              <span className="hidden sm:inline">Clear All</span>
+              <span className="sm:hidden">Clear</span>
+            </button>
+          )}
+          {userRole !== 'kurir' && (
+            <>
+              <button 
+                onClick={syncFromSpreadsheet}
+                disabled={isSyncing}
+                className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-xl font-bold text-[10px] md:text-sm transition-all shadow-sm ${
+                  isSyncing ? 'bg-stone-100 text-stone-400 cursor-not-allowed' : 'bg-white text-green-600 border border-green-600 hover:bg-green-50'
+                }`}
+              >
+                <span className={`material-symbols-outlined text-lg ${isSyncing ? 'animate-spin' : ''}`}>
+                  sync
+                </span>
+                <span>{isSyncing ? 'Syncing...' : (window.innerWidth < 640 ? 'Sync' : 'Sync Spreadsheet')}</span>
+              </button>
+              
+              <button 
+                onClick={() => {
+                  setNewStore({
+                    namaToko: '',
+                    grade: '',
+                    namaPIC: '',
+                    nomorPIC: '',
+                    linkGmaps: '',
+                    kategori: '',
+                    harga: '',
+                    pembayaran: '',
+                    operasional: '',
+                    kurir: '',
+                    note: '',
+                  });
+                  setIsAdding(true);
+                }}
+                className="flex items-center gap-2 bg-primary text-on-primary font-bold text-[10px] md:text-sm px-4 py-2 rounded-xl hover:bg-primary/90 transition-all shadow-md shadow-primary/20"
+              >
+                <span className="material-symbols-outlined text-lg">add_business</span>
+                <span className="hidden sm:inline">Add New Store</span>
+                <span className="sm:hidden">Add Store</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -245,7 +254,7 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
           </div>
         </div>
 
-        <div className="overflow-x-auto custom-scrollbar">
+        <div className="hidden md:block overflow-x-auto custom-scrollbar">
           <table className="w-full text-left border-collapse min-w-[1200px]">
             <thead>
               <tr className="bg-stone-50/50">
@@ -307,15 +316,17 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
                     </td>
                     <td className="px-6 py-4 text-xs text-stone-500 font-medium max-w-[200px] truncate" title={store.note}>{store.note || '-'}</td>
                     <td className="px-6 py-4 text-right whitespace-nowrap">
-                      <button 
-                        onClick={() => {
-                          setNewStore(store);
-                          setIsAdding(true);
-                        }}
-                        className="text-stone-400 hover:text-primary transition-colors"
-                      >
-                        <span className="material-symbols-outlined text-lg">edit</span>
-                      </button>
+                      {userRole !== 'kurir' && (
+                        <button 
+                          onClick={() => {
+                            setNewStore(store);
+                            setIsAdding(true);
+                          }}
+                          className="text-stone-400 hover:text-primary transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-lg">edit</span>
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -329,6 +340,89 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden divide-y divide-stone-100">
+          {paginatedStores.length > 0 ? (
+            paginatedStores.map((store) => (
+              <div key={store.id} className="p-4 space-y-4">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`inline-flex items-center justify-center w-6 h-6 rounded-md text-[9px] font-black shadow-sm ${
+                        store.grade === 'A' ? 'bg-green-500 text-white' :
+                        store.grade === 'B' ? 'bg-blue-500 text-white' :
+                        store.grade === 'C' ? 'bg-yellow-500 text-white' :
+                        store.grade === 'D' ? 'bg-orange-500 text-white' :
+                        store.grade === 'E' ? 'bg-red-500 text-white' :
+                        'bg-stone-200 text-stone-600'
+                      }`}>
+                        {store.grade || '-'}
+                      </span>
+                      <div className="font-black text-stone-800 text-base uppercase">{store.namaToko}</div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <span className="px-2 py-0.5 bg-stone-100 text-stone-600 rounded-md text-[9px] font-bold uppercase">{store.kategori || '-'}</span>
+                      <span className="px-2 py-0.5 bg-primary/5 text-primary rounded-md text-[9px] font-bold uppercase">{store.kurir || '-'}</span>
+                    </div>
+                  </div>
+                  {userRole !== 'kurir' && (
+                    <button 
+                      onClick={() => {
+                        setNewStore(store);
+                        setIsAdding(true);
+                      }}
+                      className="w-10 h-10 rounded-xl bg-stone-50 text-stone-400 flex items-center justify-center border border-stone-100"
+                    >
+                      <span className="material-symbols-outlined text-lg">edit</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-stone-50 p-3 rounded-2xl border border-stone-100">
+                    <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest block mb-1">PIC</span>
+                    <div className="text-sm font-bold text-stone-800">{store.namaPIC || '-'}</div>
+                    <div className="text-[10px] text-stone-500 font-medium">{store.nomorPIC || '-'}</div>
+                  </div>
+                  <div className="bg-stone-50 p-3 rounded-2xl border border-stone-100">
+                    <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest block mb-1">Harga & Bayar</span>
+                    <div className="text-sm font-bold text-stone-800">{store.harga || '-'}</div>
+                    <div className="text-[10px] text-stone-500 font-medium uppercase">{store.pembayaran || '-'}</div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-stone-600">
+                    <span className="material-symbols-outlined text-sm text-stone-400">schedule</span>
+                    <span className="font-medium uppercase">{store.operasional || '-'}</span>
+                  </div>
+                  {store.note && (
+                    <div className="p-3 bg-stone-50 rounded-xl border border-stone-100 text-xs text-stone-500 italic">
+                      {store.note}
+                    </div>
+                  )}
+                  {store.linkGmaps && (
+                    <a 
+                      href={store.linkGmaps} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 w-full py-2.5 bg-stone-900 text-white rounded-xl text-xs font-bold transition-all active:scale-95"
+                    >
+                      <span className="material-symbols-outlined text-sm">location_on</span>
+                      Buka di Google Maps
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="px-6 py-12 text-center text-stone-400">
+              <span className="material-symbols-outlined text-4xl mb-2 opacity-20">storefront</span>
+              <p className="text-sm font-medium">No stores found</p>
+            </div>
+          )}
         </div>
 
         {/* Pagination Controls */}

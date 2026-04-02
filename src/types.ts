@@ -1,6 +1,6 @@
 import { LucideIcon } from 'lucide-react';
 
-export type UserRole = 'owner' | 'super' | 'admin' | 'employee';
+export type UserRole = 'owner' | 'admin' | 'kurir' | 'employee';
 
 export type ActiveTab = 
   | 'home' 

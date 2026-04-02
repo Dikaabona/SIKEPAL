@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Order } from '../types';
+import { motion, AnimatePresence } from 'motion/react';
+import { Order, UserRole } from '../types';
 import { getPaginationRange } from '../lib/utils';
 
 interface OrderDatabaseProps {
@@ -8,13 +8,15 @@ interface OrderDatabaseProps {
   onSaveOrder: (order: Order) => Promise<void>;
   onDeleteAllOrders: () => Promise<void>;
   company: string;
+  userRole: UserRole;
 }
 
 const OrderDatabase: React.FC<OrderDatabaseProps> = ({ 
   orders, 
   onSaveOrder, 
   onDeleteAllOrders,
-  company 
+  company,
+  userRole
 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -98,9 +100,10 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
       }
     }
 
-    // Handle YYYY-MM-DD (from input date)
+    // Handle YYYY-MM-DD (from input date) - Parse as local time to avoid timezone mismatch
     if (cleanStr.includes('-') && cleanStr.split('-')[0].length === 4) {
-      return new Date(cleanStr);
+      const parts = cleanStr.split('-');
+      return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
     }
     // Handle DD/MM/YYYY or DD-MM-YYYY
     const parts = cleanStr.split(/[/-]/);
@@ -385,64 +388,72 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
           <p className="text-sm text-stone-500 font-medium">Manajemen data pesanan harian</p>
         </div>
         
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => {
-              if (confirm('Apakah Anda yakin ingin menghapus SEMUA data orderan?')) {
-                onDeleteAllOrders();
-              }
-            }}
-            className="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100 transition-all flex items-center gap-2"
-          >
-            <span className="material-symbols-outlined text-sm">delete_sweep</span>
-            Clear All
-          </button>
-          <button 
-            onClick={() => setShowSyncSettings(true)}
-            disabled={isSyncing}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all shadow-sm ${
-              isSyncing ? 'bg-stone-100 text-stone-400 cursor-not-allowed' : 'bg-white text-primary border border-primary hover:bg-primary/5'
-            }`}
-          >
-            <span className={`material-symbols-outlined text-sm ${isSyncing ? 'animate-spin' : ''}`}>sync</span>
-            {isSyncing ? 'Syncing...' : 'Sync Spreadsheet'}
-          </button>
-          <button 
-            onClick={() => {
-              setNewOrder({
-                tanggal: new Date().toISOString().split('T')[0],
-                namaKurir: '',
-                namaLokasi: '',
-                tunaPedes: 0,
-                tunaMayo: 0,
-                ayamMayo: 0,
-                ayamPedes: 0,
-                menuBulanan: 0,
-                jumlahKirim: 0,
-                hargaSikepal: 0,
-                periodeBayar: '',
-                sisa: 0,
-                jumlahPiutang: 0,
-                jumlahUang: 0,
-                pembayaran: '',
-                tanggalBayar: '',
-                diskon: 0,
-                company: company
-              });
-              setIsAdding(true);
-            }}
-            className="flex items-center gap-2 px-6 py-2 bg-primary text-on-primary rounded-xl font-bold text-sm hover:bg-primary/90 transition-all shadow-md shadow-primary/20"
-          >
-            <span className="material-symbols-outlined text-sm">add</span>
-            Add Order
-          </button>
+        <div className="flex flex-wrap items-center gap-2 md:gap-3">
+          {userRole === 'owner' && (
+            <button 
+              onClick={() => {
+                if (confirm('Apakah Anda yakin ingin menghapus SEMUA data orderan?')) {
+                  onDeleteAllOrders();
+                }
+              }}
+              className="px-3 md:px-4 py-2 bg-red-50 text-red-600 rounded-xl text-[10px] md:text-xs font-bold hover:bg-red-100 transition-all flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined text-sm">delete_sweep</span>
+              <span className="hidden sm:inline">Clear All</span>
+              <span className="sm:hidden">Clear</span>
+            </button>
+          )}
+          {userRole !== 'kurir' && (
+            <>
+              <button 
+                onClick={() => setShowSyncSettings(true)}
+                disabled={isSyncing}
+                className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-xl font-bold text-[10px] md:text-sm transition-all shadow-sm ${
+                  isSyncing ? 'bg-stone-100 text-stone-400 cursor-not-allowed' : 'bg-white text-primary border border-primary hover:bg-primary/5'
+                }`}
+              >
+                <span className={`material-symbols-outlined text-sm ${isSyncing ? 'animate-spin' : ''}`}>sync</span>
+                <span>{isSyncing ? 'Syncing...' : (window.innerWidth < 640 ? 'Sync' : 'Sync Spreadsheet')}</span>
+              </button>
+              <button 
+                onClick={() => {
+                  setNewOrder({
+                    tanggal: new Date().toISOString().split('T')[0],
+                    namaKurir: '',
+                    namaLokasi: '',
+                    tunaPedes: 0,
+                    tunaMayo: 0,
+                    ayamMayo: 0,
+                    ayamPedes: 0,
+                    menuBulanan: 0,
+                    jumlahKirim: 0,
+                    hargaSikepal: 0,
+                    periodeBayar: '',
+                    sisa: 0,
+                    jumlahPiutang: 0,
+                    jumlahUang: 0,
+                    pembayaran: '',
+                    tanggalBayar: '',
+                    diskon: 0,
+                    company: company
+                  });
+                  setIsAdding(true);
+                }}
+                className="flex items-center gap-2 px-4 md:px-6 py-2 bg-primary text-on-primary rounded-xl font-bold text-[10px] md:text-sm hover:bg-primary/90 transition-all shadow-md shadow-primary/20"
+              >
+                <span className="material-symbols-outlined text-sm">add</span>
+                <span className="hidden sm:inline">Add Order</span>
+                <span className="sm:hidden">Order</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
       <div className="bg-white rounded-3xl border border-stone-200 shadow-sm overflow-hidden">
         <div className="p-4 border-b border-stone-100 bg-stone-50/50 space-y-4">
-          <div className="flex flex-col lg:flex-row gap-4">
-            <div className="flex-1 relative">
+          <div className="flex flex-col gap-4">
+            <div className="relative">
               <span className="material-symbols-outlined absolute left-3 top-2.5 text-stone-400 text-sm">search</span>
               <input 
                 type="text" 
@@ -452,63 +463,65 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                   setSearchQuery(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full pl-10 pr-4 py-2 bg-white border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                className="w-full pl-10 pr-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
               />
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-stone-200">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex-1 min-w-[120px] flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-stone-200">
                 <span className="text-[10px] font-bold text-stone-400 uppercase">Dari</span>
                 <input 
                   type="date" 
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="text-xs font-medium outline-none bg-transparent"
+                  className="text-xs font-medium outline-none bg-transparent w-full"
                 />
               </div>
-              <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-stone-200">
+              <div className="flex-1 min-w-[120px] flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-stone-200">
                 <span className="text-[10px] font-bold text-stone-400 uppercase">Sampai</span>
                 <input 
                   type="date" 
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="text-xs font-medium outline-none bg-transparent"
+                  className="text-xs font-medium outline-none bg-transparent w-full"
                 />
               </div>
-              <button 
-                onClick={() => {
-                  const today = new Date().toISOString().split('T')[0];
-                  setStartDate(today);
-                  setEndDate(today);
-                  setCurrentPage(1);
-                }}
-                className="text-xs font-bold text-primary hover:underline"
-              >
-                Today
-              </button>
-              {(startDate || endDate || filterKurir || filterLokasi || filterPembayaran || searchQuery) && (
+              <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
                 <button 
                   onClick={() => {
-                    setStartDate('');
-                    setEndDate('');
-                    setFilterKurir('');
-                    setFilterLokasi('');
-                    setFilterPembayaran('');
-                    setSearchQuery('');
+                    const today = new Date().toISOString().split('T')[0];
+                    setStartDate(today);
+                    setEndDate(today);
                     setCurrentPage(1);
                   }}
-                  className="text-xs font-bold text-stone-400 hover:text-stone-600 transition-colors"
+                  className="text-xs font-bold text-primary hover:underline"
                 >
-                  Reset
+                  Today
                 </button>
-              )}
+                {(startDate || endDate || filterKurir || filterLokasi || filterPembayaran || searchQuery) && (
+                  <button 
+                    onClick={() => {
+                      setStartDate('');
+                      setEndDate('');
+                      setFilterKurir('');
+                      setFilterLokasi('');
+                      setFilterPembayaran('');
+                      setSearchQuery('');
+                      setCurrentPage(1);
+                    }}
+                    className="text-xs font-bold text-stone-400 hover:text-stone-600 transition-colors"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2">
             <select 
               value={filterKurir}
               onChange={(e) => setFilterKurir(e.target.value)}
-              className="px-3 py-1.5 bg-white border border-stone-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-primary/20"
+              className="flex-1 min-w-[120px] px-3 py-1.5 bg-white border border-stone-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-primary/20"
             >
               <option value="">Semua Kurir</option>
               {kurirOptions.map(k => <option key={k} value={k}>{k}</option>)}
@@ -517,7 +530,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
             <select 
               value={filterLokasi}
               onChange={(e) => setFilterLokasi(e.target.value)}
-              className="px-3 py-1.5 bg-white border border-stone-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-primary/20"
+              className="flex-1 min-w-[120px] px-3 py-1.5 bg-white border border-stone-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-primary/20"
             >
               <option value="">Semua Lokasi</option>
               {lokasiOptions.map(l => <option key={l} value={l}>{l}</option>)}
@@ -526,7 +539,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
             <select 
               value={filterPembayaran}
               onChange={(e) => setFilterPembayaran(e.target.value)}
-              className="px-3 py-1.5 bg-white border border-stone-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-primary/20"
+              className="flex-1 min-w-[120px] px-3 py-1.5 bg-white border border-stone-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-primary/20"
             >
               <option value="">Semua Pembayaran</option>
               {pembayaranOptions.map(p => <option key={p} value={p}>{p}</option>)}
@@ -535,8 +548,8 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
         </div>
 
         {/* Summary Section */}
-        <div className="p-6 border-b border-stone-100 bg-white overflow-x-auto">
-          <div className="min-w-[800px]">
+        <div className="p-4 md:p-6 border-b border-stone-100 bg-white">
+          <div className="hidden md:block min-w-[800px]">
             <div className="grid grid-cols-10 gap-4 mb-4">
               <div className="col-span-2 flex flex-col justify-center">
                 <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">TANGGAL</span>
@@ -605,9 +618,63 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Mobile Summary */}
+          <div className="md:hidden space-y-4">
+            <div className="flex justify-between items-end">
+              <div>
+                <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest block mb-1">RINGKASAN</span>
+                <span className="text-lg font-black text-stone-800 uppercase">{filterKurir || 'SEMUA KURIR'}</span>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest block mb-1">TANGGAL</span>
+                <span className="text-xs font-bold text-stone-600">
+                  {startDate === endDate && startDate ? formatDate(startDate) : 'Multiple Dates'}
+                </span>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="bg-pink-50 p-2.5 rounded-2xl border border-pink-100">
+                <span className="text-[8px] font-black text-pink-500 uppercase block mb-0.5">Tuna Pedes</span>
+                <span className="text-base font-black text-pink-700">{summary.tunaPedes}</span>
+              </div>
+              <div className="bg-blue-50 p-2.5 rounded-2xl border border-blue-100">
+                <span className="text-[8px] font-black text-blue-500 uppercase block mb-0.5">Tuna Mayo</span>
+                <span className="text-base font-black text-blue-700">{summary.tunaMayo}</span>
+              </div>
+              <div className="bg-yellow-50 p-2.5 rounded-2xl border border-yellow-100">
+                <span className="text-[8px] font-black text-yellow-600 uppercase block mb-0.5">Ayam Mayo</span>
+                <span className="text-base font-black text-yellow-700">{summary.ayamMayo}</span>
+              </div>
+              <div className="bg-red-50 p-2.5 rounded-2xl border border-red-100">
+                <span className="text-[8px] font-black text-red-500 uppercase block mb-0.5">Ayam Pedes</span>
+                <span className="text-base font-black text-red-700">{summary.ayamPedes}</span>
+              </div>
+              <div className="bg-green-50 p-2.5 rounded-2xl border border-green-100">
+                <span className="text-[8px] font-black text-green-600 uppercase block mb-0.5">Menu Bln</span>
+                <span className="text-base font-black text-green-700">{summary.menuBulanan}</span>
+              </div>
+              <div className="bg-stone-100 p-2.5 rounded-2xl border border-stone-200">
+                <span className="text-[8px] font-black text-stone-500 uppercase block mb-0.5">Total Kirim</span>
+                <span className="text-base font-black text-stone-800">{summary.jumlahKirim}</span>
+              </div>
+            </div>
+            
+            <div className="flex gap-2">
+              <div className="flex-1 bg-stone-50 p-3 rounded-2xl border border-stone-100 flex justify-between items-center">
+                <span className="text-[10px] font-black text-stone-400 uppercase">Sisa</span>
+                <span className="text-sm font-black text-stone-800">{summary.sisa}</span>
+              </div>
+              <div className="flex-1 bg-stone-50 p-3 rounded-2xl border border-stone-100 flex justify-between items-center">
+                <span className="text-[10px] font-black text-stone-400 uppercase">Persentase</span>
+                <span className="text-sm font-black text-stone-800">{percentageSisa.toFixed(2)}%</span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[1500px]">
             <thead>
               <tr className="bg-stone-50/50">
@@ -653,15 +720,17 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                     <td className="px-4 py-4 text-xs text-stone-600">{formatDate(order.tanggalBayar)}</td>
                     <td className="px-4 py-4 text-xs text-stone-600">Rp{order.diskon.toLocaleString()}</td>
                     <td className="px-4 py-4 text-right">
-                      <button 
-                        onClick={() => {
-                          setNewOrder(order);
-                          setIsAdding(true);
-                        }}
-                        className="text-stone-400 hover:text-primary transition-colors"
-                      >
-                        <span className="material-symbols-outlined text-lg">edit</span>
-                      </button>
+                      {userRole !== 'kurir' && (
+                        <button 
+                          onClick={() => {
+                            setNewOrder(order);
+                            setIsAdding(true);
+                          }}
+                          className="text-stone-400 hover:text-primary transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-lg">edit</span>
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -675,6 +744,85 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden divide-y divide-stone-100">
+          {paginatedOrders.length > 0 ? (
+            paginatedOrders.map((order) => (
+              <div key={order.id} className="p-4 space-y-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="text-xs font-black text-stone-400 uppercase tracking-wider mb-1">{formatDate(order.tanggal)}</div>
+                    <div className="text-base font-black text-stone-800 uppercase">{order.namaLokasi}</div>
+                    <div className="text-xs font-bold text-primary uppercase">{order.namaKurir}</div>
+                  </div>
+                  {userRole !== 'kurir' && (
+                    <button 
+                      onClick={() => {
+                        setNewOrder(order);
+                        setIsAdding(true);
+                      }}
+                      className="w-10 h-10 rounded-xl bg-stone-50 text-stone-400 flex items-center justify-center border border-stone-100"
+                    >
+                      <span className="material-symbols-outlined text-lg">edit</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-stone-50 p-2 rounded-xl border border-stone-100">
+                    <span className="text-[8px] font-black text-stone-400 uppercase block">Tuna Pds</span>
+                    <span className="text-sm font-bold text-stone-800">{order.tunaPedes}</span>
+                  </div>
+                  <div className="bg-stone-50 p-2 rounded-xl border border-stone-100">
+                    <span className="text-[8px] font-black text-stone-400 uppercase block">Tuna Myo</span>
+                    <span className="text-sm font-bold text-stone-800">{order.tunaMayo}</span>
+                  </div>
+                  <div className="bg-stone-50 p-2 rounded-xl border border-stone-100">
+                    <span className="text-[8px] font-black text-stone-400 uppercase block">Ayam Myo</span>
+                    <span className="text-sm font-bold text-stone-800">{order.ayamMayo}</span>
+                  </div>
+                  <div className="bg-stone-50 p-2 rounded-xl border border-stone-100">
+                    <span className="text-[8px] font-black text-stone-400 uppercase block">Ayam Pds</span>
+                    <span className="text-sm font-bold text-stone-800">{order.ayamPedes}</span>
+                  </div>
+                  <div className="bg-stone-50 p-2 rounded-xl border border-stone-100">
+                    <span className="text-[8px] font-black text-stone-400 uppercase block">Menu Bln</span>
+                    <span className="text-sm font-bold text-stone-800">{order.menuBulanan}</span>
+                  </div>
+                  <div className="bg-primary/5 p-2 rounded-xl border border-primary/10">
+                    <span className="text-[8px] font-black text-primary uppercase block">Total</span>
+                    <span className="text-sm font-black text-primary">{order.jumlahKirim}</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <div className="px-3 py-1.5 bg-green-50 rounded-lg border border-green-100 flex items-center gap-2">
+                    <span className="text-[9px] font-black text-green-600 uppercase">Uang</span>
+                    <span className="text-xs font-bold text-green-700">Rp{order.jumlahUang.toLocaleString()}</span>
+                  </div>
+                  <div className="px-3 py-1.5 bg-red-50 rounded-lg border border-red-100 flex items-center gap-2">
+                    <span className="text-[9px] font-black text-red-600 uppercase">Piutang</span>
+                    <span className="text-xs font-bold text-red-700">Rp{order.jumlahPiutang.toLocaleString()}</span>
+                  </div>
+                  <div className="px-3 py-1.5 bg-stone-50 rounded-lg border border-stone-100 flex items-center gap-2">
+                    <span className="text-[9px] font-black text-stone-400 uppercase">Sisa</span>
+                    <span className="text-xs font-bold text-stone-600">{order.sisa}</span>
+                  </div>
+                  <div className="px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-100 flex items-center gap-2">
+                    <span className="text-[9px] font-black text-blue-600 uppercase">Bayar</span>
+                    <span className="text-xs font-bold text-blue-700">{order.pembayaran || '-'}</span>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="px-6 py-12 text-center text-stone-400">
+              <span className="material-symbols-outlined text-4xl mb-2 opacity-20">receipt_long</span>
+              <p className="text-sm font-medium">Belum ada data orderan</p>
+            </div>
+          )}
         </div>
 
         {totalPages > 1 && (

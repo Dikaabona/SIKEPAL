@@ -1,18 +1,53 @@
 import React, { useState } from 'react';
-import { Employee, SubmissionType } from '../types';
+import { Employee, SubmissionType, Submission } from '../types';
 
 interface SubmissionFormProps {
   employee: Employee | null;
   company: string;
+  onSaveSubmission: (submission: Submission) => void;
   onSuccess: () => void;
   onClose?: () => void;
 }
 
-const SubmissionForm: React.FC<SubmissionFormProps> = ({ employee, onClose }) => {
+const SubmissionForm: React.FC<SubmissionFormProps> = ({ employee, company, onSaveSubmission, onSuccess, onClose }) => {
   const [type, setType] = useState<SubmissionType>('Leave');
   const [reason, setReason] = useState('');
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!employee) {
+      alert('Data karyawan tidak ditemukan.');
+      return;
+    }
+    if (!reason.trim()) {
+      alert('Mohon isi alasan pengajuan.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const newSubmission: Submission = {
+        id: Math.random().toString(36).substr(2, 9),
+        employeeId: employee.id,
+        company: company,
+        type: type,
+        reason: reason,
+        startDate: startDate,
+        endDate: endDate,
+        status: 'Pending',
+        submittedAt: new Date().toISOString()
+      };
+
+      await onSaveSubmission(newSubmission);
+      onSuccess();
+    } catch (error) {
+      console.error('Error submitting request:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
@@ -75,9 +110,13 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ employee, onClose }) =>
             </div>
           </div>
 
-          <button className="w-full bg-primary text-on-primary font-black py-5 rounded-3xl shadow-xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3">
-            <span className="material-symbols-outlined">send</span>
-            SUBMIT REQUEST
+          <button 
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            className="w-full bg-primary text-on-primary font-black py-5 rounded-3xl shadow-xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+          >
+            <span className="material-symbols-outlined">{isSubmitting ? 'sync' : 'send'}</span>
+            {isSubmitting ? 'SUBMITTING...' : 'SUBMIT REQUEST'}
           </button>
         </div>
       </div>
