@@ -77,7 +77,24 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
     if (!dateStr) return null;
     const cleanStr = dateStr.trim();
 
-    // Handle "Rabu, 1, April, 2026" or "Rabu, 1 April 2026" format
+    // Handle YYYY-MM-DD (from input date) - Parse as local time to avoid timezone mismatch
+    if (cleanStr.includes('-') && cleanStr.split('-')[0].length === 4) {
+      const parts = cleanStr.split('-');
+      return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    }
+
+    // Handle DD/MM/YYYY or DD-MM-YYYY (possibly with DayName prefix like "Kamis, 02/04/2026")
+    const datePattern = /(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/;
+    const match = cleanStr.match(datePattern);
+    if (match) {
+      const d = parseInt(match[1]);
+      const m = parseInt(match[2]) - 1;
+      let y = parseInt(match[3]);
+      if (y < 100) y += 2000;
+      return new Date(y, m, d);
+    }
+
+    // Handle "Rabu, 1 April 2026" or "Rabu, 1, April, 2026" format
     if (cleanStr.includes(',') || cleanStr.split(' ').length >= 3) {
       const parts = cleanStr.split(/[,\s]+/).map(p => p.trim()).filter(Boolean);
       
@@ -103,20 +120,6 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
       }
     }
 
-    // Handle YYYY-MM-DD (from input date) - Parse as local time to avoid timezone mismatch
-    if (cleanStr.includes('-') && cleanStr.split('-')[0].length === 4) {
-      const parts = cleanStr.split('-');
-      return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-    }
-    // Handle DD/MM/YYYY or DD-MM-YYYY
-    const parts = cleanStr.split(/[/-]/);
-    if (parts.length === 3) {
-      const d = parseInt(parts[0]);
-      const m = parseInt(parts[1]) - 1;
-      let y = parseInt(parts[2]);
-      if (y < 100) y += 2000;
-      return new Date(y, m, d);
-    }
     const d = new Date(cleanStr);
     return isNaN(d.getTime()) ? null : d;
   };
