@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { Order } from '../types';
 import { motion } from 'motion/react';
-import html2canvas from 'html2canvas';
+import domtoimage from 'dom-to-image';
 
 interface PrintAdminProps {
   company: string;
@@ -38,14 +38,76 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
   }, [orders, selectedDate, selectedCourier, selectedLocation]);
 
   const handlePrint = () => {
-    window.print();
+    if (!printRef.current) return;
+    
+    // Create a hidden iframe for printing
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+    
+    const content = printRef.current.innerHTML;
+    const doc = iframe.contentWindow?.document;
+    
+    if (doc) {
+      doc.open();
+      doc.write(`
+        <html>
+          <head>
+            <title>Print Report</title>
+            <script src="https://cdn.tailwindcss.com"></script>
+            <style>
+              @page {
+                size: A4 landscape;
+                margin: 0;
+              }
+              body {
+                margin: 0;
+                padding: 0;
+                background: white;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              .print-hidden, .print\\:hidden {
+                display: none !important;
+              }
+              * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+            </style>
+          </head>
+          <body class="p-4">
+            ${content}
+            <script>
+              window.onload = () => {
+                setTimeout(() => {
+                  window.print();
+                  setTimeout(() => {
+                    window.frameElement.remove();
+                  }, 100);
+                }, 500);
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      doc.close();
+    } else {
+      // Fallback
+      window.print();
+    }
   };
 
   const handleDownloadPNG = async () => {
     if (printRef.current) {
       setIsCapturing(true);
+      
       // Small delay to ensure state update renders the hidden div if needed
-      // Actually we'll use a clone or just toggle visibility
       setTimeout(async () => {
         const element = printRef.current!;
         const originalStyle = element.style.display;
@@ -55,20 +117,23 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
         element.style.display = 'block';
         element.style.position = 'relative';
         element.style.left = '0';
-        element.className = 'bg-white text-black font-sans p-4 w-[210mm]'; // A4 width
+        element.className = 'bg-white text-black font-sans p-4 w-[297mm]'; // A4 landscape width
 
         try {
-          const canvas = await html2canvas(element, {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            backgroundColor: '#ffffff',
-            windowWidth: 1200
+          // Use dom-to-image for better CSS support (oklch, etc.)
+          const dataUrl = await domtoimage.toPng(element, {
+            bgcolor: '#ffffff',
+            width: 1122, // 297mm at 96dpi
+            height: element.scrollHeight,
+            style: {
+              transform: 'scale(1)',
+              transformOrigin: 'top left'
+            }
           });
           
           const link = document.createElement('a');
           link.download = `Laporan_Print_Admin_${selectedDate}_${selectedCourier || 'Semua'}.png`;
-          link.href = canvas.toDataURL('image/png');
+          link.href = dataUrl;
           link.click();
         } catch (error) {
           console.error('PNG Capture error:', error);
@@ -151,7 +216,7 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
   );
 
   const OrderSlip: React.FC<{ order: Order }> = ({ order }) => (
-    <div className="space-y-2">
+    <div className="space-y-2 border-[1px] border-black p-2">
       <div className="flex items-start gap-2">
         <img 
           src="https://lh3.googleusercontent.com/d/1b-hkPOsHZ8_rW1f9aqABu7R5bw_ZJM0y" 
@@ -166,20 +231,20 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
               <div className="uppercase">{order.namaKurir}</div>
               <div className="uppercase text-[8px] mt-0.5">{order.namaLokasi}</div>
             </div>
-            <div className="text-[8px] font-bold uppercase">KURIR</div>
+            <div className="text-[7px] font-bold uppercase">KURIR</div>
           </div>
         </div>
       </div>
 
       <table className="w-full border-collapse border-[1px] border-black">
         <thead>
-          <tr className="text-[7px] font-bold">
-            <th className="border-[1px] border-black p-0.5 text-left">Varian</th>
-            <th className="border-[1px] border-black p-0.5 text-center">Jumlah</th>
-            <th className="border-[1px] border-black p-0.5 text-center">Real</th>
-            <th className="border-[1px] border-black p-0.5 text-center">Sisa</th>
-            <th className="border-[1px] border-black p-0.5 text-center">Harga</th>
-            <th className="border-[1px] border-black p-0.5 text-center">Total</th>
+          <tr className="text-[7px] font-bold bg-[#fafaf9]">
+            <th className="border-[1px] border-black p-1 text-left">Varian</th>
+            <th className="border-[1px] border-black p-1 text-center">Jml</th>
+            <th className="border-[1px] border-black p-1 text-center">R</th>
+            <th className="border-[1px] border-black p-1 text-center">S</th>
+            <th className="border-[1px] border-black p-1 text-center">H</th>
+            <th className="border-[1px] border-black p-1 text-center">T</th>
           </tr>
         </thead>
         <tbody className="text-[7px]">
@@ -191,30 +256,30 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
             { label: 'Menu Bulanan', val: order.menuBulanan },
           ].map((item) => (
             <tr key={item.label}>
-              <td className="border-[1px] border-black p-0.5 font-medium">{item.label}</td>
-              <td className="border-[1px] border-black p-0.5 text-center font-bold">{item.val || ''}</td>
-              <td className="border-[1px] border-black p-0.5"></td>
-              <td className="border-[1px] border-black p-0.5"></td>
-              <td className="border-[1px] border-black p-0.5"></td>
-              <td className="border-[1px] border-black p-0.5"></td>
+              <td className="border-[1px] border-black p-1 font-medium">{item.label}</td>
+              <td className="border-[1px] border-black p-1 text-center font-bold">{item.val || ''}</td>
+              <td className="border-[1px] border-black p-1"></td>
+              <td className="border-[1px] border-black p-1"></td>
+              <td className="border-[1px] border-black p-1"></td>
+              <td className="border-[1px] border-black p-1"></td>
             </tr>
           ))}
-          <tr className="font-bold">
-            <td className="border-[1px] border-black p-0.5">Jumlah</td>
-            <td className="border-[1px] border-black p-0.5 text-center">{order.jumlahKirim}</td>
-            <td className="border-[1px] border-black p-0.5"></td>
-            <td className="border-[1px] border-black p-0.5"></td>
-            <td className="border-[1px] border-black p-0.5"></td>
-            <td className="border-[1px] border-black p-0.5"></td>
+          <tr className="font-bold bg-[#fafaf9]">
+            <td className="border-[1px] border-black p-1">Jumlah</td>
+            <td className="border-[1px] border-black p-1 text-center">{order.jumlahKirim}</td>
+            <td className="border-[1px] border-black p-1"></td>
+            <td className="border-[1px] border-black p-1"></td>
+            <td className="border-[1px] border-black p-1"></td>
+            <td className="border-[1px] border-black p-1"></td>
           </tr>
         </tbody>
       </table>
     </div>
   );
 
-  const TotalSummary: React.FC = () => {
+  const LocationSummary: React.FC<{ locationName: string; orders: Order[] }> = ({ locationName, orders }) => {
     const totals = useMemo(() => {
-      return filteredOrders.reduce((acc, order) => {
+      return orders.reduce((acc, order) => {
         acc.tunaPedes += order.tunaPedes || 0;
         acc.tunaMayo += order.tunaMayo || 0;
         acc.ayamMayo += order.ayamMayo || 0;
@@ -223,10 +288,10 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
         acc.total += order.jumlahKirim || 0;
         return acc;
       }, { tunaPedes: 0, tunaMayo: 0, ayamMayo: 0, ayamPedes: 0, menuBulanan: 0, total: 0 });
-    }, [filteredOrders]);
+    }, [orders]);
 
     return (
-      <div className="space-y-2 mt-4 border-t-[1.5px] border-black pt-6">
+      <div className="space-y-2 border-[1px] border-black p-2 bg-white">
         <div className="flex items-start gap-2">
           <img 
             src="https://lh3.googleusercontent.com/d/1b-hkPOsHZ8_rW1f9aqABu7R5bw_ZJM0y" 
@@ -239,22 +304,22 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
               <div className="text-[7px] font-bold leading-tight">
                 <div>{formatDateIndo(selectedDate)}</div>
                 <div className="uppercase">{selectedCourier || 'SEMUA KURIR'}</div>
-                <div className="uppercase text-[8px] mt-0.5">{selectedLocation || 'SEMUA LOKASI'}</div>
+                <div className="uppercase text-[8px] mt-0.5">{locationName}</div>
               </div>
-              <div className="text-[8px] font-bold uppercase">TOTAL</div>
+              <div className="text-[7px] font-bold uppercase">TOTAL</div>
             </div>
           </div>
         </div>
 
         <table className="w-full border-collapse border-[1px] border-black">
           <thead>
-            <tr className="text-[7px] font-bold">
-              <th className="border-[1px] border-black p-0.5 text-left">Varian</th>
-              <th className="border-[1px] border-black p-0.5 text-center">Jumlah</th>
-              <th className="border-[1px] border-black p-0.5 text-center">Real</th>
-              <th className="border-[1px] border-black p-0.5 text-center">Sisa</th>
-              <th className="border-[1px] border-black p-0.5 text-center">Harga</th>
-              <th className="border-[1px] border-black p-0.5 text-center">Total</th>
+            <tr className="text-[7px] font-bold bg-[#fafaf9]">
+              <th className="border-[1px] border-black p-1 text-left">Varian</th>
+              <th className="border-[1px] border-black p-1 text-center">Jml</th>
+              <th className="border-[1px] border-black p-1 text-center">R</th>
+              <th className="border-[1px] border-black p-1 text-center">S</th>
+              <th className="border-[1px] border-black p-1 text-center">H</th>
+              <th className="border-[1px] border-black p-1 text-center">T</th>
             </tr>
           </thead>
           <tbody className="text-[7px]">
@@ -266,27 +331,51 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
               { label: 'Menu Bulanan', val: totals.menuBulanan },
             ].map((item) => (
               <tr key={item.label}>
-                <td className="border-[1px] border-black p-0.5 font-medium">{item.label}</td>
-                <td className="border-[1px] border-black p-0.5 text-center font-bold">{item.val || ''}</td>
-                <td className="border-[1px] border-black p-0.5"></td>
-                <td className="border-[1px] border-black p-0.5"></td>
-                <td className="border-[1px] border-black p-0.5"></td>
-                <td className="border-[1px] border-black p-0.5"></td>
+                <td className="border-[1px] border-black p-1 font-medium">{item.label}</td>
+                <td className="border-[1px] border-black p-1 text-center font-bold">{item.val || ''}</td>
+                <td className="border-[1px] border-black p-1"></td>
+                <td className="border-[1px] border-black p-1"></td>
+                <td className="border-[1px] border-black p-1"></td>
+                <td className="border-[1px] border-black p-1"></td>
               </tr>
             ))}
-            <tr className="font-bold">
-              <td className="border-[1px] border-black p-0.5">Jumlah</td>
-              <td className="border-[1px] border-black p-0.5 text-center">{totals.total}</td>
-              <td className="border-[1px] border-black p-0.5"></td>
-              <td className="border-[1px] border-black p-0.5"></td>
-              <td className="border-[1px] border-black p-0.5"></td>
-              <td className="border-[1px] border-black p-0.5"></td>
+            <tr className="font-bold bg-[#fafaf9]">
+              <td className="border-[1px] border-black p-1">Jumlah</td>
+              <td className="border-[1px] border-black p-1 text-center">{totals.total}</td>
+              <td className="border-[1px] border-black p-1"></td>
+              <td className="border-[1px] border-black p-1"></td>
+              <td className="border-[1px] border-black p-1"></td>
+              <td className="border-[1px] border-black p-1"></td>
             </tr>
           </tbody>
         </table>
       </div>
     );
   };
+
+  const summariesToShow = useMemo(() => {
+    const baseLocs = selectedLocation 
+      ? [selectedLocation] 
+      : locations;
+
+    if (baseLocs.length === 0) {
+      // If no locations at all for this courier, show 8 empty placeholders
+      return Array.from({ length: 8 }).map((_, idx) => ({
+        name: `LOKASI ${idx + 1}`,
+        orders: []
+      }));
+    }
+
+    // Fill at least 8 slots by repeating the available locations
+    const displayCount = Math.max(8, baseLocs.length);
+    return Array.from({ length: displayCount }).map((_, idx) => {
+      const locName = baseLocs[idx % baseLocs.length];
+      return {
+        name: locName,
+        orders: filteredOrders.filter(o => o.namaLokasi === locName)
+      };
+    });
+  }, [selectedLocation, locations, filteredOrders]);
 
   return (
     <div className="space-y-8">
@@ -357,20 +446,26 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
         </div>
 
       {/* Live Preview / Print Layout */}
-      <div className="bg-white text-black font-sans shadow-2xl mx-auto overflow-x-auto rounded-sm p-4" style={{ width: '100%', maxWidth: '210mm' }}>
-        <div className="bg-white mx-auto overflow-hidden" style={{ width: '210mm', minHeight: '297mm' }} ref={printRef}>
+      <div className="bg-white text-black font-sans shadow-2xl mx-auto overflow-x-auto rounded-sm p-4 print:p-0 print:shadow-none print:overflow-visible" style={{ width: '100%', maxWidth: '297mm' }}>
+        <div className="bg-white mx-auto overflow-hidden print:overflow-visible" style={{ width: '297mm', minHeight: '210mm' }} ref={printRef}>
           <style dangerouslySetInnerHTML={{ __html: `
             @media print {
               @page {
-                size: A4;
-                margin: 5mm;
+                size: A4 landscape;
+                margin: 0;
               }
               body {
                 -webkit-print-color-adjust: exact;
                 background: white !important;
+                margin: 0;
+                padding: 0;
               }
-              .print-hidden {
+              .print-hidden, .print\:hidden {
                 display: none !important;
+              }
+              * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
               }
             }
           `}} />
@@ -383,17 +478,27 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
               <CashSummary />
             </div>
 
-            {/* Individual Slips Grid - 4 Columns */}
-            <div className="grid grid-cols-4 gap-x-4 gap-y-6">
-              {filteredOrders.length > 0 ? (
-                filteredOrders.map((order) => (
-                  <OrderSlip key={order.id} order={order} />
-                ))
-              ) : null}
+            {/* Individual Slips - 4x2 Grid (8 copies) */}
+            <div className="grid grid-cols-4 gap-4">
+              {filteredOrders.length > 0 && (
+                // If we have orders, we repeat them to fill at least 8 copies as requested
+                Array.from({ length: Math.max(8, filteredOrders.length) }).map((_, idx) => {
+                  const order = filteredOrders[idx % filteredOrders.length];
+                  return <OrderSlip key={`${order.id}-${idx}`} order={order} />;
+                })
+              )}
             </div>
 
-            {/* Total Summary Section */}
-            <TotalSummary />
+            {/* Location Summaries Section - 4x2 Grid */}
+            <div className="grid grid-cols-4 gap-4 mt-8 border-t-[2px] border-black pt-8">
+              {summariesToShow.map((summary, idx) => (
+                <LocationSummary 
+                  key={`${summary.name}-${idx}`} 
+                  locationName={summary.name} 
+                  orders={summary.orders} 
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>

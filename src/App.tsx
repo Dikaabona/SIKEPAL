@@ -566,7 +566,7 @@ export default function App() {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed left-0 top-0 bottom-0 w-[280px] bg-white z-[70] md:hidden shadow-2xl flex flex-col"
+              className="fixed left-0 top-0 bottom-0 w-[280px] bg-white z-[70] md:hidden shadow-2xl flex flex-col print:hidden"
             >
               <div className="p-6 flex items-center justify-between border-b border-stone-100">
                 <div className="flex items-center gap-3">
@@ -671,7 +671,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* SideNavBar Component (Desktop) */}
-      <aside className={`h-screen ${isSidebarCollapsed ? 'w-20' : 'w-64'} fixed left-0 top-0 z-50 bg-stone-50 border-r border-outline-variant/10 hidden md:block transition-all duration-300 ease-in-out`}>
+      <aside className={`h-screen ${isSidebarCollapsed ? 'w-20' : 'w-64'} fixed left-0 top-0 z-50 bg-stone-50 border-r border-outline-variant/10 hidden md:block transition-all duration-300 ease-in-out print:hidden`}>
         <div className="flex flex-col gap-y-2 py-8 h-full">
           <div className={`px-6 mb-8 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
             <div className="flex items-center gap-3 overflow-hidden">
@@ -760,7 +760,7 @@ export default function App() {
         </div>
       </aside>
 
-      <main className={`${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'} min-h-screen flex flex-col transition-all duration-300 ease-in-out`}>
+      <main className={`${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'} min-h-screen flex flex-col transition-all duration-300 ease-in-out print:m-0 print:p-0 print:block`}>
         {isLoading && (
           <div className="fixed inset-0 z-[200] bg-white/80 backdrop-blur-sm flex items-center justify-center">
             <div className="flex flex-col items-center gap-4">
@@ -770,7 +770,7 @@ export default function App() {
           </div>
         )}
         {/* TopNavBar Component */}
-        <header className="sticky top-0 w-full z-40 bg-white/80 backdrop-blur-xl border-b border-stone-100 h-16 px-4 md:px-6 flex justify-between items-center">
+        <header className="sticky top-0 w-full z-40 bg-white/80 backdrop-blur-xl border-b border-stone-100 h-16 px-4 md:px-6 flex justify-between items-center print:hidden">
           <div className="flex items-center gap-2 md:gap-4">
             <button 
               onClick={() => {
