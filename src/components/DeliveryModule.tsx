@@ -3,6 +3,9 @@ import { Icons } from '../constants';
 import { DeliveryRecord, Order, Store, UserRole } from '../types';
 
 interface DeliveryModuleProps {
+  title?: string;
+  addButtonLabel?: string;
+  hideAddButton?: boolean;
   company: string;
   orders: Order[];
   stores: Store[];
@@ -13,6 +16,9 @@ interface DeliveryModuleProps {
 }
 
 const DeliveryModule: React.FC<DeliveryModuleProps> = ({ 
+  title = "Delivery",
+  addButtonLabel = "Add New Delivery",
+  hideAddButton = false,
   company, 
   orders, 
   stores, 
@@ -236,22 +242,28 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight">Delivery</h2>
-          <p className="text-xs md:text-sm text-stone-500 font-medium">Manage and track your deliveries for {company}</p>
+          <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight">{title}</h2>
+          <p className="text-xs md:text-sm text-stone-500 font-medium">
+            {title === "Billing Report" ? `Laporan penagihan pengiriman untuk ${company}` : `Kelola dan pantau pengiriman Anda untuk ${company}`}
+          </p>
         </div>
       </div>
 
       <div className="bg-white rounded-[24px] md:rounded-[32px] border border-stone-100 shadow-sm overflow-hidden">
         <div className="p-4 md:p-6 border-b border-stone-50 flex items-center justify-between">
-          <h3 className="font-bold text-stone-900 text-sm md:text-base">Delivery List</h3>
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="px-4 py-2 bg-stone-900 text-white rounded-xl text-[10px] md:text-xs font-bold hover:bg-stone-800 transition-all flex items-center gap-2"
-          >
-            <span className="material-symbols-outlined text-sm">add</span>
-            <span className="hidden sm:inline">Add New Delivery</span>
-            <span className="sm:hidden">Add</span>
-          </button>
+          <h3 className="font-bold text-stone-900 text-sm md:text-base">
+            {title === "Billing Report" ? "Daftar Penagihan" : "Daftar Pengiriman"}
+          </h3>
+          {!hideAddButton && (userRole === 'owner' || userRole === 'admin') && (
+            <button 
+              onClick={() => setIsModalOpen(true)}
+              className="px-4 py-2 bg-stone-900 text-white rounded-xl text-[10px] md:text-xs font-bold hover:bg-stone-800 transition-all flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined text-sm">add</span>
+              <span className="hidden sm:inline">{addButtonLabel}</span>
+              <span className="sm:hidden">Add</span>
+            </button>
+          )}
         </div>
         
         {/* Desktop Table View */}
@@ -259,14 +271,16 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-stone-50/50">
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">Nama Kurir</th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">Tanggal</th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">Nama Lokasi</th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">Bukti Pengiriman</th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">Qty</th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">Ket</th>
+                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">NAMA KURIR</th>
+                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">TANGGAL</th>
+                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">NAMA LOKASI</th>
+                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">
+                  {title === "Billing Report" ? "BUKTI PENAGIHAN" : "BUKTI PENGIRIMAN"}
+                </th>
+                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">QTY</th>
+                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">KET</th>
                 {(userRole === 'owner' || userRole === 'admin') && (
-                  <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">Aksi</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">AKSI</th>
                 )}
               </tr>
             </thead>
@@ -348,7 +362,9 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                     <div className="w-16 h-16 bg-stone-50 rounded-full flex items-center justify-center mx-auto mb-4">
                       <span className="material-symbols-outlined text-stone-300 text-3xl">local_shipping</span>
                     </div>
-                    <p className="text-stone-400 font-medium">No delivery records found</p>
+                    <p className="text-stone-400 font-medium">
+                      {title === "Billing Report" ? "Tidak ada rekaman penagihan" : "Tidak ada rekaman pengiriman"}
+                    </p>
                   </td>
                 </tr>
               )}
@@ -432,7 +448,9 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
               <div className="w-12 h-12 bg-stone-50 rounded-full flex items-center justify-center mx-auto mb-3">
                 <span className="material-symbols-outlined text-stone-300 text-2xl">local_shipping</span>
               </div>
-              <p className="text-stone-400 text-xs font-medium">No delivery records found</p>
+              <p className="text-stone-400 text-xs font-medium">
+                {title === "Billing Report" ? "Tidak ada rekaman penagihan" : "Tidak ada rekaman pengiriman"}
+              </p>
             </div>
           )}
         </div>
@@ -460,16 +478,20 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
 
       {/* Add New Delivery Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-[32px] w-full max-w-lg overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
             <div className="p-6 md:p-8 border-b border-stone-50 flex items-center justify-between bg-stone-50/30">
               <div>
                 <h3 className="text-lg md:text-xl font-black text-stone-900 uppercase tracking-tight">
-                  {editingId ? 'Edit Delivery' : 'Add New Delivery'}
+                  {editingId 
+                    ? (title === "Billing Report" ? 'Edit Report' : 'Edit Delivery') 
+                    : (title === "Billing Report" ? 'Add New Report' : 'Add New Delivery')}
                 </h3>
-                <p className="text-[10px] md:text-xs text-stone-500 font-medium">
-                  {editingId ? 'Perbarui detail pengiriman' : 'Fill in the delivery details below'}
-                </p>
+                {editingId && (
+                  <p className="text-[10px] md:text-xs text-stone-500 font-medium">
+                    {title === "Billing Report" ? 'Perbarui detail penagihan' : 'Perbarui detail pengiriman'}
+                  </p>
+                )}
               </div>
               <button 
                 onClick={closeModal}
@@ -479,165 +501,171 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-4 md:space-y-6 max-h-[75vh] overflow-y-auto custom-scrollbar">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+            <form onSubmit={handleSubmit} className="flex flex-col max-h-[90vh] md:max-h-[85vh]">
+              <div className="p-6 md:p-8 space-y-4 md:space-y-6 overflow-y-auto custom-scrollbar flex-1 pb-10 md:pb-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nama Kurir</label>
+                    <select
+                      required
+                      value={formData.namaKurir}
+                      onChange={(e) => setFormData({...formData, namaKurir: e.target.value})}
+                      className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium appearance-none cursor-pointer"
+                    >
+                      <option value="" disabled>Pilih Kurir</option>
+                      {courierOptions.length > 0 ? (
+                        courierOptions.map(name => (
+                          <option key={name} value={name}>{name}</option>
+                        ))
+                      ) : (
+                        <option value="" disabled>Tidak ada data kurir</option>
+                      )}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Tanggal</label>
+                    <input
+                      required
+                      type="date"
+                      value={formData.tanggal}
+                      onChange={(e) => setFormData({...formData, tanggal: e.target.value})}
+                      className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium"
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nama Kurir</label>
+                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nama Lokasi</label>
                   <select
                     required
-                    value={formData.namaKurir}
-                    onChange={(e) => setFormData({...formData, namaKurir: e.target.value})}
+                    value={formData.namaLokasi}
+                    onChange={(e) => setFormData({...formData, namaLokasi: e.target.value})}
                     className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium appearance-none cursor-pointer"
                   >
-                    <option value="" disabled>Pilih Kurir</option>
-                    {courierOptions.length > 0 ? (
-                      courierOptions.map(name => (
+                    <option value="" disabled>Pilih Lokasi</option>
+                    {locationOptions.length > 0 ? (
+                      locationOptions.map(name => (
                         <option key={name} value={name}>{name}</option>
                       ))
                     ) : (
-                      <option value="" disabled>Tidak ada data kurir</option>
+                      <option value="" disabled>Tidak ada data lokasi</option>
                     )}
                   </select>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Tanggal</label>
-                  <input
-                    required
-                    type="date"
-                    value={formData.tanggal}
-                    onChange={(e) => setFormData({...formData, tanggal: e.target.value})}
-                    className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium"
-                  />
-                </div>
-              </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nama Lokasi</label>
-                <select
-                  required
-                  value={formData.namaLokasi}
-                  onChange={(e) => setFormData({...formData, namaLokasi: e.target.value})}
-                  className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium appearance-none cursor-pointer"
-                >
-                  <option value="" disabled>Pilih Lokasi</option>
-                  {locationOptions.length > 0 ? (
-                    locationOptions.map(name => (
-                      <option key={name} value={name}>{name}</option>
-                    ))
-                  ) : (
-                    <option value="" disabled>Tidak ada data lokasi</option>
-                  )}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Qty Pengiriman</label>
-                  <input
-                    required
-                    type="number"
-                    value={formData.qtyPengiriman}
-                    onChange={(e) => setFormData({...formData, qtyPengiriman: parseInt(e.target.value)})}
-                    className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Jam Bukti</label>
-                  <input
-                    readOnly
-                    type="text"
-                    value={formData.jamBukti}
-                    placeholder="Otomatis saat foto"
-                    className="w-full px-4 py-3 rounded-2xl bg-stone-100 border-none text-sm font-medium text-stone-500 cursor-not-allowed"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Bukti Pengiriman (Selfie/Foto)</label>
-                
-                {isCameraActive ? (
-                  <div className="relative rounded-3xl overflow-hidden bg-black aspect-video border-4 border-stone-900 shadow-xl">
-                    <video 
-                      ref={videoRef} 
-                      autoPlay 
-                      playsInline 
-                      className="w-full h-full object-cover"
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">
+                      {title === "Billing Report" ? "Qty Penagihan" : "Qty Pengiriman"}
+                    </label>
+                    <input
+                      required
+                      type="number"
+                      value={formData.qtyPengiriman}
+                      onChange={(e) => setFormData({...formData, qtyPengiriman: parseInt(e.target.value)})}
+                      className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium"
                     />
-                    <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4">
-                      <button
-                        type="button"
-                        onClick={capturePhoto}
-                        className="w-14 h-14 rounded-full bg-white flex items-center justify-center text-stone-900 shadow-lg hover:scale-110 transition-transform"
-                      >
-                        <span className="material-symbols-outlined text-3xl">photo_camera</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={stopCamera}
-                        className="w-14 h-14 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg hover:scale-110 transition-transform"
-                      >
-                        <span className="material-symbols-outlined text-3xl">close</span>
-                      </button>
-                    </div>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {formData.fotoBukti ? (
-                      <div className="relative rounded-3xl overflow-hidden border-4 border-stone-900 shadow-xl aspect-video">
-                        <img 
-                          src={formData.fotoBukti} 
-                          alt="Preview" 
-                          className="w-full h-full object-cover"
-                        />
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Jam Bukti</label>
+                    <input
+                      readOnly
+                      type="text"
+                      value={formData.jamBukti}
+                      placeholder="Otomatis saat foto"
+                      className="w-full px-4 py-3 rounded-2xl bg-stone-100 border-none text-sm font-medium text-stone-500 cursor-not-allowed"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">
+                    {title === "Billing Report" ? "Bukti Penagihan (Selfie/Foto)" : "Bukti Pengiriman (Selfie/Foto)"}
+                  </label>
+                  
+                  {isCameraActive ? (
+                    <div className="relative rounded-3xl overflow-hidden bg-black aspect-video border-4 border-stone-900 shadow-xl">
+                      <video 
+                        ref={videoRef} 
+                        autoPlay 
+                        playsInline 
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4">
+                        <button
+                          type="button"
+                          onClick={capturePhoto}
+                          className="w-14 h-14 rounded-full bg-white flex items-center justify-center text-stone-900 shadow-lg hover:scale-110 transition-transform"
+                        >
+                          <span className="material-symbols-outlined text-3xl">photo_camera</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={stopCamera}
+                          className="w-14 h-14 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg hover:scale-110 transition-transform"
+                        >
+                          <span className="material-symbols-outlined text-3xl">close</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {formData.fotoBukti ? (
+                        <div className="relative rounded-3xl overflow-hidden border-4 border-stone-900 shadow-xl aspect-video">
+                          <img 
+                            src={formData.fotoBukti} 
+                            alt="Preview" 
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={startCamera}
+                            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-stone-900 shadow-lg"
+                          >
+                            <span className="material-symbols-outlined">refresh</span>
+                          </button>
+                        </div>
+                      ) : (
                         <button
                           type="button"
                           onClick={startCamera}
-                          className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-stone-900 shadow-lg"
+                          className="w-full py-12 rounded-3xl border-2 border-dashed border-stone-200 bg-stone-50 flex flex-col items-center justify-center gap-3 text-stone-400 hover:bg-stone-100 hover:border-stone-300 transition-all"
                         >
-                          <span className="material-symbols-outlined">refresh</span>
+                          <span className="material-symbols-outlined text-4xl">add_a_photo</span>
+                          <span className="text-xs font-bold uppercase tracking-widest">Ambil Foto Bukti</span>
                         </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={startCamera}
-                        className="w-full py-12 rounded-3xl border-2 border-dashed border-stone-200 bg-stone-50 flex flex-col items-center justify-center gap-3 text-stone-400 hover:bg-stone-100 hover:border-stone-300 transition-all"
-                      >
-                        <span className="material-symbols-outlined text-4xl">add_a_photo</span>
-                        <span className="text-xs font-bold uppercase tracking-widest">Ambil Foto Bukti</span>
-                      </button>
-                    )}
-                  </div>
-                )}
-                <canvas ref={canvasRef} className="hidden" />
-              </div>
+                      )}
+                    </div>
+                  )}
+                  <canvas ref={canvasRef} className="hidden" />
+                </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Lokasi Bukti (Otomatis)</label>
-                <div className="relative">
-                  <input
-                    readOnly
-                    type="text"
-                    value={formData.lokasiBukti}
-                    placeholder="Otomatis saat foto"
-                    className="w-full px-4 py-3 rounded-2xl bg-stone-100 border-none text-sm font-medium text-stone-500 cursor-not-allowed pl-10"
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Lokasi Bukti (Otomatis)</label>
+                  <div className="relative">
+                    <input
+                      readOnly
+                      type="text"
+                      value={formData.lokasiBukti}
+                      placeholder="Otomatis saat foto"
+                      className="w-full px-4 py-3 rounded-2xl bg-stone-100 border-none text-sm font-medium text-stone-500 cursor-not-allowed pl-10"
+                    />
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">location_on</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Keterangan</label>
+                  <textarea
+                    value={formData.keterangan}
+                    onChange={(e) => setFormData({...formData, keterangan: e.target.value})}
+                    placeholder="Catatan tambahan..."
+                    className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium h-24 resize-none"
                   />
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">location_on</span>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Keterangan</label>
-                <textarea
-                  value={formData.keterangan}
-                  onChange={(e) => setFormData({...formData, keterangan: e.target.value})}
-                  placeholder="Catatan tambahan..."
-                  className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium h-24 resize-none"
-                />
-              </div>
-
-              <div className="pt-4 flex gap-3 md:gap-4">
+              <div className="p-6 md:p-8 pt-4 border-t border-stone-50 flex gap-3 md:gap-4 bg-white">
                 <button
                   type="button"
                   onClick={closeModal}

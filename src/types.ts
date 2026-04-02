@@ -28,7 +28,8 @@ export type ActiveTab =
   | 'delivery'
   | 'sales_report'
   | 'print_admin'
-  | 'report_order';
+  | 'report_order'
+  | 'billing_report';
 
 export interface Employee {
   id: string;
@@ -206,6 +207,21 @@ export interface Order {
 }
 
 export interface DeliveryRecord {
+  id: string;
+  namaKurir: string;
+  tanggal: string;
+  namaLokasi: string;
+  fotoBukti?: string;
+  lokasiBukti?: string;
+  jamBukti?: string;
+  qtyPengiriman: number;
+  keterangan?: string;
+  company: string;
+  status: 'Pending' | 'Active' | 'Completed';
+  createdAt: string;
+}
+
+export interface BillingRecord {
   id: string;
   namaKurir: string;
   tanggal: string;

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from './lib/supabase';
 import StoreDatabase from './components/StoreDatabase';
 import OrderDatabase from './components/OrderDatabase';
-import { ActiveTab, Employee, AttendanceRecord, Submission, Broadcast, LiveSchedule, Shift, ShiftAssignment, Store, Order, UserRole, DeliveryRecord } from './types';
+import { ActiveTab, Employee, AttendanceRecord, Submission, Broadcast, LiveSchedule, Shift, ShiftAssignment, Store, Order, UserRole, DeliveryRecord, BillingRecord } from './types';
 import { Icons, DEFAULT_SHIFTS } from './constants';
 import Dashboard from './components/Dashboard';
 import AttendanceModule from './components/AttendanceModule';
@@ -173,6 +173,7 @@ export default function App() {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [shiftAssignments, setShiftAssignments] = useState<ShiftAssignment[]>([]);
   const [deliveries, setDeliveries] = useState<DeliveryRecord[]>([]);
+  const [billingReports, setBillingReports] = useState<BillingRecord[]>([]);
   const [userRole, setUserRole] = useState<UserRole>('owner');
   const [userCompany, setUserCompany] = useState('Sikepal');
   const [searchQuery, setSearchQuery] = useState('');
@@ -295,6 +296,16 @@ export default function App() {
           setDeliveries(deliveryData);
         }
 
+        // Billing Reports
+        const { data: billingData, error: billingError } = await supabase.from('billing_reports').select('*').order('createdAt', { ascending: false });
+        if (billingError) {
+          // If table doesn't exist yet, we'll just set an empty array
+          console.warn('Billing reports table might not exist yet:', billingError.message);
+          setBillingReports([]);
+        } else if (billingData) {
+          setBillingReports(billingData);
+        }
+
       } catch (err) {
         handleSupabaseError(err, 'fetch', 'all');
       } finally {
@@ -314,6 +325,7 @@ export default function App() {
       supabase.channel('stores').on('postgres_changes', { event: '*', schema: 'public', table: 'stores' }, fetchData).subscribe(),
       supabase.channel('orders').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchData).subscribe(),
       supabase.channel('deliveries').on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries' }, fetchData).subscribe(),
+      supabase.channel('billing_reports').on('postgres_changes', { event: '*', schema: 'public', table: 'billing_reports' }, fetchData).subscribe(),
     ];
 
     return () => {
@@ -444,6 +456,45 @@ export default function App() {
     }
   };
 
+  const handleSaveBillingReport = async (report: BillingRecord) => {
+    try {
+      console.log('Saving billing report to Supabase:', report);
+      const { error } = await supabase.from('billing_reports').upsert(report);
+      if (error) throw error;
+      
+      setBillingReports(prev => {
+        const index = prev.findIndex(r => r.id === report.id);
+        if (index >= 0) {
+          const newReports = [...prev];
+          newReports[index] = report;
+          return newReports;
+        }
+        return [report, ...prev];
+      });
+      
+      console.log('Billing report saved successfully');
+    } catch (error: any) {
+      console.error('Error saving billing report:', error);
+      alert('Gagal menyimpan billing report: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const handleDeleteBillingReport = async (id: string) => {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus data billing report ini?')) return;
+    
+    try {
+      console.log('Deleting billing report from Supabase:', id);
+      const { error } = await supabase.from('billing_reports').delete().eq('id', id);
+      if (error) throw error;
+      
+      setBillingReports(prev => prev.filter(r => r.id !== id));
+      console.log('Billing report deleted successfully');
+    } catch (error: any) {
+      console.error('Error deleting billing report:', error);
+      alert('Gagal menghapus billing report: ' + (error.message || 'Unknown error'));
+    }
+  };
+
   const handleDeleteAllOrders = async () => {
     try {
       const { error } = await supabase.from('orders').delete().neq('id', '0');
@@ -491,9 +542,10 @@ export default function App() {
       icon: 'local_shipping', 
       hidden: userRole === 'admin' || userRole === 'kurir',
       subItems: [
-        { id: 'delivery', label: 'Delivery', icon: 'dashboard' },
+        { id: 'delivery', label: 'Delivery Report', icon: 'dashboard' },
         { id: 'order_database', label: 'Data Orderan', icon: 'receipt_long' },
         { id: 'print_admin', label: 'Print Admin', icon: 'print' },
+        { id: 'billing_report', label: 'Billing report', icon: 'payments' },
       ]
     },
     { 
@@ -629,6 +681,8 @@ export default function App() {
       case 'delivery':
         return (
           <DeliveryModule 
+            title="Delivery Report"
+            addButtonLabel="Add New Delivery"
             company={userCompany} 
             orders={orders} 
             stores={stores} 
@@ -636,6 +690,20 @@ export default function App() {
             userRole={userRole}
             onSaveDelivery={handleSaveDelivery}
             onDeleteDelivery={handleDeleteDelivery}
+          />
+        );
+      case 'billing_report':
+        return (
+          <DeliveryModule 
+            title="Billing Report"
+            addButtonLabel="Add New Report"
+            company={userCompany} 
+            orders={orders} 
+            stores={stores} 
+            deliveries={billingReports as any}
+            userRole={userRole}
+            onSaveDelivery={handleSaveBillingReport as any}
+            onDeleteDelivery={handleDeleteBillingReport}
           />
         );
       default:
@@ -886,7 +954,7 @@ export default function App() {
                   setIsSidebarCollapsed(!isSidebarCollapsed);
                 }
               }}
-              className="p-2 text-stone-500 hover:bg-stone-100 rounded-xl transition-colors"
+              className="p-2 text-stone-500 hover:bg-stone-100 rounded-xl transition-colors hidden md:block"
               title={isSidebarCollapsed ? "Expand Sidebar" : "Minimize Sidebar"}
             >
               <span className="material-symbols-outlined">
@@ -965,13 +1033,6 @@ export default function App() {
         })}
       </nav>
 
-      {/* FAB Action (Mobile) */}
-      <button 
-        onClick={() => setActiveTab('submissions')}
-        className="fixed bottom-24 right-6 w-14 h-14 bg-orange-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-orange-200 hover:scale-105 active:scale-90 transition-transform md:hidden z-40"
-      >
-        <span className="material-symbols-outlined text-3xl">add</span>
-      </button>
     </div>
   );
 }

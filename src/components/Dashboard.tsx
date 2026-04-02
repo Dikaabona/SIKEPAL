@@ -122,29 +122,41 @@ const Dashboard: React.FC<DashboardProps> = ({
           </motion.div>
 
           {/* Quick Menu Grid */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             {/* Absen Selfie */}
             <motion.button
               variants={item}
               onClick={() => onNavigate('selfie_attendance')}
-              className="bg-white p-6 rounded-[32px] border border-stone-100 shadow-sm flex flex-col items-center justify-center gap-3 active:scale-95 transition-transform"
+              className="bg-white p-4 rounded-[24px] border border-stone-100 shadow-sm flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform"
             >
-              <div className="w-12 h-12 rounded-2xl bg-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-200">
-                <span className="material-symbols-outlined">photo_camera</span>
+              <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-200">
+                <span className="material-symbols-outlined text-xl">photo_camera</span>
               </div>
-              <span className="text-[10px] font-black text-stone-800 uppercase tracking-wider">Absen Selfie</span>
+              <span className="text-[9px] font-black text-stone-800 uppercase tracking-wider">Absen Selfie</span>
             </motion.button>
 
-            {/* Live Location */}
+            {/* Delivery Report */}
             <motion.button
               variants={item}
-              onClick={() => onNavigate('attendance')}
-              className="bg-white p-6 rounded-[32px] border border-stone-100 shadow-sm flex flex-col items-center justify-center gap-3 active:scale-95 transition-transform"
+              onClick={() => onNavigate('delivery')}
+              className="bg-white p-4 rounded-[24px] border border-stone-100 shadow-sm flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform"
             >
-              <div className="w-12 h-12 rounded-2xl bg-green-500 flex items-center justify-center text-white shadow-lg shadow-green-200">
-                <span className="material-symbols-outlined">location_on</span>
+              <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center text-white shadow-lg shadow-blue-200">
+                <span className="material-symbols-outlined text-xl">local_shipping</span>
               </div>
-              <span className="text-[10px] font-black text-stone-800 uppercase tracking-wider">Live Location</span>
+              <span className="text-[9px] font-black text-stone-800 uppercase tracking-wider">Delivery Report</span>
+            </motion.button>
+
+            {/* Billing Report */}
+            <motion.button
+              variants={item}
+              onClick={() => onNavigate('billing_report')}
+              className="bg-white p-4 rounded-[24px] border border-stone-100 shadow-sm flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform"
+            >
+              <div className="w-10 h-10 rounded-xl bg-purple-500 flex items-center justify-center text-white shadow-lg shadow-purple-200">
+                <span className="material-symbols-outlined text-xl">receipt_long</span>
+              </div>
+              <span className="text-[9px] font-black text-stone-800 uppercase tracking-wider">Billing Report</span>
             </motion.button>
           </div>
 

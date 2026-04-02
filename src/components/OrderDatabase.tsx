@@ -302,7 +302,46 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
         if (!val) return 0;
         // If it looks like a date (contains / or -), it's likely the wrong column
         if (val.includes('/') || (val.includes('-') && val.length > 5)) return 0;
-        const cleaned = val.replace(/[^\d]/g, '');
+        
+        // Handle potential decimal separators (comma or dot)
+        // If there's a decimal part, we usually want to ignore it for quantities
+        // but keep it for prices (though prices here are also integers usually)
+        let cleaned = val.trim();
+        
+        // If it has both dot and comma, it's definitely a formatted number
+        // e.g. 1.234,56 or 1,234.56
+        if (cleaned.includes('.') && cleaned.includes(',')) {
+          const dotIdx = cleaned.indexOf('.');
+          const commaIdx = cleaned.indexOf(',');
+          if (dotIdx < commaIdx) {
+            // 1.234,56 -> dot is thousand, comma is decimal
+            cleaned = cleaned.split(',')[0].replace(/\./g, '');
+          } else {
+            // 1,234.56 -> comma is thousand, dot is decimal
+            cleaned = cleaned.split('.')[0].replace(/,/g, '');
+          }
+        } else if (cleaned.includes(',')) {
+          // Could be decimal (1,5) or thousand (1,234)
+          // If there are exactly 3 digits after comma, it's likely a thousand separator
+          const parts = cleaned.split(',');
+          if (parts.length === 2 && parts[1].length === 3) {
+            cleaned = cleaned.replace(/,/g, '');
+          } else {
+            // Otherwise treat as decimal and take integer part
+            cleaned = parts[0].replace(/[^\d]/g, '');
+          }
+        } else if (cleaned.includes('.')) {
+          // Could be decimal (1.5) or thousand (1.234)
+          const parts = cleaned.split('.');
+          if (parts.length === 2 && parts[1].length === 3) {
+            cleaned = cleaned.replace(/\./g, '');
+          } else {
+            cleaned = parts[0].replace(/[^\d]/g, '');
+          }
+        } else {
+          cleaned = cleaned.replace(/[^\d]/g, '');
+        }
+        
         return parseInt(cleaned) || 0;
       };
 
@@ -342,7 +381,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
           }
         }
 
-        const orderId = `order_${tanggalValue}_${row[idx.lokasi] || Math.random().toString(36).substr(2, 9)}`.toLowerCase().replace(/[^a-z0-9]/g, '_');
+        const orderId = `order_${tanggalValue}_${row[idx.kurir] || ''}_${row[idx.lokasi] || Math.random().toString(36).substr(2, 9)}`.toLowerCase().replace(/[^a-z0-9]/g, '_');
 
         const order: Order = {
           id: orderId,
@@ -366,6 +405,16 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
           company,
           updatedAt: new Date().toISOString(),
         };
+
+        // Log specific date for debugging if requested
+        if (tanggalValue.includes('02/04/2026') || tanggalValue.includes('2/4/2026')) {
+          console.log('Syncing row for 02/04/2026:', {
+            lokasi: order.namaLokasi,
+            kurir: order.namaKurir,
+            jumlah: order.jumlahKirim,
+            id: orderId
+          });
+        }
 
         await onSaveOrder(order);
         syncCount++;
