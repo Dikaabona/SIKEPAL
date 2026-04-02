@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import * as XLSX from 'xlsx';
 import { Store, UserRole } from '../types';
 import { Icons } from '../constants';
 import { getPaginationRange } from '../lib/utils';
@@ -14,9 +15,11 @@ interface StoreDatabaseProps {
 
 const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDeleteAllStores, company, userRole }) => {
   const [isAdding, setIsAdding] = useState(false);
+  const [selectedStoreForDetail, setSelectedStoreForDetail] = useState<Store | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const itemsPerPage = 10;
 
   const [newStore, setNewStore] = useState<Partial<Store>>({
@@ -81,6 +84,105 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
       kurir: '',
       note: '',
     });
+  };
+
+  const downloadTemplate = () => {
+    const templateData = [
+      {
+        'Nama Toko': 'Contoh Toko A',
+        'Grade': 'A',
+        'Nama PIC': 'Budi',
+        'Nomor PIC': '08123456789',
+        'Link Gmaps': 'https://goo.gl/maps/...',
+        'Kategori': 'Sekolah',
+        'Harga': 'Rp7.500',
+        'Pembayaran': 'Harian',
+        'Operasional': 'Senin - Jumat',
+        'Kurir': 'Adol',
+        'Note': '-'
+      }
+    ];
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Template Store");
+    XLSX.writeFile(wb, "Template_Store_Database.xlsx");
+  };
+
+  const handleExport = () => {
+    if (stores.length === 0) {
+      alert('Tidak ada data untuk diekspor');
+      return;
+    }
+    const exportData = stores.map(store => ({
+      'Nama Toko': store.namaToko,
+      'Grade': store.grade,
+      'Nama PIC': store.namaPIC,
+      'Nomor PIC': store.nomorPIC,
+      'Link Gmaps': store.linkGmaps,
+      'Kategori': store.kategori,
+      'Harga': store.harga,
+      'Pembayaran': store.pembayaran,
+      'Operasional': store.operasional,
+      'Kurir': store.kurir,
+      'Note': store.note
+    }));
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Store Database");
+    XLSX.writeFile(wb, `Store_Database_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const data = new Uint8Array(event.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
+
+        if (jsonData.length === 0) {
+          alert('File kosong atau format tidak sesuai');
+          return;
+        }
+
+        let importCount = 0;
+        for (const row of jsonData) {
+          const storeName = row['Nama Toko'] || row['namaToko'];
+          if (!storeName) continue;
+
+          const storeId = `store_${storeName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+          const store: Store = {
+            id: storeId,
+            namaToko: storeName,
+            grade: row['Grade'] || row['grade'] || '',
+            namaPIC: row['Nama PIC'] || row['namaPIC'] || '',
+            nomorPIC: row['Nomor PIC'] || row['nomorPIC'] || '',
+            linkGmaps: row['Link Gmaps'] || row['linkGmaps'] || '',
+            kategori: row['Kategori'] || row['kategori'] || '',
+            harga: row['Harga'] || row['harga'] || '',
+            pembayaran: row['Pembayaran'] || row['pembayaran'] || '',
+            operasional: row['Operasional'] || row['operasional'] || '',
+            kurir: row['Kurir'] || row['kurir'] || '',
+            note: row['Note'] || row['note'] || '',
+            company,
+            updatedAt: new Date().toISOString(),
+          };
+          await onSaveStore(store);
+          importCount++;
+        }
+        alert(`Import berhasil! ${importCount} data toko telah ditambahkan/diperbarui.`);
+      } catch (error) {
+        console.error('Import error:', error);
+        alert('Gagal mengimpor file. Pastikan format file benar.');
+      }
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    reader.readAsArrayBuffer(file);
   };
 
   const syncFromSpreadsheet = async () => {
@@ -196,17 +298,36 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
           )}
           {userRole !== 'kurir' && (
             <>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleImport} 
+                accept=".xlsx, .xls" 
+                className="hidden" 
+              />
+              
               <button 
-                onClick={syncFromSpreadsheet}
-                disabled={isSyncing}
-                className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-xl font-bold text-[10px] md:text-sm transition-all shadow-sm ${
-                  isSyncing ? 'bg-stone-100 text-stone-400 cursor-not-allowed' : 'bg-white text-green-600 border border-green-600 hover:bg-green-50'
-                }`}
+                onClick={downloadTemplate}
+                className="flex items-center gap-2 px-3 md:px-4 py-2 bg-white text-stone-600 border border-stone-200 rounded-xl font-bold text-[10px] md:text-sm hover:bg-stone-50 transition-all shadow-sm"
               >
-                <span className={`material-symbols-outlined text-lg ${isSyncing ? 'animate-spin' : ''}`}>
-                  sync
-                </span>
-                <span>{isSyncing ? 'Syncing...' : (window.innerWidth < 640 ? 'Sync' : 'Sync Spreadsheet')}</span>
+                <span className="material-symbols-outlined text-lg">description</span>
+                <span>Template</span>
+              </button>
+
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-2 px-3 md:px-4 py-2 bg-white text-stone-600 border border-stone-200 rounded-xl font-bold text-[10px] md:text-sm hover:bg-stone-50 transition-all shadow-sm"
+              >
+                <span className="material-symbols-outlined text-lg">upload</span>
+                <span>Import</span>
+              </button>
+
+              <button 
+                onClick={handleExport}
+                className="flex items-center gap-2 px-3 md:px-4 py-2 bg-primary text-on-primary rounded-xl font-bold text-[10px] md:text-sm hover:bg-primary/90 transition-all shadow-md shadow-primary/20"
+              >
+                <span className="material-symbols-outlined text-lg">download</span>
+                <span>Ekspor</span>
               </button>
               
               <button 
@@ -276,18 +397,18 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
                 paginatedStores.map((store) => (
                   <tr key={store.id} className="hover:bg-stone-50/50 transition-colors group">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="font-black text-stone-800 text-sm">{store.namaToko}</div>
-                      {store.linkGmaps && (
-                        <a 
-                          href={store.linkGmaps} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-[9px] font-bold text-primary hover:underline flex items-center gap-1 mt-0.5 opacity-70 hover:opacity-100 transition-opacity"
-                        >
-                          <span className="material-symbols-outlined text-[11px]">location_on</span>
-                          View on Maps
-                        </a>
-                      )}
+                      <button 
+                        onClick={() => setSelectedStoreForDetail(store)}
+                        className="text-left group/name"
+                      >
+                        <div className="font-black text-stone-800 text-sm group-hover/name:text-primary transition-colors">{store.namaToko}</div>
+                        {store.linkGmaps && (
+                          <div className="text-[9px] font-bold text-primary flex items-center gap-1 mt-0.5 opacity-70">
+                            <span className="material-symbols-outlined text-[11px]">location_on</span>
+                            View on Maps
+                          </div>
+                        )}
+                      </button>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <span className={`inline-flex items-center justify-center w-8 h-8 rounded-lg text-[11px] font-black shadow-sm ${
@@ -349,19 +470,24 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
               <div key={store.id} className="p-4 space-y-4">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`inline-flex items-center justify-center w-6 h-6 rounded-md text-[9px] font-black shadow-sm ${
-                        store.grade === 'A' ? 'bg-green-500 text-white' :
-                        store.grade === 'B' ? 'bg-blue-500 text-white' :
-                        store.grade === 'C' ? 'bg-yellow-500 text-white' :
-                        store.grade === 'D' ? 'bg-orange-500 text-white' :
-                        store.grade === 'E' ? 'bg-red-500 text-white' :
-                        'bg-stone-200 text-stone-600'
-                      }`}>
-                        {store.grade || '-'}
-                      </span>
-                      <div className="font-black text-stone-800 text-base uppercase">{store.namaToko}</div>
-                    </div>
+                    <button 
+                      onClick={() => setSelectedStoreForDetail(store)}
+                      className="text-left w-full"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`inline-flex items-center justify-center w-6 h-6 rounded-md text-[9px] font-black shadow-sm ${
+                          store.grade === 'A' ? 'bg-green-500 text-white' :
+                          store.grade === 'B' ? 'bg-blue-500 text-white' :
+                          store.grade === 'C' ? 'bg-yellow-500 text-white' :
+                          store.grade === 'D' ? 'bg-orange-500 text-white' :
+                          store.grade === 'E' ? 'bg-red-500 text-white' :
+                          'bg-stone-200 text-stone-600'
+                        }`}>
+                          {store.grade || '-'}
+                        </span>
+                        <div className="font-black text-stone-800 text-base uppercase">{store.namaToko}</div>
+                      </div>
+                    </button>
                     <div className="flex flex-wrap gap-2 mt-2">
                       <span className="px-2 py-0.5 bg-stone-100 text-stone-600 rounded-md text-[9px] font-bold uppercase">{store.kategori || '-'}</span>
                       <span className="px-2 py-0.5 bg-primary/5 text-primary rounded-md text-[9px] font-bold uppercase">{store.kurir || '-'}</span>
@@ -465,6 +591,98 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
           </div>
         )}
       </div>
+
+      {/* Detail Modal */}
+      <AnimatePresence>
+        {selectedStoreForDetail && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedStoreForDetail(null)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              className="relative bg-white rounded-[40px] shadow-2xl w-full max-w-md overflow-hidden p-6"
+            >
+              <div className="flex justify-between items-start mb-6">
+                <div className="flex items-center gap-3">
+                  <span className={`inline-flex items-center justify-center w-10 h-10 rounded-xl text-sm font-black shadow-sm ${
+                    selectedStoreForDetail.grade === 'A' ? 'bg-green-500 text-white' :
+                    selectedStoreForDetail.grade === 'B' ? 'bg-blue-500 text-white' :
+                    selectedStoreForDetail.grade === 'C' ? 'bg-yellow-500 text-white' :
+                    selectedStoreForDetail.grade === 'D' ? 'bg-orange-500 text-white' :
+                    selectedStoreForDetail.grade === 'E' ? 'bg-red-500 text-white' :
+                    'bg-stone-200 text-stone-600'
+                  }`}>
+                    {selectedStoreForDetail.grade || '-'}
+                  </span>
+                  <h3 className="text-2xl font-black text-stone-800 uppercase tracking-tight">
+                    {selectedStoreForDetail.namaToko}
+                  </h3>
+                </div>
+                {userRole !== 'kurir' && (
+                  <button 
+                    onClick={() => {
+                      setNewStore(selectedStoreForDetail);
+                      setSelectedStoreForDetail(null);
+                      setIsAdding(true);
+                    }}
+                    className="w-12 h-12 rounded-full bg-stone-50 border border-stone-100 flex items-center justify-center text-stone-400 hover:text-primary transition-all"
+                  >
+                    <span className="material-symbols-outlined">edit</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2 mb-8">
+                <span className="px-4 py-1.5 bg-stone-100 text-stone-600 rounded-xl text-[10px] font-black uppercase tracking-widest">
+                  {selectedStoreForDetail.kategori || '-'}
+                </span>
+                <span className="px-4 py-1.5 bg-orange-50 text-orange-700 rounded-xl text-[10px] font-black uppercase tracking-widest">
+                  {selectedStoreForDetail.kurir || '-'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-8">
+                <div className="bg-stone-50/50 p-5 rounded-[32px] border border-stone-100">
+                  <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest block mb-2">PIC</span>
+                  <div className="text-lg font-black text-stone-800 mb-1">{selectedStoreForDetail.namaPIC || '-'}</div>
+                  <div className="text-xs text-stone-500 font-bold">{selectedStoreForDetail.nomorPIC || '-'}</div>
+                </div>
+                <div className="bg-stone-50/50 p-5 rounded-[32px] border border-stone-100">
+                  <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest block mb-2">Harga & Bayar</span>
+                  <div className="text-lg font-black text-stone-800 mb-1">{selectedStoreForDetail.harga || '-'}</div>
+                  <div className="text-xs text-stone-500 font-bold uppercase">{selectedStoreForDetail.pembayaran || '-'}</div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 text-stone-600">
+                  <span className="material-symbols-outlined text-2xl text-stone-400">schedule</span>
+                  <span className="text-sm font-black uppercase tracking-tight">{selectedStoreForDetail.operasional || '-'}</span>
+                </div>
+
+                {selectedStoreForDetail.linkGmaps && (
+                  <a 
+                    href={selectedStoreForDetail.linkGmaps} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-3 w-full py-5 bg-stone-900 text-white rounded-[24px] text-sm font-black uppercase tracking-widest transition-all active:scale-95 shadow-xl shadow-stone-900/20"
+                  >
+                    <span className="material-symbols-outlined">location_on</span>
+                    Buka di Google Maps
+                  </a>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Add/Edit Modal */}
       <AnimatePresence>

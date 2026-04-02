@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Order, UserRole } from '../types';
+import { Order, UserRole, Store } from '../types';
 import { getPaginationRange } from '../lib/utils';
 
 interface OrderDatabaseProps {
   orders: Order[];
+  stores: Store[];
   onSaveOrder: (order: Order) => Promise<void>;
   onDeleteAllOrders: () => Promise<void>;
   company: string;
@@ -13,12 +14,14 @@ interface OrderDatabaseProps {
 
 const OrderDatabase: React.FC<OrderDatabaseProps> = ({ 
   orders, 
+  stores,
   onSaveOrder, 
   onDeleteAllOrders,
   company,
   userRole
 }) => {
   const [isAdding, setIsAdding] = useState(false);
+  const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -704,7 +707,22 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                   <tr key={order.id} className="hover:bg-stone-50/50 transition-colors group">
                     <td className="px-4 py-4 text-xs text-stone-600">{formatDate(order.tanggal)}</td>
                     <td className="px-4 py-4 text-xs font-bold text-stone-800">{order.namaKurir}</td>
-                    <td className="px-4 py-4 text-xs font-bold text-stone-800">{order.namaLokasi}</td>
+                    <td className="px-4 py-4 text-xs font-bold text-stone-800">
+                      <button 
+                        onClick={() => {
+                          const store = stores.find(s => s.namaToko.toLowerCase() === order.namaLokasi.toLowerCase());
+                          if (store) {
+                            setSelectedStore(store);
+                          } else {
+                            // Fallback if not found in stores list
+                            alert(`Data toko "${order.namaLokasi}" tidak ditemukan di database toko.`);
+                          }
+                        }}
+                        className="hover:text-primary transition-colors text-left"
+                      >
+                        {order.namaLokasi}
+                      </button>
+                    </td>
                     <td className="px-4 py-4 text-xs text-stone-600 text-center">{order.tunaPedes}</td>
                     <td className="px-4 py-4 text-xs text-stone-600 text-center">{order.tunaMayo}</td>
                     <td className="px-4 py-4 text-xs text-stone-600 text-center">{order.ayamMayo}</td>
@@ -754,7 +772,19 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                 <div className="flex justify-between items-start">
                   <div>
                     <div className="text-xs font-black text-stone-400 uppercase tracking-wider mb-1">{formatDate(order.tanggal)}</div>
-                    <div className="text-base font-black text-stone-800 uppercase">{order.namaLokasi}</div>
+                    <button 
+                      onClick={() => {
+                        const store = stores.find(s => s.namaToko.toLowerCase() === order.namaLokasi.toLowerCase());
+                        if (store) {
+                          setSelectedStore(store);
+                        } else {
+                          alert(`Data toko "${order.namaLokasi}" tidak ditemukan di database toko.`);
+                        }
+                      }}
+                      className="text-base font-black text-stone-800 uppercase text-left block hover:text-primary transition-colors"
+                    >
+                      {order.namaLokasi}
+                    </button>
                     <div className="text-xs font-bold text-primary uppercase">{order.namaKurir}</div>
                   </div>
                   {userRole !== 'kurir' && (
@@ -1185,6 +1215,98 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                 >
                   Simpan Data
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* Store Details Modal */}
+      <AnimatePresence>
+        {selectedStore && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedStore(null)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative bg-white rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden p-6"
+            >
+              <div className="flex justify-between items-start mb-6">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-sm ${
+                    selectedStore.grade === 'A' ? 'bg-green-500' :
+                    selectedStore.grade === 'B' ? 'bg-blue-500' :
+                    selectedStore.grade === 'C' ? 'bg-yellow-500' :
+                    selectedStore.grade === 'D' ? 'bg-orange-500' :
+                    selectedStore.grade === 'E' ? 'bg-red-500' :
+                    'bg-stone-400'
+                  }`}>
+                    {selectedStore.grade || '-'}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-stone-800 uppercase leading-tight">
+                      {selectedStore.namaToko}
+                    </h3>
+                    <div className="flex gap-2 mt-1">
+                      <span className="px-2 py-0.5 bg-stone-100 text-stone-600 rounded-md text-[10px] font-bold uppercase">
+                        {selectedStore.kategori || '-'}
+                      </span>
+                      <span className="px-2 py-0.5 bg-stone-100 text-stone-600 rounded-md text-[10px] font-bold uppercase">
+                        {selectedStore.kurir || '-'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedStore(null)}
+                  className="w-10 h-10 rounded-full hover:bg-stone-100 flex items-center justify-center text-stone-400 transition-colors border border-stone-100 shadow-sm"
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-stone-50/50 p-4 rounded-3xl border border-stone-100">
+                  <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest block mb-2">PIC</span>
+                  <div className="text-sm font-black text-stone-800 mb-1">{selectedStore.namaPIC || '-'}</div>
+                  <div className="text-xs text-stone-500 font-bold">{selectedStore.nomorPIC || '-'}</div>
+                </div>
+                <div className="bg-stone-50/50 p-4 rounded-3xl border border-stone-100">
+                  <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest block mb-2">Harga & Bayar</span>
+                  <div className="text-sm font-black text-stone-800 mb-1">{selectedStore.harga || '-'}</div>
+                  <div className="text-xs text-stone-500 font-bold uppercase">{selectedStore.pembayaran || '-'}</div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 px-4 py-3 bg-stone-50/50 rounded-2xl border border-stone-100">
+                  <span className="material-symbols-outlined text-stone-400">schedule</span>
+                  <span className="text-sm font-bold text-stone-700 uppercase">{selectedStore.operasional || '-'}</span>
+                </div>
+
+                {selectedStore.note && (
+                  <div className="p-4 bg-stone-50/50 rounded-2xl border border-stone-100 text-xs text-stone-500 italic leading-relaxed">
+                    {selectedStore.note}
+                  </div>
+                )}
+
+                {selectedStore.linkGmaps && (
+                  <a 
+                    href={selectedStore.linkGmaps} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-3 w-full py-4 bg-stone-900 text-white rounded-2xl text-sm font-black transition-all hover:bg-stone-800 active:scale-95 shadow-lg shadow-stone-200"
+                  >
+                    <span className="material-symbols-outlined">location_on</span>
+                    Buka di Google Maps
+                  </a>
+                )}
               </div>
             </motion.div>
           </div>

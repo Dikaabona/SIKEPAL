@@ -476,6 +476,7 @@ export default function App() {
         return (
           <OrderDatabase
             orders={orders}
+            stores={stores}
             onSaveOrder={handleSaveOrder}
             onDeleteAllOrders={handleDeleteAllOrders}
             company={userCompany}
@@ -528,7 +529,7 @@ export default function App() {
       case 'sales_report':
         return <SalesReport company={userCompany} />;
       case 'print_admin':
-        return <PrintAdmin company={userCompany} />;
+        return <PrintAdmin company={userCompany} orders={orders} />;
       case 'report_order':
         return <OrderReport company={userCompany} />;
       default:

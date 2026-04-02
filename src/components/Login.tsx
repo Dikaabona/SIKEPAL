@@ -38,21 +38,41 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         if (error) throw error;
         onLoginSuccess();
       } else if (mode === 'signup') {
-        const { error } = await supabase.auth.signUp({
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            data: { full_name: fullName },
-            emailRedirectTo: window.location.origin
+            data: { full_name: fullName }
           }
         });
-        if (error) throw error;
+        if (signUpError) throw signUpError;
+
+        // Automatically add to employees table
+        if (signUpData.user) {
+          const { error: empError } = await supabase.from('employees').insert({
+            id: signUpData.user.id,
+            idKaryawan: `EMP${Math.floor(1000 + Math.random() * 9000)}`,
+            nama: fullName,
+            email: email,
+            company: 'Sikepal',
+            role: 'employee',
+            jabatan: 'Staff',
+            division: 'General',
+            tanggalMasuk: new Date().toISOString().split('T')[0],
+            hutang: 0
+          });
+          
+          if (empError) {
+            console.error('Error creating employee record:', empError);
+            // We don't throw here to avoid blocking the signup success message, 
+            // but we log it for debugging.
+          }
+        }
+
         setMessage('Pendaftaran berhasil! Silakan periksa email Anda untuk verifikasi.');
         setMode('login');
       } else if (mode === 'forgot') {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: window.location.origin,
-        });
+        const { error } = await supabase.auth.resetPasswordForEmail(email);
         if (error) throw error;
         setMessage('Instruksi reset password telah dikirim ke email Anda.');
         setMode('login');
