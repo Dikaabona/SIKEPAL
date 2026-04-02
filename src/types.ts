@@ -25,6 +25,7 @@ export type ActiveTab =
   | 'advertising'
   | 'sales'
   | 'report'
+  | 'delivery'
   | 'sales_report'
   | 'print_admin'
   | 'report_order';
@@ -202,4 +203,19 @@ export interface Order {
   diskon: number;
   company: string;
   updatedAt: string;
+}
+
+export interface DeliveryRecord {
+  id: string;
+  namaKurir: string;
+  tanggal: string;
+  namaLokasi: string;
+  fotoBukti?: string;
+  lokasiBukti?: string;
+  jamBukti?: string;
+  qtyPengiriman: number;
+  keterangan?: string;
+  company: string;
+  status: 'Pending' | 'Active' | 'Completed';
+  createdAt: string;
 }

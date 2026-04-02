@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from './lib/supabase';
 import StoreDatabase from './components/StoreDatabase';
 import OrderDatabase from './components/OrderDatabase';
-import { ActiveTab, Employee, AttendanceRecord, Submission, Broadcast, LiveSchedule, Shift, ShiftAssignment, Store, Order, UserRole } from './types';
+import { ActiveTab, Employee, AttendanceRecord, Submission, Broadcast, LiveSchedule, Shift, ShiftAssignment, Store, Order, UserRole, DeliveryRecord } from './types';
 import { Icons, DEFAULT_SHIFTS } from './constants';
 import Dashboard from './components/Dashboard';
 import AttendanceModule from './components/AttendanceModule';
@@ -24,6 +24,7 @@ import { AdvertisingModule } from './components/AdvertisingModule';
 import SalesReport from './components/SalesReport';
 import PrintAdmin from './components/PrintAdmin';
 import OrderReport from './components/OrderReport';
+import DeliveryModule from './components/DeliveryModule';
 import Login from './components/Login';
 import { Session } from '@supabase/supabase-js';
 
@@ -78,6 +79,37 @@ const MOCK_EMPLOYEES: Employee[] = [
     division: 'Front Desk',
     tanggalMasuk: '2023-05-20',
     hutang: 0,
+  }
+];
+
+const MOCK_DELIVERIES: DeliveryRecord[] = [
+  {
+    id: '1',
+    namaKurir: 'Budi Santoso',
+    tanggal: '2024-03-20',
+    namaLokasi: 'Toko Berkah Jaya',
+    fotoBukti: 'https://picsum.photos/seed/delivery1/200/200',
+    lokasiBukti: '-6.2088, 106.8456',
+    jamBukti: '10:30',
+    qtyPengiriman: 25,
+    keterangan: 'Diterima oleh Pak Ahmad',
+    company: 'Sikepal',
+    status: 'Completed',
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: '2',
+    namaKurir: 'Siti Aminah',
+    tanggal: '2024-03-20',
+    namaLokasi: 'Warung Pojok',
+    fotoBukti: 'https://picsum.photos/seed/delivery2/200/200',
+    lokasiBukti: '-6.2100, 106.8500',
+    jamBukti: '11:15',
+    qtyPengiriman: 15,
+    keterangan: 'Toko tutup, ditaruh di depan',
+    company: 'Sikepal',
+    status: 'Completed',
+    createdAt: new Date().toISOString()
   }
 ];
 
@@ -140,6 +172,7 @@ export default function App() {
   const [liveSchedules, setLiveSchedules] = useState<LiveSchedule[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [shiftAssignments, setShiftAssignments] = useState<ShiftAssignment[]>([]);
+  const [deliveries, setDeliveries] = useState<DeliveryRecord[]>([]);
   const [userRole, setUserRole] = useState<UserRole>('owner');
   const [userCompany, setUserCompany] = useState('Sikepal');
   const [searchQuery, setSearchQuery] = useState('');
@@ -252,6 +285,16 @@ export default function App() {
         if (orderError) throw orderError;
         if (orderData) setOrders(orderData);
 
+        // Deliveries
+        const { data: deliveryData, error: deliveryError } = await supabase.from('deliveries').select('*').order('createdAt', { ascending: false });
+        if (deliveryError) throw deliveryError;
+        if (deliveryData && deliveryData.length === 0) {
+          await supabase.from('deliveries').upsert(MOCK_DELIVERIES);
+          setDeliveries(MOCK_DELIVERIES);
+        } else if (deliveryData) {
+          setDeliveries(deliveryData);
+        }
+
       } catch (err) {
         handleSupabaseError(err, 'fetch', 'all');
       } finally {
@@ -270,6 +313,7 @@ export default function App() {
       supabase.channel('shift_assignments').on('postgres_changes', { event: '*', schema: 'public', table: 'shift_assignments' }, fetchData).subscribe(),
       supabase.channel('stores').on('postgres_changes', { event: '*', schema: 'public', table: 'stores' }, fetchData).subscribe(),
       supabase.channel('orders').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchData).subscribe(),
+      supabase.channel('deliveries').on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries' }, fetchData).subscribe(),
     ];
 
     return () => {
@@ -359,6 +403,47 @@ export default function App() {
     }
   };
 
+  const handleSaveDelivery = async (delivery: DeliveryRecord) => {
+    try {
+      console.log('Saving delivery to Supabase:', delivery);
+      const { error } = await supabase.from('deliveries').upsert(delivery);
+      if (error) throw error;
+      
+      // Update local state immediately for better UX
+      setDeliveries(prev => {
+        const index = prev.findIndex(d => d.id === delivery.id);
+        if (index >= 0) {
+          const newDeliveries = [...prev];
+          newDeliveries[index] = delivery;
+          return newDeliveries;
+        }
+        return [delivery, ...prev];
+      });
+      
+      console.log('Delivery saved successfully');
+    } catch (error: any) {
+      console.error('Error saving delivery:', error);
+      alert('Gagal menyimpan delivery: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const handleDeleteDelivery = async (id: string) => {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus data delivery ini?')) return;
+    
+    try {
+      console.log('Deleting delivery from Supabase:', id);
+      const { error } = await supabase.from('deliveries').delete().eq('id', id);
+      if (error) throw error;
+      
+      // Update local state immediately
+      setDeliveries(prev => prev.filter(d => d.id !== id));
+      console.log('Delivery deleted successfully');
+    } catch (error: any) {
+      console.error('Error deleting delivery:', error);
+      alert('Gagal menghapus delivery: ' + (error.message || 'Unknown error'));
+    }
+  };
+
   const handleDeleteAllOrders = async () => {
     try {
       const { error } = await supabase.from('orders').delete().neq('id', '0');
@@ -393,7 +478,6 @@ export default function App() {
       icon: 'database',
       subItems: [
         { id: 'store_database', label: 'Data Toko', icon: 'storefront' },
-        { id: 'order_database', label: 'Data Orderan', icon: 'receipt_long' },
       ]
     },
     { id: 'employee_database', label: 'Employee DB', icon: 'badge', hidden: userRole === 'admin' || userRole === 'kurir' },
@@ -402,6 +486,17 @@ export default function App() {
     { id: 'finance', label: 'Finance', icon: 'payments', hidden: userRole === 'admin' || userRole === 'kurir' },
     { id: 'inventory', label: 'Inventory', icon: 'inventory_2', hidden: userRole === 'admin' || userRole === 'kurir' },
     { 
+      id: 'delivery', 
+      label: 'Delivery', 
+      icon: 'local_shipping', 
+      hidden: userRole === 'admin' || userRole === 'kurir',
+      subItems: [
+        { id: 'delivery', label: 'Delivery', icon: 'dashboard' },
+        { id: 'order_database', label: 'Data Orderan', icon: 'receipt_long' },
+        { id: 'print_admin', label: 'Print Admin', icon: 'print' },
+      ]
+    },
+    { 
       id: 'report', 
       label: 'Sales Report', 
       icon: 'assessment',
@@ -409,7 +504,6 @@ export default function App() {
       subItems: [
         { id: 'sales_report', label: 'Sales Report', icon: 'trending_up' },
         { id: 'report_order', label: 'Order', icon: 'receipt_long' },
-        { id: 'print_admin', label: 'Print Admin', icon: 'print' },
       ]
     },
     { id: 'settings', label: 'Settings', icon: 'settings' },
@@ -532,6 +626,18 @@ export default function App() {
         return <PrintAdmin company={userCompany} orders={orders} />;
       case 'report_order':
         return <OrderReport company={userCompany} />;
+      case 'delivery':
+        return (
+          <DeliveryModule 
+            company={userCompany} 
+            orders={orders} 
+            stores={stores} 
+            deliveries={deliveries}
+            userRole={userRole}
+            onSaveDelivery={handleSaveDelivery}
+            onDeleteDelivery={handleDeleteDelivery}
+          />
+        );
       default:
         return (
           <div className="flex items-center justify-center h-full text-stone-400">

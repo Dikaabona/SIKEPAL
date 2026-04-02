@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { Order } from '../types';
 import { motion } from 'motion/react';
-import domtoimage from 'dom-to-image';
 
 interface PrintAdminProps {
   company: string;
@@ -12,7 +11,6 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedCourier, setSelectedCourier] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
-  const [isCapturing, setIsCapturing] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
   const couriers = useMemo(() => {
@@ -100,52 +98,6 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
     } else {
       // Fallback
       window.print();
-    }
-  };
-
-  const handleDownloadPNG = async () => {
-    if (printRef.current) {
-      setIsCapturing(true);
-      
-      // Small delay to ensure state update renders the hidden div if needed
-      setTimeout(async () => {
-        const element = printRef.current!;
-        const originalStyle = element.style.display;
-        const originalClassName = element.className;
-        
-        // Force visibility for capture
-        element.style.display = 'block';
-        element.style.position = 'relative';
-        element.style.left = '0';
-        element.className = 'bg-white text-black font-sans p-4 w-[297mm]'; // A4 landscape width
-
-        try {
-          // Use dom-to-image for better CSS support (oklch, etc.)
-          const dataUrl = await domtoimage.toPng(element, {
-            bgcolor: '#ffffff',
-            width: 1122, // 297mm at 96dpi
-            height: element.scrollHeight,
-            style: {
-              transform: 'scale(1)',
-              transformOrigin: 'top left'
-            }
-          });
-          
-          const link = document.createElement('a');
-          link.download = `Laporan_Print_Admin_${selectedDate}_${selectedCourier || 'Semua'}.png`;
-          link.href = dataUrl;
-          link.click();
-        } catch (error) {
-          console.error('PNG Capture error:', error);
-          alert('Gagal mengunduh PNG. Silakan coba lagi.');
-        } finally {
-          element.style.display = originalStyle;
-          element.style.position = '';
-          element.style.left = '';
-          element.className = originalClassName;
-          setIsCapturing(false);
-        }
-      }, 100);
     }
   };
 
@@ -384,14 +336,6 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <h2 className="text-3xl font-black uppercase tracking-tight">Print Admin</h2>
           <div className="flex gap-3">
-            <button
-              onClick={handleDownloadPNG}
-              disabled={isCapturing}
-              className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-stone-900 border border-stone-200 rounded-2xl font-black text-sm hover:bg-stone-50 transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none shadow-sm"
-            >
-              <span className="material-symbols-outlined">image</span>
-              {isCapturing ? 'Processing...' : 'Download PNG'}
-            </button>
             <button
               onClick={handlePrint}
               className="flex items-center justify-center gap-2 px-6 py-3 bg-stone-900 text-white rounded-2xl font-black text-sm hover:bg-stone-800 transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none shadow-lg shadow-stone-200"
