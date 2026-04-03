@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Employee, AttendanceRecord, UserRole, Shift } from '../types';
+import { Employee, AttendanceRecord, UserRole, Shift, BranchLocation } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
 
@@ -21,6 +21,7 @@ interface AttendanceModuleProps {
   positionRates: any;
   shifts: Shift[];
   shiftAssignments: any[];
+  branchLocations: BranchLocation[];
   initialSelfieMode?: boolean;
   onClose?: () => void;
   onFinish?: () => void;
@@ -41,7 +42,8 @@ const AttendanceModule: React.FC<AttendanceModuleProps> = ({
   startDate,
   endDate,
   onStartDateChange,
-  onEndDateChange
+  onEndDateChange,
+  branchLocations
 }) => {
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [isSelfieActive, setIsSelfieActive] = useState(initialSelfieMode || false);
@@ -109,8 +111,51 @@ const AttendanceModule: React.FC<AttendanceModuleProps> = ({
     }
   };
 
-  const handleAttendance = (photo: string) => {
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371e3; // Earth's radius in meters
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c; // Distance in meters
+  };
+
+  const handleAttendance = async (photo: string) => {
     if (!currentEmployee) return;
+
+    // Radius Check
+    if (currentEmployee.branchLocationId) {
+      const branch = branchLocations.find(b => b.id === currentEmployee.branchLocationId);
+      if (branch) {
+        try {
+          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject);
+          });
+
+          const distance = calculateDistance(
+            position.coords.latitude,
+            position.coords.longitude,
+            branch.latitude,
+            branch.longitude
+          );
+
+          if (distance > branch.radius) {
+            alert(`Kamu diluar jangkauan! Jarak kamu ${Math.round(distance)}m dari lokasi ${branch.namaCabang}. Radius maksimal ${branch.radius}m.`);
+            return;
+          }
+        } catch (err) {
+          console.error("Geolocation error:", err);
+          alert("Gagal mendapatkan lokasi. Pastikan izin lokasi telah diberikan.");
+          return;
+        }
+      }
+    }
 
     const today = new Date().toISOString().split('T')[0];
     const existingRecord = records.find(r => r.employeeId === currentEmployee.id && r.date === today);
@@ -129,7 +174,7 @@ const AttendanceModule: React.FC<AttendanceModuleProps> = ({
     } else {
       // Clock in
       onSaveRecord({
-        id: Math.random().toString(36).substr(2, 9),
+        id: crypto.randomUUID(),
         employeeId: currentEmployee.id,
         company: company,
         date: today,
@@ -338,7 +383,7 @@ const AttendanceModule: React.FC<AttendanceModuleProps> = ({
 
         if (empId && date) {
           onSaveRecord({
-            id: Math.random().toString(36).substr(2, 9),
+            id: crypto.randomUUID(),
             employeeId: empId,
             company: company,
             date: date,
@@ -356,9 +401,9 @@ const AttendanceModule: React.FC<AttendanceModuleProps> = ({
     reader.readAsBinaryString(file);
   };
 
-  const filteredRecords = records.filter(r => {
+  const filteredRecords = (records || []).filter(r => {
     const dateMatch = r.date >= startDate && r.date <= endDate;
-    const employee = employees.find(e => e.id === r.employeeId);
+    const employee = employees?.find(e => e.id === r.employeeId);
     const searchMatch = !searchQuery || (employee && (
       employee.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
       employee.jabatan.toLowerCase().includes(searchQuery.toLowerCase()) ||

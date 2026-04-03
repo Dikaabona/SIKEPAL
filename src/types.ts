@@ -29,6 +29,7 @@ export type ActiveTab =
   | 'sales_report'
   | 'print_admin'
   | 'report_order'
+  | 'daily_report'
   | 'billing_report';
 
 export interface Employee {
@@ -51,6 +52,7 @@ export interface Employee {
   noRekening?: string;
   hutang: number;
   lokasiKerja?: string;
+  branchLocationId?: string;
   statusKaryawan?: string;
   resigned_at?: string;
   resign_reason?: string;
@@ -234,4 +236,28 @@ export interface BillingRecord {
   company: string;
   status: 'Pending' | 'Active' | 'Completed';
   createdAt: string;
+}
+
+export interface Division {
+  id: string;
+  name: string;
+  company: string;
+}
+
+export interface Position {
+  id: string;
+  name: string;
+  company: string;
+}
+
+export interface BranchLocation {
+  id: string;
+  kodeCabang: string;
+  namaCabang: string;
+  alamatCabang: string;
+  teleponCabang: string;
+  radius: number;
+  latitude: number;
+  longitude: number;
+  company: string;
 }

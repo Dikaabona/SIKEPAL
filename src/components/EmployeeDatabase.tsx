@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Employee, UserRole } from '../types';
+import { Employee, UserRole, Division, Position, BranchLocation } from '../types';
 import EmployeeForm from './EmployeeForm';
 
 interface EmployeeDatabaseProps {
@@ -7,9 +7,20 @@ interface EmployeeDatabaseProps {
   onSaveEmployee: (emp: Employee) => void;
   onDeleteEmployee: (id: string) => void;
   company: string;
+  divisions: Division[];
+  positions: Position[];
+  branchLocations: BranchLocation[];
 }
 
-const EmployeeDatabase: React.FC<EmployeeDatabaseProps> = ({ employees, onSaveEmployee, onDeleteEmployee, company }) => {
+const EmployeeDatabase: React.FC<EmployeeDatabaseProps> = ({ 
+  employees, 
+  onSaveEmployee, 
+  onDeleteEmployee, 
+  company,
+  divisions,
+  positions,
+  branchLocations
+}) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -20,7 +31,7 @@ const EmployeeDatabase: React.FC<EmployeeDatabaseProps> = ({ employees, onSaveEm
     } else {
       const newEmp: Employee = {
         ...emp as Employee,
-        id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+        id: crypto.randomUUID(),
       };
       onSaveEmployee(newEmp);
     }
@@ -279,6 +290,9 @@ const EmployeeDatabase: React.FC<EmployeeDatabaseProps> = ({ employees, onSaveEm
           onSave={handleSave}
           onSaveAndOnboard={handleSave}
           onCancel={() => { setIsFormOpen(false); setEditingEmployee(null); }}
+          divisions={divisions}
+          positions={positions}
+          branchLocations={branchLocations}
         />
       )}
     </div>

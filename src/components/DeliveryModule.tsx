@@ -114,6 +114,15 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [locationSearchQuery, setLocationSearchQuery] = useState('');
+  const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
+
+  const filteredLocationOptions = useMemo(() => {
+    if (!locationSearchQuery.trim()) return locationOptions;
+    return locationOptions.filter(name => 
+      name.toLowerCase().includes(locationSearchQuery.toLowerCase())
+    );
+  }, [locationOptions, locationSearchQuery]);
 
   // Handle prefill from props
   React.useEffect(() => {
@@ -249,6 +258,8 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
     setIsModalOpen(false);
     setEditingId(null);
     stopCamera();
+    setLocationSearchQuery('');
+    setIsLocationDropdownOpen(false);
     setFormData({
       namaKurir: '',
       tanggal: new Date().toISOString().split('T')[0],
@@ -557,23 +568,79 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                   </div>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 relative">
                   <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nama Lokasi</label>
-                  <select
-                    required
-                    value={formData.namaLokasi}
-                    onChange={(e) => setFormData({...formData, namaLokasi: e.target.value})}
-                    className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium appearance-none cursor-pointer"
-                  >
-                    <option value="" disabled>Pilih Lokasi</option>
-                    {locationOptions.length > 0 ? (
-                      locationOptions.map(name => (
-                        <option key={name} value={name}>{name}</option>
-                      ))
-                    ) : (
-                      <option value="" disabled>Tidak ada data lokasi</option>
-                    )}
-                  </select>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Cari atau pilih lokasi..."
+                      value={isLocationDropdownOpen ? locationSearchQuery : formData.namaLokasi}
+                      onFocus={() => {
+                        setIsLocationDropdownOpen(true);
+                        setLocationSearchQuery(formData.namaLokasi);
+                      }}
+                      onChange={(e) => setLocationSearchQuery(e.target.value)}
+                      className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium pr-10"
+                    />
+                    <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none">
+                      {isLocationDropdownOpen ? 'search' : 'expand_more'}
+                    </span>
+                  </div>
+
+                  {isLocationDropdownOpen && (
+                    <div className="absolute z-[70] left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-stone-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                      <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                        {filteredLocationOptions.length > 0 ? (
+                          filteredLocationOptions.map(name => (
+                            <button
+                              key={name}
+                              type="button"
+                              onClick={() => {
+                                setFormData({...formData, namaLokasi: name});
+                                setLocationSearchQuery('');
+                                setIsLocationDropdownOpen(false);
+                              }}
+                              className="w-full px-4 py-3 text-left text-sm font-medium hover:bg-stone-50 transition-colors border-b border-stone-50 last:border-none flex items-center justify-between group"
+                            >
+                              <span className={formData.namaLokasi === name ? 'text-stone-900 font-bold' : 'text-stone-600'}>
+                                {name}
+                              </span>
+                              {formData.namaLokasi === name && (
+                                <span className="material-symbols-outlined text-primary text-sm">check_circle</span>
+                              )}
+                            </button>
+                          ))
+                        ) : (
+                          <div className="px-4 py-8 text-center">
+                            <span className="material-symbols-outlined text-stone-200 text-2xl mb-2">location_off</span>
+                            <p className="text-xs text-stone-400 font-medium">Lokasi tidak ditemukan</p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFormData({...formData, namaLokasi: locationSearchQuery});
+                                setLocationSearchQuery('');
+                                setIsLocationDropdownOpen(false);
+                              }}
+                              className="mt-3 text-[10px] font-black uppercase text-primary hover:underline"
+                            >
+                              Gunakan "{locationSearchQuery}"
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {/* Backdrop to close dropdown */}
+                  {isLocationDropdownOpen && (
+                    <div 
+                      className="fixed inset-0 z-[65]" 
+                      onClick={() => {
+                        setIsLocationDropdownOpen(false);
+                        setLocationSearchQuery('');
+                      }}
+                    />
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">

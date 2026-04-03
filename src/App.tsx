@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from './lib/supabase';
 import StoreDatabase from './components/StoreDatabase';
 import OrderDatabase from './components/OrderDatabase';
-import { ActiveTab, Employee, AttendanceRecord, Submission, Broadcast, LiveSchedule, Shift, ShiftAssignment, Store, Order, UserRole, DeliveryRecord, BillingRecord } from './types';
+import { ActiveTab, Employee, AttendanceRecord, Submission, Broadcast, LiveSchedule, Shift, ShiftAssignment, Store, Order, UserRole, DeliveryRecord, BillingRecord, Division, Position, BranchLocation } from './types';
 import { Icons, DEFAULT_SHIFTS } from './constants';
 import Dashboard from './components/Dashboard';
 import AttendanceModule from './components/AttendanceModule';
@@ -25,6 +25,7 @@ import SalesReport from './components/SalesReport';
 import PrintAdmin from './components/PrintAdmin';
 import OrderReport from './components/OrderReport';
 import DeliveryModule from './components/DeliveryModule';
+import DailyReportModule from './components/DailyReportModule';
 import Login from './components/Login';
 import { Session } from '@supabase/supabase-js';
 
@@ -174,6 +175,9 @@ export default function App() {
   const [shiftAssignments, setShiftAssignments] = useState<ShiftAssignment[]>([]);
   const [deliveries, setDeliveries] = useState<DeliveryRecord[]>([]);
   const [billingReports, setBillingReports] = useState<BillingRecord[]>([]);
+  const [divisions, setDivisions] = useState<Division[]>([]);
+  const [positions, setPositions] = useState<Position[]>([]);
+  const [branchLocations, setBranchLocations] = useState<BranchLocation[]>([]);
   const [userRole, setUserRole] = useState<UserRole>('owner');
   const [userCompany, setUserCompany] = useState('Sikepal');
   const [searchQuery, setSearchQuery] = useState('');
@@ -304,6 +308,18 @@ export default function App() {
           setBillingReports(billingData);
         }
 
+        // Divisions
+        const { data: divData, error: divError } = await supabase.from('divisions').select('*');
+        if (!divError && divData) setDivisions(divData);
+
+        // Positions
+        const { data: posData, error: posError } = await supabase.from('positions').select('*');
+        if (!posError && posData) setPositions(posData);
+
+        // Branch Locations
+        const { data: branchData, error: branchError } = await supabase.from('branch_locations').select('*');
+        if (!branchError && branchData) setBranchLocations(branchData);
+
       } catch (err) {
         handleSupabaseError(err, 'fetch', 'all');
       } finally {
@@ -324,6 +340,9 @@ export default function App() {
       supabase.channel('orders').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchData).subscribe(),
       supabase.channel('deliveries').on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries' }, fetchData).subscribe(),
       supabase.channel('billing_reports').on('postgres_changes', { event: '*', schema: 'public', table: 'billing_reports' }, fetchData).subscribe(),
+      supabase.channel('divisions').on('postgres_changes', { event: '*', schema: 'public', table: 'divisions' }, fetchData).subscribe(),
+      supabase.channel('positions').on('postgres_changes', { event: '*', schema: 'public', table: 'positions' }, fetchData).subscribe(),
+      supabase.channel('branch_locations').on('postgres_changes', { event: '*', schema: 'public', table: 'branch_locations' }, fetchData).subscribe(),
     ];
 
     return () => {
@@ -342,6 +361,16 @@ export default function App() {
     } catch (error: any) {
       console.error('Error saving employee:', error);
       alert('Gagal menyimpan ke database: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const handleDeleteEmployee = async (id: string) => {
+    try {
+      const { error } = await supabase.from('employees').delete().eq('id', id);
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Error deleting employee:', error);
+      alert('Gagal menghapus karyawan: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -493,6 +522,92 @@ export default function App() {
     }
   };
 
+  const handleSaveDivision = async (division: Division) => {
+    try {
+      const { error } = await supabase.from('divisions').upsert(division);
+      if (error) throw error;
+      setDivisions(prev => {
+        const index = prev.findIndex(d => d.id === division.id);
+        if (index >= 0) {
+          const newDivs = [...prev];
+          newDivs[index] = division;
+          return newDivs;
+        }
+        return [...prev, division];
+      });
+    } catch (error: any) {
+      console.error('Error saving division:', error);
+    }
+  };
+
+  const handleDeleteDivision = async (id: string) => {
+    try {
+      const { error } = await supabase.from('divisions').delete().eq('id', id);
+      if (error) throw error;
+      setDivisions(prev => prev.filter(d => d.id !== id));
+    } catch (error: any) {
+      console.error('Error deleting division:', error);
+    }
+  };
+
+  const handleSavePosition = async (position: Position) => {
+    try {
+      const { error } = await supabase.from('positions').upsert(position);
+      if (error) throw error;
+      setPositions(prev => {
+        const index = prev.findIndex(p => p.id === position.id);
+        if (index >= 0) {
+          const newPos = [...prev];
+          newPos[index] = position;
+          return newPos;
+        }
+        return [...prev, position];
+      });
+    } catch (error: any) {
+      console.error('Error saving position:', error);
+    }
+  };
+
+  const handleDeletePosition = async (id: string) => {
+    try {
+      const { error } = await supabase.from('positions').delete().eq('id', id);
+      if (error) throw error;
+      setPositions(prev => prev.filter(p => p.id !== id));
+    } catch (error: any) {
+      console.error('Error deleting position:', error);
+    }
+  };
+
+  const handleSaveBranchLocation = async (location: BranchLocation) => {
+    try {
+      const { error } = await supabase.from('branch_locations').upsert(location);
+      if (error) throw error;
+      setBranchLocations(prev => {
+        const index = prev.findIndex(l => l.id === location.id);
+        if (index >= 0) {
+          const newLocs = [...prev];
+          newLocs[index] = location;
+          return newLocs;
+        }
+        return [...prev, location];
+      });
+    } catch (error: any) {
+      console.error('Error saving branch location:', error);
+      alert('Gagal menyimpan lokasi cabang: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const handleDeleteBranchLocation = async (id: string) => {
+    try {
+      const { error } = await supabase.from('branch_locations').delete().eq('id', id);
+      if (error) throw error;
+      setBranchLocations(prev => prev.filter(l => l.id !== id));
+    } catch (error: any) {
+      console.error('Error deleting branch location:', error);
+      alert('Gagal menghapus lokasi cabang: ' + (error.message || 'Unknown error'));
+    }
+  };
+
   const handleDeleteAllOrders = async () => {
     try {
       const { error } = await supabase.from('orders').delete().neq('id', '0');
@@ -544,6 +659,7 @@ export default function App() {
         { id: 'order_database', label: 'Data Orderan', icon: 'receipt_long' },
         { id: 'print_admin', label: 'Print Admin', icon: 'print' },
         { id: 'billing_report', label: 'Billing report', icon: 'payments' },
+        { id: 'daily_report', label: 'Daily Report', icon: 'summarize' },
       ]
     },
     { 
@@ -606,6 +722,7 @@ export default function App() {
             positionRates={{}}
             shifts={shifts}
             shiftAssignments={shiftAssignments}
+            branchLocations={branchLocations}
             initialSelfieMode={activeTab === 'selfie_attendance'}
             onClose={() => setActiveTab('home')}
             onFinish={() => setActiveTab('attendance')}
@@ -638,7 +755,11 @@ export default function App() {
           <EmployeeDatabase
             employees={employees}
             onSaveEmployee={handleSaveEmployee}
+            onDeleteEmployee={handleDeleteEmployee}
             company={userCompany}
+            divisions={divisions}
+            positions={positions}
+            branchLocations={branchLocations}
           />
         );
       case 'inbox':
@@ -673,6 +794,15 @@ export default function App() {
             userRole={userRole} 
             onRefresh={refreshData}
             onLogout={handleLogout}
+            divisions={divisions}
+            positions={positions}
+            branchLocations={branchLocations}
+            onSaveDivision={handleSaveDivision}
+            onDeleteDivision={handleDeleteDivision}
+            onSavePosition={handleSavePosition}
+            onDeletePosition={handleDeletePosition}
+            onSaveBranchLocation={handleSaveBranchLocation}
+            onDeleteBranchLocation={handleDeleteBranchLocation}
           />
         );
       case 'report':
@@ -696,6 +826,14 @@ export default function App() {
             onDeleteDelivery={handleDeleteDelivery}
             initialPrefillLocation={prefillData?.type === 'delivery' ? prefillData.location : undefined}
             onPrefillHandled={() => setPrefillData(null)}
+          />
+        );
+      case 'daily_report':
+        return (
+          <DailyReportModule 
+            orders={orders}
+            deliveries={deliveries}
+            company={userCompany}
           />
         );
       case 'billing_report':
@@ -947,7 +1085,7 @@ export default function App() {
           <div className="fixed inset-0 z-[200] bg-white/80 backdrop-blur-sm flex items-center justify-center">
             <div className="flex flex-col items-center gap-4">
               <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-              <p className="font-bold text-stone-600">Connecting to Supabase...</p>
+              <p className="font-bold text-stone-600">Sebentar ya</p>
             </div>
           </div>
         )}

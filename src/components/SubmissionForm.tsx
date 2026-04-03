@@ -29,7 +29,7 @@ const SubmissionForm: React.FC<SubmissionFormProps> = ({ employee, company, onSa
     setIsSubmitting(true);
     try {
       const newSubmission: Submission = {
-        id: Math.random().toString(36).substr(2, 9),
+        id: crypto.randomUUID(),
         employeeId: employee.id,
         company: company,
         type: type,

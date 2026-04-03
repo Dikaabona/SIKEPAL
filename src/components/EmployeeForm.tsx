@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Employee, UserRole } from '../types';
+import { Employee, UserRole, Division, Position, BranchLocation } from '../types';
 
 interface EmployeeFormProps {
   employees: Employee[];
@@ -10,9 +10,12 @@ interface EmployeeFormProps {
   onSave: (emp: Partial<Employee>) => void;
   onSaveAndOnboard: (emp: Partial<Employee>) => void;
   onCancel: () => void;
+  divisions: Division[];
+  positions: Position[];
+  branchLocations: BranchLocation[];
 }
 
-const EmployeeForm: React.FC<EmployeeFormProps> = ({ initialData, userCompany, onSave, onCancel }) => {
+const EmployeeForm: React.FC<EmployeeFormProps> = ({ initialData, userCompany, onSave, onCancel, divisions, positions, branchLocations }) => {
   const [formData, setFormData] = useState<Partial<Employee>>(initialData || {
     nama: '',
     email: '',
@@ -77,14 +80,17 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ initialData, userCompany, o
             </div>
             <div className="space-y-2">
               <label className="text-sm font-bold text-stone-600">Position / Jabatan</label>
-              <input
+              <select
                 required
                 className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                type="text"
                 value={formData.jabatan}
                 onChange={(e) => setFormData({ ...formData, jabatan: e.target.value })}
-                placeholder="e.g. Head Chef"
-              />
+              >
+                <option value="">Select Position</option>
+                {positions?.map(pos => (
+                  <option key={pos.id} value={pos.name}>{pos.name}</option>
+                ))}
+              </select>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-bold text-stone-600">Division</label>
@@ -95,10 +101,9 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ initialData, userCompany, o
                 onChange={(e) => setFormData({ ...formData, division: e.target.value })}
               >
                 <option value="">Select Division</option>
-                <option value="Kitchen">Kitchen</option>
-                <option value="Logistics">Logistics</option>
-                <option value="Front Desk">Front Desk</option>
-                <option value="Admin">Admin</option>
+                {divisions?.map(div => (
+                  <option key={div.id} value={div.name}>{div.name}</option>
+                ))}
               </select>
             </div>
             <div className="space-y-2">
@@ -124,6 +129,21 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ initialData, userCompany, o
                 value={formData.tanggalMasuk}
                 onChange={(e) => setFormData({ ...formData, tanggalMasuk: e.target.value })}
               />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-stone-600">Maps (Absence Location)</label>
+              <select
+                className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                value={formData.branchLocationId || ''}
+                onChange={(e) => setFormData({ ...formData, branchLocationId: e.target.value || null })}
+              >
+                <option value="">Select Location</option>
+                {branchLocations?.map(loc => (
+                  <option key={loc.id} value={loc.id}>{loc.namaCabang} ({loc.kodeCabang})</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-stone-400 font-medium ml-1 italic">Karyawan hanya bisa absen di lokasi ini</p>
             </div>
           </div>
           <div className="pt-6 flex gap-4">
