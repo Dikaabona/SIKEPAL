@@ -10,6 +10,7 @@ interface OrderDatabaseProps {
   onDeleteAllOrders: () => Promise<void>;
   company: string;
   userRole: UserRole;
+  onPrefillRequest?: (location: string, type: 'delivery' | 'billing') => void;
 }
 
 const OrderDatabase: React.FC<OrderDatabaseProps> = ({ 
@@ -18,7 +19,8 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
   onSaveOrder, 
   onDeleteAllOrders,
   company,
-  userRole
+  userRole,
+  onPrefillRequest
 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
@@ -1347,6 +1349,33 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                     {selectedStore.note}
                   </div>
                 )}
+
+                <div className="flex gap-3 mt-2">
+                  <button 
+                    onClick={() => {
+                      onPrefillRequest?.(selectedStore.namaToko, 'delivery');
+                      setSelectedStore(null);
+                    }}
+                    className="flex-1 flex flex-col items-center gap-2 p-3 bg-orange-50 rounded-2xl border border-orange-100 hover:bg-orange-100 transition-all group"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-orange-200 flex items-center justify-center text-orange-700 group-hover:scale-110 transition-transform">
+                      <span className="material-symbols-outlined text-xl">local_shipping</span>
+                    </div>
+                    <span className="text-[10px] font-black text-orange-800 uppercase tracking-tight">Delivery Report</span>
+                  </button>
+                  <button 
+                    onClick={() => {
+                      onPrefillRequest?.(selectedStore.namaToko, 'billing');
+                      setSelectedStore(null);
+                    }}
+                    className="flex-1 flex flex-col items-center gap-2 p-3 bg-blue-50 rounded-2xl border border-blue-100 hover:bg-blue-100 transition-all group"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center text-blue-700 group-hover:scale-110 transition-transform">
+                      <span className="material-symbols-outlined text-xl">payments</span>
+                    </div>
+                    <span className="text-[10px] font-black text-blue-800 uppercase tracking-tight">Billing Report</span>
+                  </button>
+                </div>
 
                 {selectedStore.linkGmaps && (
                   <a 

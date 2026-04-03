@@ -181,6 +181,7 @@ export default function App() {
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [session, setSession] = useState<Session | null>(null);
+  const [prefillData, setPrefillData] = useState<{ location: string; type: 'delivery' | 'billing' } | null>(null);
 
   const userEmail = session?.user?.email || 'muhammadmahardhikadib@gmail.com';
   const currentUserEmployee = employees.find(e => e.email === userEmail) || employees[0] || null;
@@ -289,10 +290,7 @@ export default function App() {
         // Deliveries
         const { data: deliveryData, error: deliveryError } = await supabase.from('deliveries').select('*').order('createdAt', { ascending: false });
         if (deliveryError) throw deliveryError;
-        if (deliveryData && deliveryData.length === 0) {
-          await supabase.from('deliveries').upsert(MOCK_DELIVERIES);
-          setDeliveries(MOCK_DELIVERIES);
-        } else if (deliveryData) {
+        if (deliveryData) {
           setDeliveries(deliveryData);
         }
 
@@ -561,6 +559,11 @@ export default function App() {
     { id: 'settings', label: 'Settings', icon: 'settings' },
   ].filter(item => !item.hidden);
 
+  const handlePrefillRequest = (location: string, type: 'delivery' | 'billing') => {
+    setPrefillData({ location, type });
+    setActiveTab(type === 'delivery' ? 'delivery' : 'billing_report');
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'home':
@@ -627,6 +630,7 @@ export default function App() {
             onDeleteAllOrders={handleDeleteAllOrders}
             company={userCompany}
             userRole={userRole}
+            onPrefillRequest={handlePrefillRequest}
           />
         );
       case 'employee_database':
@@ -690,6 +694,8 @@ export default function App() {
             userRole={userRole}
             onSaveDelivery={handleSaveDelivery}
             onDeleteDelivery={handleDeleteDelivery}
+            initialPrefillLocation={prefillData?.type === 'delivery' ? prefillData.location : undefined}
+            onPrefillHandled={() => setPrefillData(null)}
           />
         );
       case 'billing_report':
@@ -704,6 +710,8 @@ export default function App() {
             userRole={userRole}
             onSaveDelivery={handleSaveBillingReport as any}
             onDeleteDelivery={handleDeleteBillingReport}
+            initialPrefillLocation={prefillData?.type === 'billing' ? prefillData.location : undefined}
+            onPrefillHandled={() => setPrefillData(null)}
           />
         );
       default:
@@ -1009,9 +1017,7 @@ export default function App() {
         {[
           { id: 'home', icon: 'home', label: 'Home' },
           { id: 'attendance', icon: 'how_to_reg', label: 'Absen' },
-          { id: 'order_database', icon: 'shopping_cart', label: 'Order' },
-          { id: 'inbox', icon: 'inbox', label: 'Inbox' },
-          { id: 'settings', icon: 'settings', label: 'Settings' }
+          { id: 'inbox', icon: 'inbox', label: 'Inbox' }
         ].map((item) => {
           const isActive = activeTab === item.id || (item.id === 'attendance' && activeTab === 'list_attendance');
           return (

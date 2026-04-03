@@ -154,9 +154,21 @@ const Dashboard: React.FC<DashboardProps> = ({
               className="bg-white p-4 rounded-[24px] border border-stone-100 shadow-sm flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform"
             >
               <div className="w-10 h-10 rounded-xl bg-purple-500 flex items-center justify-center text-white shadow-lg shadow-purple-200">
-                <span className="material-symbols-outlined text-xl">receipt_long</span>
+                <span className="material-symbols-outlined text-xl">payments</span>
               </div>
               <span className="text-[9px] font-black text-stone-800 uppercase tracking-wider">Billing Report</span>
+            </motion.button>
+
+            {/* Data Orderan */}
+            <motion.button
+              variants={item}
+              onClick={() => onNavigate('order_database')}
+              className="bg-white p-4 rounded-[24px] border border-stone-100 shadow-sm flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform"
+            >
+              <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-200">
+                <span className="material-symbols-outlined text-xl">receipt_long</span>
+              </div>
+              <span className="text-[9px] font-black text-stone-800 uppercase tracking-wider">Data Orderan</span>
             </motion.button>
           </div>
 

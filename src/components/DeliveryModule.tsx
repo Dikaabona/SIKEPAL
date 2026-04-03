@@ -13,6 +13,8 @@ interface DeliveryModuleProps {
   userRole: UserRole;
   onSaveDelivery: (delivery: DeliveryRecord) => Promise<void>;
   onDeleteDelivery: (id: string) => Promise<void>;
+  initialPrefillLocation?: string;
+  onPrefillHandled?: () => void;
 }
 
 const DeliveryModule: React.FC<DeliveryModuleProps> = ({ 
@@ -25,7 +27,9 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   deliveries, 
   userRole,
   onSaveDelivery,
-  onDeleteDelivery
+  onDeleteDelivery,
+  initialPrefillLocation,
+  onPrefillHandled
 }) => {
   // Extract unique courier names from orders
   const courierOptions = useMemo(() => {
@@ -110,6 +114,25 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Handle prefill from props
+  React.useEffect(() => {
+    if (initialPrefillLocation) {
+      setFormData(prev => ({
+        ...prev,
+        namaLokasi: initialPrefillLocation,
+        tanggal: new Date().toISOString().split('T')[0],
+        qtyPengiriman: 0,
+        keterangan: '',
+        fotoBukti: '',
+        lokasiBukti: '',
+        jamBukti: ''
+      }));
+      setEditingId(null);
+      setIsModalOpen(true);
+      onPrefillHandled?.();
+    }
+  }, [initialPrefillLocation, onPrefillHandled]);
 
   const capturePhoto = () => {
     if (videoRef.current && canvasRef.current) {
@@ -478,9 +501,9 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
 
       {/* Add New Delivery Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[32px] w-full max-w-lg overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
-            <div className="p-6 md:p-8 border-b border-stone-50 flex items-center justify-between bg-stone-50/30">
+        <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4 pb-24 md:p-4">
+          <div className="bg-white rounded-[32px] w-full max-w-lg overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200 flex flex-col max-h-[75vh] md:max-h-[85vh]">
+            <div className="p-6 md:p-8 border-b border-stone-50 flex items-center justify-between bg-stone-50/30 flex-shrink-0">
               <div>
                 <h3 className="text-lg md:text-xl font-black text-stone-900 uppercase tracking-tight">
                   {editingId 
@@ -501,7 +524,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="flex flex-col max-h-[90vh] md:max-h-[85vh]">
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
               <div className="p-6 md:p-8 space-y-4 md:space-y-6 overflow-y-auto custom-scrollbar flex-1 pb-10 md:pb-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                   <div className="space-y-2">
@@ -665,7 +688,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                 </div>
               </div>
 
-              <div className="p-6 md:p-8 pt-4 border-t border-stone-50 flex gap-3 md:gap-4 bg-white">
+              <div className="p-6 md:p-8 pt-4 pb-12 md:pb-8 border-t border-stone-50 flex gap-3 md:gap-4 bg-white flex-shrink-0">
                 <button
                   type="button"
                   onClick={closeModal}
