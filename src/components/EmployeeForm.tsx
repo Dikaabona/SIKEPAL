@@ -44,6 +44,38 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ initialData, userCompany, o
         </div>
         
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Profile Photo Upload */}
+          <div className="flex flex-col items-center gap-4 mb-6">
+            <div className="relative group">
+              <div className="w-32 h-32 rounded-full overflow-hidden bg-stone-100 border-4 border-stone-200 shadow-inner flex items-center justify-center">
+                {formData.photo_url ? (
+                  <img src={formData.photo_url} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="material-symbols-outlined text-stone-400 text-5xl">person</span>
+                )}
+              </div>
+              <label className="absolute bottom-0 right-0 bg-primary text-on-primary w-10 h-10 rounded-full flex items-center justify-center cursor-pointer shadow-lg hover:scale-110 transition-all border-4 border-white">
+                <span className="material-symbols-outlined text-xl">photo_camera</span>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  className="hidden" 
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        setFormData({ ...formData, photo_url: reader.result as string });
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                />
+              </label>
+            </div>
+            <p className="text-xs font-bold text-stone-400 uppercase tracking-widest">Profile Photo</p>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="text-sm font-bold text-stone-600">Full Name</label>

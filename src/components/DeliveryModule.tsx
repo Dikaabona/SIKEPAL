@@ -1,6 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { Icons } from '../constants';
 import { DeliveryRecord, Order, Store, UserRole } from '../types';
+import { formatDate } from '../lib/utils';
 
 interface DeliveryModuleProps {
   title?: string;
@@ -311,7 +312,9 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                 <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">
                   {title === "Billing Report" ? "BUKTI PENAGIHAN" : "BUKTI PENGIRIMAN"}
                 </th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">QTY</th>
+                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">
+                  {title === "Billing Report" ? "NILAI" : "QTY"}
+                </th>
                 <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">KET</th>
                 {(userRole === 'owner' || userRole === 'admin') && (
                   <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">AKSI</th>
@@ -326,7 +329,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                       <div className="font-bold text-stone-900 text-sm">{delivery.namaKurir}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-stone-600 text-sm">{delivery.tanggal}</div>
+                      <div className="text-stone-600 text-sm">{formatDate(delivery.tanggal)}</div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="font-medium text-stone-900 text-sm">{delivery.namaLokasi}</div>
@@ -359,8 +362,10 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                       </div>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-lg bg-stone-100 text-stone-900 text-xs font-black">
-                        {delivery.qtyPengiriman}
+                      <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-lg bg-stone-100 text-stone-900 text-xs font-black whitespace-nowrap">
+                        {title === "Billing Report" 
+                          ? `Rp ${delivery.qtyPengiriman.toLocaleString('id-ID')}` 
+                          : delivery.qtyPengiriman}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -428,12 +433,14 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                     )}
                     <div>
                       <div className="font-bold text-stone-900 text-sm">{delivery.namaKurir}</div>
-                      <div className="text-stone-500 text-[10px]">{delivery.tanggal}</div>
+                      <div className="text-stone-500 text-[10px]">{formatDate(delivery.tanggal)}</div>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2">
-                    <span className="px-2 py-1 rounded-lg bg-stone-100 text-stone-900 text-[10px] font-black">
-                      Qty: {delivery.qtyPengiriman}
+                    <span className="px-2 py-1 rounded-lg bg-stone-100 text-stone-900 text-[10px] font-black whitespace-nowrap">
+                      {title === "Billing Report" 
+                        ? `Nilai: Rp ${delivery.qtyPengiriman.toLocaleString('id-ID')}` 
+                        : `Qty: ${delivery.qtyPengiriman}`}
                     </span>
                     {(userRole === 'owner' || userRole === 'admin') && (
                       <div className="flex items-center gap-1">
@@ -646,15 +653,20 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">
-                      {title === "Billing Report" ? "Qty Penagihan" : "Qty Pengiriman"}
+                      {title === "Billing Report" ? "Nilai" : "Qty Pengiriman"}
                     </label>
-                    <input
-                      required
-                      type="number"
-                      value={formData.qtyPengiriman}
-                      onChange={(e) => setFormData({...formData, qtyPengiriman: parseInt(e.target.value)})}
-                      className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium"
-                    />
+                    <div className="relative">
+                      {title === "Billing Report" && (
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-stone-400">Rp</span>
+                      )}
+                      <input
+                        required
+                        type="number"
+                        value={formData.qtyPengiriman}
+                        onChange={(e) => setFormData({...formData, qtyPengiriman: parseInt(e.target.value) || 0})}
+                        className={`w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium ${title === "Billing Report" ? 'pl-10' : ''}`}
+                      />
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Jam Bukti</label>

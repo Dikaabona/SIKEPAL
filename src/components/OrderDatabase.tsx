@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Order, UserRole, Store } from '../types';
-import { getPaginationRange } from '../lib/utils';
+import { getPaginationRange, parseIndoDate, formatDate } from '../lib/utils';
 
 interface OrderDatabaseProps {
   orders: Order[];
@@ -75,57 +75,6 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
     return Array.from(options).sort();
   }, [orders]);
 
-  const parseIndoDate = (dateStr: string) => {
-    if (!dateStr) return null;
-    const cleanStr = dateStr.trim();
-
-    // Handle YYYY-MM-DD (from input date) - Parse as local time to avoid timezone mismatch
-    if (cleanStr.includes('-') && cleanStr.split('-')[0].length === 4) {
-      const parts = cleanStr.split('-');
-      return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-    }
-
-    // Handle DD/MM/YYYY or DD-MM-YYYY (possibly with DayName prefix like "Kamis, 02/04/2026")
-    const datePattern = /(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/;
-    const match = cleanStr.match(datePattern);
-    if (match) {
-      const d = parseInt(match[1]);
-      const m = parseInt(match[2]) - 1;
-      let y = parseInt(match[3]);
-      if (y < 100) y += 2000;
-      return new Date(y, m, d);
-    }
-
-    // Handle "Rabu, 1 April 2026" or "Rabu, 1, April, 2026" format
-    if (cleanStr.includes(',') || cleanStr.split(' ').length >= 3) {
-      const parts = cleanStr.split(/[,\s]+/).map(p => p.trim()).filter(Boolean);
-      
-      // We expect at least [Day, Month, Year] or [DayName, Day, Month, Year]
-      if (parts.length >= 3) {
-        const year = parseInt(parts[parts.length - 1]);
-        const monthName = parts[parts.length - 2].toLowerCase();
-        const day = parseInt(parts[parts.length - 3]);
-
-        const months: { [key: string]: number } = {
-          'januari': 0, 'februari': 1, 'maret': 2, 'april': 3, 'mei': 4, 'juni': 5,
-          'juli': 6, 'agustus': 7, 'september': 8, 'oktober': 9, 'november': 10, 'desember': 11,
-          'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'jun': 5,
-          'jul': 6, 'agu': 7, 'sep': 8, 'okt': 9, 'nov': 10, 'des': 11
-        };
-
-        const month = months[monthName];
-        if (!isNaN(day) && month !== undefined && !isNaN(year)) {
-          let finalYear = year;
-          if (finalYear < 100) finalYear += 2000;
-          return new Date(finalYear, month, day);
-        }
-      }
-    }
-
-    const d = new Date(cleanStr);
-    return isNaN(d.getTime()) ? null : d;
-  };
-
   const filteredOrders = useMemo(() => {
     return orders.filter(order => {
       const matchesSearch = 
@@ -177,18 +126,6 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
   }, [filteredOrders]);
 
   const percentageSisa = summary.jumlahKirim > 0 ? (summary.sisa / summary.jumlahKirim) * 100 : 0;
-
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return '-';
-    const date = parseIndoDate(dateStr);
-    if (!date) return dateStr;
-    
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    
-    return `${day}/${month}/${year}`;
-  };
 
   const handleSave = async () => {
     if (!newOrder.namaLokasi || !newOrder.tanggal) {

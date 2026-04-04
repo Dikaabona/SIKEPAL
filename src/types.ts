@@ -61,6 +61,7 @@ export interface Employee {
   lastLongitude?: number;
   lastLocationUpdate?: string;
   isTrackingActive?: boolean;
+  photo_url?: string;
   salaryConfig?: {
     gapok: number;
     tunjanganMakan: number;

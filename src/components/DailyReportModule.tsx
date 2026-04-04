@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Order, DeliveryRecord } from '../types';
 import { motion } from 'motion/react';
+import { parseIndoDate, formatDate } from '../lib/utils';
 
 interface DailyReportModuleProps {
   orders: Order[];
@@ -13,42 +14,63 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
 
   const reportData = useMemo(() => {
-    const filteredOrders = orders.filter(o => 
-      o.company === company && 
-      o.tanggal >= startDate && 
-      o.tanggal <= endDate
-    );
-    const filteredDeliveries = deliveries.filter(d => 
-      d.company === company && 
-      d.tanggal >= startDate && 
-      d.tanggal <= endDate
-    );
+    const start = parseIndoDate(startDate);
+    const end = parseIndoDate(endDate);
+
+    const filteredOrders = orders.filter(o => {
+      if (o.company !== company) return false;
+      const orderDate = parseIndoDate(o.tanggal);
+      if (!orderDate) return false;
+      return (!start || orderDate >= start) && (!end || orderDate <= end);
+    });
+
+    const filteredDeliveries = deliveries.filter(d => {
+      if (d.company !== company) return false;
+      const deliveryDate = parseIndoDate(d.tanggal);
+      if (!deliveryDate) return false;
+      return (!start || deliveryDate >= start) && (!end || deliveryDate <= end);
+    });
 
     // Get all unique (date, courier) pairs
     const pairs = new Set<string>();
-    filteredOrders.forEach(o => pairs.add(`${o.tanggal}|${o.namaKurir}`));
-    filteredDeliveries.forEach(d => pairs.add(`${d.tanggal}|${d.namaKurir}`));
+    
+    const normalizeDate = (dateStr: string) => {
+      const d = parseIndoDate(dateStr);
+      if (!d) return dateStr;
+      return d.toISOString().split('T')[0];
+    };
+
+    filteredOrders.forEach(o => pairs.add(`${normalizeDate(o.tanggal)}|${o.namaKurir}`));
+    filteredDeliveries.forEach(d => pairs.add(`${normalizeDate(d.tanggal)}|${d.namaKurir}`));
 
     return Array.from(pairs).map(pair => {
-      const [tanggal, namaKurir] = pair.split('|');
+      const [tanggalNormalized, namaKurir] = pair.split('|');
       
-      const dayOrders = filteredOrders.filter(o => o.tanggal === tanggal && o.namaKurir === namaKurir);
-      const dayDeliveries = filteredDeliveries.filter(d => d.tanggal === tanggal && d.namaKurir === namaKurir);
+      const dayOrders = filteredOrders.filter(o => normalizeDate(o.tanggal) === tanggalNormalized && o.namaKurir === namaKurir);
+      const dayDeliveries = filteredDeliveries.filter(d => normalizeDate(d.tanggal) === tanggalNormalized && d.namaKurir === namaKurir);
 
       const jumlahLokasi = new Set(dayOrders.map(o => o.namaLokasi)).size;
       const jumlahKurirVisit = new Set(dayDeliveries.map(d => d.namaLokasi)).size;
-      const totalKiriman = dayOrders.reduce((sum, o) => sum + (o.jumlahKirim || 0), 0);
+      
+      // Calculate totalKiriman as the sum of items to match "Jumlah" column in Order Database
+      const totalKiriman = dayOrders.reduce((sum, o) => 
+        sum + (o.tunaPedes || 0) + (o.tunaMayo || 0) + (o.ayamMayo || 0) + (o.ayamPedes || 0) + (o.menuBulanan || 0), 0);
+      
       const totalKirimanKurir = dayDeliveries.reduce((sum, d) => sum + (d.qtyPengiriman || 0), 0);
 
       return {
-        tanggal,
+        tanggal: tanggalNormalized,
         namaKurir,
         jumlahLokasi,
         jumlahKurirVisit,
         totalKiriman,
         totalKirimanKurir
       };
-    }).sort((a, b) => b.tanggal.localeCompare(a.tanggal) || a.namaKurir.localeCompare(b.namaKurir));
+    }).sort((a, b) => {
+      const dateA = parseIndoDate(a.tanggal);
+      const dateB = parseIndoDate(b.tanggal);
+      return (dateB?.getTime() || 0) - (dateA?.getTime() || 0) || a.namaKurir.localeCompare(b.namaKurir);
+    });
   }, [orders, deliveries, company, startDate, endDate]);
 
   return (
@@ -85,6 +107,7 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
                 <th className="px-6 py-4 text-xs font-black text-stone-400 uppercase tracking-widest">Nama Kurir</th>
                 <th className="px-6 py-4 text-xs font-black text-stone-400 uppercase tracking-widest text-center">Jumlah Lokasi</th>
                 <th className="px-6 py-4 text-xs font-black text-stone-400 uppercase tracking-widest text-center">Jumlah Kurir Visit</th>
+                <th className="px-6 py-4 text-xs font-black text-stone-400 uppercase tracking-widest text-center">Selisih (Lokasi)</th>
                 <th className="px-6 py-4 text-xs font-black text-stone-400 uppercase tracking-widest text-center">Total Kiriman</th>
                 <th className="px-6 py-4 text-xs font-black text-stone-400 uppercase tracking-widest text-center">Total Kiriman Kurir</th>
                 <th className="px-6 py-4 text-xs font-black text-stone-400 uppercase tracking-widest text-center">Selisih QTY</th>
@@ -102,7 +125,7 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
                       key={`${row.tanggal}-${row.namaKurir}`} 
                       className="hover:bg-stone-50/50 transition-colors"
                     >
-                      <td className="px-6 py-4 font-bold text-stone-600">{row.tanggal}</td>
+                      <td className="px-6 py-4 font-bold text-stone-600">{formatDate(row.tanggal)}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-xs">
@@ -113,6 +136,14 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
                       </td>
                       <td className="px-6 py-4 text-center font-black text-stone-600">{row.jumlahLokasi}</td>
                       <td className="px-6 py-4 text-center font-black text-stone-600">{row.jumlahKurirVisit}</td>
+                      <td className="px-6 py-4 text-center">
+                        <span className={`px-3 py-1 rounded-lg font-black text-xs ${
+                          (row.jumlahKurirVisit - row.jumlahLokasi) === 0 ? 'bg-green-100 text-green-600' : 
+                          (row.jumlahKurirVisit - row.jumlahLokasi) > 0 ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'
+                        }`}>
+                          {(row.jumlahKurirVisit - row.jumlahLokasi) > 0 ? `+${row.jumlahKurirVisit - row.jumlahLokasi}` : row.jumlahKurirVisit - row.jumlahLokasi}
+                        </span>
+                      </td>
                       <td className="px-6 py-4 text-center font-black text-stone-600">{row.totalKiriman}</td>
                       <td className="px-6 py-4 text-center font-black text-stone-600">{row.totalKirimanKurir}</td>
                       <td className="px-6 py-4 text-center">
@@ -128,7 +159,7 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
                 })
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-stone-400 font-bold">
+                  <td colSpan={8} className="px-6 py-12 text-center text-stone-400 font-bold">
                     Tidak ada data untuk periode ini
                   </td>
                 </tr>

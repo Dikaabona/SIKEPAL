@@ -139,13 +139,17 @@ const EmployeeDatabase: React.FC<EmployeeDatabaseProps> = ({
                 <tr key={emp.id} className="hover:bg-stone-50/50 transition-colors group">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-stone-100 overflow-hidden shrink-0 border border-stone-200">
-                        <img
-                          alt={emp.nama}
-                          src={`https://picsum.photos/seed/${emp.nama}/200/200`}
-                          referrerPolicy="no-referrer"
-                          className="w-full h-full object-cover"
-                        />
+                      <div className="w-10 h-10 rounded-xl bg-stone-100 overflow-hidden shrink-0 border border-stone-200 flex items-center justify-center">
+                        {emp.photo_url ? (
+                          <img
+                            alt={emp.nama}
+                            src={emp.photo_url}
+                            referrerPolicy="no-referrer"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="material-symbols-outlined text-stone-400 text-xl">person</span>
+                        )}
                       </div>
                       <div>
                         <div className="text-sm font-black text-stone-900 leading-none mb-1">{emp.nama}</div>
@@ -206,13 +210,17 @@ const EmployeeDatabase: React.FC<EmployeeDatabaseProps> = ({
             <div key={emp.id} className="p-4 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-stone-100 overflow-hidden shrink-0 border border-stone-200 shadow-sm">
-                    <img
-                      alt={emp.nama}
-                      src={`https://picsum.photos/seed/${emp.nama}/200/200`}
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover"
-                    />
+                  <div className="w-12 h-12 rounded-2xl bg-stone-100 overflow-hidden shrink-0 border border-stone-200 shadow-sm flex items-center justify-center">
+                    {emp.photo_url ? (
+                      <img
+                        alt={emp.nama}
+                        src={emp.photo_url}
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="material-symbols-outlined text-stone-400 text-2xl">person</span>
+                    )}
                   </div>
                   <div>
                     <div className="text-base font-black text-stone-900 leading-tight">{emp.nama}</div>
