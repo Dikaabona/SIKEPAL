@@ -188,14 +188,13 @@ export default function App() {
   const [prefillData, setPrefillData] = useState<{ location: string; type: 'delivery' | 'billing' } | null>(null);
 
   const [isDataMissing, setIsDataMissing] = useState(false);
-  const [hasDismissedMissingDataAlert, setHasDismissedMissingDataAlert] = useState(false);
 
   const userEmail = session?.user?.email || '';
   const currentUserEmployee = employees.find(e => e.email === userEmail) || null;
 
   // Check for missing employee data
   useEffect(() => {
-    if (session && !isLoading && employees.length > 0 && !hasDismissedMissingDataAlert) {
+    if (session && !isLoading && employees.length > 0) {
       const found = employees.find(e => e.email === session.user?.email);
       if (!found) {
         setIsDataMissing(true);
@@ -203,7 +202,7 @@ export default function App() {
         setIsDataMissing(false);
       }
     }
-  }, [session, employees, isLoading, hasDismissedMissingDataAlert]);
+  }, [session, employees, isLoading]);
 
   // Handle Auth
   useEffect(() => {
@@ -901,9 +900,9 @@ export default function App() {
               <h3 className="text-2xl font-black text-stone-800 mb-2">Data belum ada!</h3>
               <p className="text-stone-500 font-bold mb-8">Segera info ke PIC untuk pendaftaran data karyawan Anda.</p>
               <button
-                onClick={() => {
+                onClick={async () => {
                   setIsDataMissing(false);
-                  setHasDismissedMissingDataAlert(true);
+                  await handleLogout();
                 }}
                 className="w-full py-4 bg-red-500 hover:bg-red-600 text-white font-black rounded-2xl shadow-lg shadow-red-200 transition-all active:scale-95"
               >
