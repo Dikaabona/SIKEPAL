@@ -187,8 +187,23 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [prefillData, setPrefillData] = useState<{ location: string; type: 'delivery' | 'billing' } | null>(null);
 
-  const userEmail = session?.user?.email || 'muhammadmahardhikadib@gmail.com';
-  const currentUserEmployee = employees.find(e => e.email === userEmail) || employees[0] || null;
+  const [isDataMissing, setIsDataMissing] = useState(false);
+  const [hasDismissedMissingDataAlert, setHasDismissedMissingDataAlert] = useState(false);
+
+  const userEmail = session?.user?.email || '';
+  const currentUserEmployee = employees.find(e => e.email === userEmail) || null;
+
+  // Check for missing employee data
+  useEffect(() => {
+    if (session && !isLoading && employees.length > 0 && !hasDismissedMissingDataAlert) {
+      const found = employees.find(e => e.email === session.user?.email);
+      if (!found) {
+        setIsDataMissing(true);
+      } else {
+        setIsDataMissing(false);
+      }
+    }
+  }, [session, employees, isLoading, hasDismissedMissingDataAlert]);
 
   // Handle Auth
   useEffect(() => {
@@ -870,6 +885,34 @@ export default function App() {
 
   return (
     <div className="bg-background text-on-surface min-h-screen font-sans overflow-x-hidden">
+      {/* Missing Data Alert Modal */}
+      <AnimatePresence>
+        {isDataMissing && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white rounded-[32px] p-8 max-w-sm w-full shadow-2xl border-4 border-red-100 text-center"
+            >
+              <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                <span className="material-symbols-outlined text-4xl text-red-500">warning</span>
+              </div>
+              <h3 className="text-2xl font-black text-stone-800 mb-2">Data belum ada!</h3>
+              <p className="text-stone-500 font-bold mb-8">Segera info ke PIC untuk pendaftaran data karyawan Anda.</p>
+              <button
+                onClick={() => {
+                  setIsDataMissing(false);
+                  setHasDismissedMissingDataAlert(true);
+                }}
+                className="w-full py-4 bg-red-500 hover:bg-red-600 text-white font-black rounded-2xl shadow-lg shadow-red-200 transition-all active:scale-95"
+              >
+                MENGERTI
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       {/* Mobile Sidebar Overlay */}
       <AnimatePresence>
         {isMobileMenuOpen && (
