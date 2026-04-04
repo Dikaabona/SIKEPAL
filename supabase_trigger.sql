@@ -6,16 +6,16 @@ CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO public.employees (
-    "id", 
+    id, 
     "idKaryawan", 
-    "nama", 
-    "email", 
-    "company", 
-    "role", 
-    "jabatan", 
-    "division", 
+    nama, 
+    email, 
+    company, 
+    role, 
+    jabatan, 
+    division, 
     "tanggalMasuk", 
-    "hutang"
+    hutang
   )
   VALUES (
     new.id, 
@@ -30,6 +30,12 @@ BEGIN
     0
   );
   RETURN new;
+EXCEPTION
+  WHEN others THEN
+    -- Log the error if needed, but don't block auth.users insert if possible
+    -- However, for this app, we want the employee record to be created
+    RAISE LOG 'Error in handle_new_user trigger: %', SQLERRM;
+    RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

@@ -47,28 +47,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         });
         if (signUpError) throw signUpError;
 
-        // Automatically add to employees table
-        if (signUpData.user) {
-          const { error: empError } = await supabase.from('employees').insert({
-            id: signUpData.user.id,
-            idKaryawan: `EMP${Math.floor(1000 + Math.random() * 9000)}`,
-            nama: fullName,
-            email: email,
-            company: 'Sikepal',
-            role: 'employee',
-            jabatan: 'Staff',
-            division: 'General',
-            tanggalMasuk: new Date().toISOString().split('T')[0],
-            hutang: 0
-          });
-          
-          if (empError) {
-            console.error('Error creating employee record:', empError);
-            // We don't throw here to avoid blocking the signup success message, 
-            // but we log it for debugging.
-          }
-        }
-
         setMessage('Pendaftaran berhasil! Silakan periksa email Anda untuk verifikasi.');
         setMode('login');
       } else if (mode === 'forgot') {
