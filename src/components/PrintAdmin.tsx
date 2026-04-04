@@ -136,7 +136,7 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
             <style>
               @page {
                 size: A4 landscape;
-                margin: 0;
+                margin: 5mm;
               }
               body {
                 margin: 0;
@@ -152,10 +152,21 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
               }
+              .print-card {
+                break-inside: avoid;
+                page-break-inside: avoid;
+              }
+              .print-container {
+                width: 287mm; /* 297mm - 10mm (5mm each side) */
+                margin: 0 auto;
+                padding: 5mm 0;
+              }
             </style>
           </head>
-          <body class="p-4">
-            ${content}
+          <body>
+            <div class="print-container">
+              ${content}
+            </div>
             <script>
               window.onload = () => {
                 setTimeout(() => {
@@ -195,7 +206,7 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
   };
 
   const CashSummary: React.FC = () => (
-    <div className="border-[1.5px] border-black flex-1">
+    <div className="border-[1.5px] border-black flex-1 print-card">
       <div className="flex border-b-[1.5px] border-black">
         <div className="w-1/2 p-2 border-r-[1.5px] border-black flex items-center gap-2">
           <img 
@@ -244,7 +255,7 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
   );
 
   const OrderSlip: React.FC<{ order: Order }> = ({ order }) => (
-    <div className="space-y-2 border-[1px] border-black p-2">
+    <div className="space-y-2 border-[1px] border-black p-2 print-card">
       <div className="flex items-start gap-2">
         <img 
           src="https://lh3.googleusercontent.com/d/1b-hkPOsHZ8_rW1f9aqABu7R5bw_ZJM0y" 
@@ -319,7 +330,7 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
     }, [orders]);
 
     return (
-      <div className="space-y-2 border-[1px] border-black p-2 bg-white">
+      <div className="space-y-2 border-[1px] border-black p-2 bg-white print-card">
         <div className="flex items-start gap-2">
           <img 
             src="https://lh3.googleusercontent.com/d/1b-hkPOsHZ8_rW1f9aqABu7R5bw_ZJM0y" 
@@ -467,7 +478,7 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
 
       {/* Live Preview / Print Layout */}
       <div className="bg-white text-black font-sans shadow-2xl mx-auto overflow-x-auto rounded-sm p-4 print:p-0 print:shadow-none print:overflow-visible" style={{ width: '100%', maxWidth: '297mm' }}>
-        <div className="bg-white mx-auto overflow-hidden print:overflow-visible" style={{ width: '297mm', minHeight: '210mm' }} ref={printRef}>
+        <div className="bg-white mx-auto overflow-hidden print:overflow-visible" style={{ width: '100%', minHeight: '210mm' }} ref={printRef}>
           <style dangerouslySetInnerHTML={{ __html: `
             @media print {
               @page {
