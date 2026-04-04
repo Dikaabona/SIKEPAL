@@ -189,13 +189,14 @@ export default function App() {
 
   const [isDataMissing, setIsDataMissing] = useState(false);
 
-  const userEmail = session?.user?.email || '';
-  const currentUserEmployee = employees.find(e => e.email === userEmail) || null;
+  const userEmail = session?.user?.email?.toLowerCase().trim() || '';
+  const currentUserEmployee = employees.find(e => e.email?.toLowerCase().trim() === userEmail) || null;
 
   // Check for missing employee data
   useEffect(() => {
     if (session && !isLoading && employees.length > 0) {
-      const found = employees.find(e => e.email === session.user?.email);
+      const userEmail = session.user?.email?.toLowerCase().trim();
+      const found = employees.find(e => e.email?.toLowerCase().trim() === userEmail);
       if (!found) {
         setIsDataMissing(true);
       } else {
