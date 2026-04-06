@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { Order } from '../types';
+import { getLocalDateString } from '../lib/utils';
 import { motion } from 'motion/react';
 
 interface PrintAdminProps {
@@ -59,7 +60,7 @@ const parseIndoDate = (dateStr: string) => {
 };
 
 const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   const [selectedCourier, setSelectedCourier] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
   const printRef = useRef<HTMLDivElement>(null);

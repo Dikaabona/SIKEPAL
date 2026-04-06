@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Employee, SubmissionType, Submission } from '../types';
+import { getLocalDateString } from '../lib/utils';
 
 interface SubmissionFormProps {
   employee: Employee | null;
@@ -12,8 +13,8 @@ interface SubmissionFormProps {
 const SubmissionForm: React.FC<SubmissionFormProps> = ({ employee, company, onSaveSubmission, onSuccess, onClose }) => {
   const [type, setType] = useState<SubmissionType>('Leave');
   const [reason, setReason] = useState('');
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(getLocalDateString());
+  const [endDate, setEndDate] = useState(getLocalDateString());
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {

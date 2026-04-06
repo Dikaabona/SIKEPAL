@@ -89,8 +89,7 @@ export const BANK_OPTIONS = [
 ];
 
 export const DEFAULT_SHIFTS = [
-  { id: 'S1', name: 'Pagi', startTime: '08:00', endTime: '17:00', color: '#3b82f6' },
-  { id: 'S2', name: 'Siang', startTime: '12:00', endTime: '21:00', color: '#f59e0b' },
-  { id: 'S3', name: 'Malam', startTime: '21:00', endTime: '06:00', color: '#6366f1' },
-  { id: 'OFF', name: 'Libur', startTime: '00:00', endTime: '00:00', color: '#ef4444' }
+  { id: 'S1', name: 'SHIFT 1', startTime: '06:00', endTime: '15:00', color: '#10b981' },
+  { id: 'S2', name: 'SHIFT 2', startTime: '12:00', endTime: '19:00', color: '#f59e0b' },
+  { id: 'S3', name: 'SHIFT 3', startTime: '15:00', endTime: '23:00', color: '#6366f1' }
 ];

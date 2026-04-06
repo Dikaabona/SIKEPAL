@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { Icons } from '../constants';
 import { DeliveryRecord, Order, Store, UserRole } from '../types';
-import { formatDate } from '../lib/utils';
+import { formatDate, getLocalDateString } from '../lib/utils';
 
 interface DeliveryModuleProps {
   title?: string;
@@ -60,7 +60,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
 
   const [formData, setFormData] = useState({
     namaKurir: '',
-    tanggal: new Date().toISOString().split('T')[0],
+    tanggal: getLocalDateString(),
     namaLokasi: '',
     fotoBukti: '',
     lokasiBukti: '',
@@ -117,6 +117,26 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [locationSearchQuery, setLocationSearchQuery] = useState('');
   const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Reset to page 1 when deliveries list changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [deliveries.length]);
+
+  const paginatedDeliveries = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return deliveries.slice(startIndex, startIndex + itemsPerPage);
+  }, [deliveries, currentPage]);
+
+  const totalPages = Math.ceil(deliveries.length / itemsPerPage);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to top of table/container if needed
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const filteredLocationOptions = useMemo(() => {
     if (!locationSearchQuery.trim()) return locationOptions;
@@ -131,7 +151,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       setFormData(prev => ({
         ...prev,
         namaLokasi: initialPrefillLocation,
-        tanggal: new Date().toISOString().split('T')[0],
+        tanggal: getLocalDateString(),
         qtyPengiriman: 0,
         keterangan: '',
         fotoBukti: '',
@@ -263,7 +283,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
     setIsLocationDropdownOpen(false);
     setFormData({
       namaKurir: '',
-      tanggal: new Date().toISOString().split('T')[0],
+      tanggal: getLocalDateString(),
       namaLokasi: '',
       fotoBukti: '',
       lokasiBukti: '',
@@ -322,8 +342,8 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-50">
-              {deliveries.length > 0 ? (
-                deliveries.map((delivery) => (
+              {paginatedDeliveries.length > 0 ? (
+                paginatedDeliveries.map((delivery) => (
                   <tr key={delivery.id} className="hover:bg-stone-50/30 transition-colors">
                     <td className="px-6 py-4">
                       <div className="font-bold text-stone-900 text-sm">{delivery.namaKurir}</div>
@@ -413,8 +433,8 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
 
         {/* Mobile Card View */}
         <div className="md:hidden divide-y divide-stone-50">
-          {deliveries.length > 0 ? (
-            deliveries.map((delivery) => (
+          {paginatedDeliveries.length > 0 ? (
+            paginatedDeliveries.map((delivery) => (
               <div key={delivery.id} className="p-4 space-y-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3">
@@ -495,6 +515,76 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
             </div>
           )}
         </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="px-6 py-4 bg-stone-50/30 border-t border-stone-50 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-[10px] md:text-xs font-bold text-stone-400 uppercase tracking-widest">
+              Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, deliveries.length)} of {deliveries.length} entries
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                  currentPage === 1 
+                    ? 'text-stone-300 cursor-not-allowed' 
+                    : 'text-stone-600 hover:bg-stone-100 active:scale-90'
+                }`}
+              >
+                <span className="material-symbols-outlined text-sm">chevron_left</span>
+              </button>
+              
+              {/* Page Numbers */}
+              <div className="flex items-center gap-1">
+                {[...Array(totalPages)].map((_, i) => {
+                  const pageNum = i + 1;
+                  // Simple pagination: show current, first, last, and neighbors
+                  if (
+                    pageNum === 1 || 
+                    pageNum === totalPages || 
+                    (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                  ) {
+                    return (
+                      <button
+                        key={pageNum}
+                        type="button"
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`w-8 h-8 rounded-lg text-[10px] font-black transition-all ${
+                          currentPage === pageNum
+                            ? 'bg-stone-900 text-white shadow-lg shadow-stone-900/20'
+                            : 'text-stone-400 hover:bg-stone-100'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  } else if (
+                    (pageNum === 2 && currentPage > 3) || 
+                    (pageNum === totalPages - 1 && currentPage < totalPages - 2)
+                  ) {
+                    return <span key={pageNum} className="text-stone-300 text-[10px]">...</span>;
+                  }
+                  return null;
+                })}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                  currentPage === totalPages 
+                    ? 'text-stone-300 cursor-not-allowed' 
+                    : 'text-stone-600 hover:bg-stone-100 active:scale-90'
+                }`}
+              >
+                <span className="material-symbols-outlined text-sm">chevron_right</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Image Preview Modal */}

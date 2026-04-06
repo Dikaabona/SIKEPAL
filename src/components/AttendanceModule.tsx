@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Employee, AttendanceRecord, UserRole, Shift, BranchLocation } from '../types';
+import { getLocalDateString } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
 
@@ -157,7 +158,7 @@ const AttendanceModule: React.FC<AttendanceModuleProps> = ({
       }
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const existingRecord = records.find(r => r.employeeId === currentEmployee.id && r.date === today);
 
     const now = new Date();
@@ -194,7 +195,7 @@ const AttendanceModule: React.FC<AttendanceModuleProps> = ({
     emp.division.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalDateString();
 
   if (isSelfieActive && currentEmployee) {
     const today = new Date();
@@ -332,7 +333,7 @@ const AttendanceModule: React.FC<AttendanceModuleProps> = ({
       ['Employee ID', 'Date (YYYY-MM-DD)', 'Clock In (HH:mm)', 'Clock Out (HH:mm)', 'Status', 'Notes']
     ];
     const sampleData = [
-      ['1', new Date().toISOString().split('T')[0], '08:00', '17:00', 'Hadir', 'Sample note']
+      ['1', getLocalDateString(), '08:00', '17:00', 'Hadir', 'Sample note']
     ];
     const ws = XLSX.utils.aoa_to_sheet([...headers, ...sampleData]);
     const wb = XLSX.utils.book_new();

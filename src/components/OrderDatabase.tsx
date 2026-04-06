@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Order, UserRole, Store } from '../types';
-import { getPaginationRange, parseIndoDate, formatDate } from '../lib/utils';
+import { getPaginationRange, parseIndoDate, formatDate, getLocalDateString } from '../lib/utils';
 
 interface OrderDatabaseProps {
   orders: Order[];
@@ -40,7 +40,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
   const itemsPerPage = 10;
 
   const [newOrder, setNewOrder] = useState<Partial<Order>>({
-    tanggal: new Date().toISOString().split('T')[0],
+    tanggal: getLocalDateString(),
     namaKurir: '',
     namaLokasi: '',
     tunaPedes: 0,
@@ -159,7 +159,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
     await onSaveOrder(orderToSave);
     setIsAdding(false);
     setNewOrder({
-      tanggal: new Date().toISOString().split('T')[0],
+      tanggal: getLocalDateString(),
       namaKurir: '',
       namaLokasi: '',
       tunaPedes: 0,
@@ -412,7 +412,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
               <button 
                 onClick={() => {
                   setNewOrder({
-                    tanggal: new Date().toISOString().split('T')[0],
+                    tanggal: getLocalDateString(),
                     namaKurir: '',
                     namaLokasi: '',
                     tunaPedes: 0,
@@ -482,7 +482,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
               <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
                 <button 
                   onClick={() => {
-                    const today = new Date().toISOString().split('T')[0];
+                    const today = getLocalDateString();
                     setStartDate(today);
                     setEndDate(today);
                     setCurrentPage(1);

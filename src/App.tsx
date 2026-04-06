@@ -11,7 +11,7 @@ import EmployeeForm from './components/EmployeeForm';
 import Inbox from './components/Inbox';
 import AbsenModule from './components/AbsenModule';
 import SettingsModule from './components/SettingsModule';
-import ShiftModule from './components/ShiftModule';
+import ScheduleModule from './components/ScheduleModule';
 import EmployeeDatabase from './components/EmployeeDatabase';
 import MinVisModule from './components/MinVisModule';
 import CalendarModule from './components/CalendarModule';
@@ -593,6 +593,63 @@ export default function App() {
     }
   };
 
+  const handleSaveShift = async (shift: Shift) => {
+    try {
+      const { error } = await supabase.from('shifts').upsert(shift);
+      if (error) throw error;
+      setShifts(prev => {
+        const index = prev.findIndex(s => s.id === shift.id);
+        if (index >= 0) {
+          const newShifts = [...prev];
+          newShifts[index] = shift;
+          return newShifts;
+        }
+        return [...prev, shift];
+      });
+    } catch (error: any) {
+      console.error('Error saving shift:', error);
+    }
+  };
+
+  const handleDeleteShift = async (id: string) => {
+    if (!window.confirm('Hapus tipe shift ini?')) return;
+    try {
+      const { error } = await supabase.from('shifts').delete().eq('id', id);
+      if (error) throw error;
+      setShifts(prev => prev.filter(s => s.id !== id));
+    } catch (error: any) {
+      console.error('Error deleting shift:', error);
+    }
+  };
+
+  const handleSaveShiftAssignment = async (assignment: ShiftAssignment) => {
+    try {
+      const { error } = await supabase.from('shift_assignments').upsert(assignment);
+      if (error) throw error;
+      setShiftAssignments(prev => {
+        const index = prev.findIndex(a => a.id === assignment.id);
+        if (index >= 0) {
+          const newAssigns = [...prev];
+          newAssigns[index] = assignment;
+          return newAssigns;
+        }
+        return [...prev, assignment];
+      });
+    } catch (error: any) {
+      console.error('Error saving shift assignment:', error);
+    }
+  };
+
+  const handleDeleteShiftAssignment = async (id: string) => {
+    try {
+      const { error } = await supabase.from('shift_assignments').delete().eq('id', id);
+      if (error) throw error;
+      setShiftAssignments(prev => prev.filter(a => a.id !== id));
+    } catch (error: any) {
+      console.error('Error deleting shift assignment:', error);
+    }
+  };
+
   const handleSaveBranchLocation = async (location: BranchLocation) => {
     try {
       const { error } = await supabase.from('branch_locations').upsert(location);
@@ -843,11 +900,26 @@ export default function App() {
             onPrefillHandled={() => setPrefillData(null)}
           />
         );
+      case 'schedule':
+        return (
+          <ScheduleModule
+            employees={employees}
+            shifts={shifts}
+            shiftAssignments={shiftAssignments}
+            onSaveShift={handleSaveShift}
+            onDeleteShift={handleDeleteShift}
+            onSaveAssignment={handleSaveShiftAssignment}
+            onDeleteAssignment={handleDeleteShiftAssignment}
+            userRole={userRole}
+            company={userCompany}
+          />
+        );
       case 'daily_report':
         return (
           <DailyReportModule 
             orders={orders}
             deliveries={deliveries}
+            billingReports={billingReports}
             company={userCompany}
           />
         );

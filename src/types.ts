@@ -93,6 +93,16 @@ export interface AttendanceRecord {
   submittedAt: string;
 }
 
+export interface WorkSchedule {
+  id: string;
+  employeeId: string;
+  company: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  notes?: string;
+}
+
 export interface LiveSchedule {
   id: string;
   employeeId: string;
