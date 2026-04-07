@@ -66,7 +66,8 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
     lokasiBukti: '',
     jamBukti: '',
     qtyPengiriman: 0,
-    keterangan: ''
+    keterangan: '',
+    selectedOrderId: ''
   });
 
   // Handle camera stream attachment when isCameraActive becomes true
@@ -112,6 +113,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   };
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPiutangModalOpen, setIsPiutangModalOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -240,12 +242,14 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
     
     try {
       setIsSaving(true);
+      const { selectedOrderId, ...restFormData } = formData;
       const deliveryData: DeliveryRecord = {
         id: editingId || Math.random().toString(36).substr(2, 9),
-        ...formData,
+        ...restFormData,
         qtyPengiriman: Number(formData.qtyPengiriman) || 0,
         company,
         status: 'Completed',
+        orderId: selectedOrderId || undefined,
         createdAt: editingId 
           ? (deliveries.find(d => d.id === editingId)?.createdAt || new Date().toISOString())
           : new Date().toISOString()
@@ -270,13 +274,15 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       lokasiBukti: delivery.lokasiBukti || '',
       jamBukti: delivery.jamBukti || '',
       qtyPengiriman: delivery.qtyPengiriman,
-      keterangan: delivery.keterangan || ''
+      keterangan: delivery.keterangan || '',
+      selectedOrderId: delivery.orderId || ''
     });
     setIsModalOpen(true);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
+    setIsPiutangModalOpen(false);
     setEditingId(null);
     stopCamera();
     setLocationSearchQuery('');
@@ -289,7 +295,8 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       lokasiBukti: '',
       jamBukti: '',
       qtyPengiriman: 0,
-      keterangan: ''
+      keterangan: '',
+      selectedOrderId: ''
     });
   };
 
@@ -634,7 +641,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
 
             <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
               <div className="p-6 md:p-8 space-y-4 md:space-y-6 overflow-y-auto custom-scrollbar flex-1 pb-10 md:pb-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                <div className={`grid grid-cols-1 ${title !== "Billing Report" ? 'md:grid-cols-2' : ''} gap-4 md:gap-6`}>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nama Kurir</label>
                     <select
@@ -653,92 +660,96 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                       )}
                     </select>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Tanggal</label>
-                    <input
-                      required
-                      type="date"
-                      value={formData.tanggal}
-                      onChange={(e) => setFormData({...formData, tanggal: e.target.value})}
-                      className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2 relative">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nama Lokasi</label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      required
-                      placeholder="Cari atau pilih lokasi..."
-                      value={isLocationDropdownOpen ? locationSearchQuery : formData.namaLokasi}
-                      onFocus={() => {
-                        setIsLocationDropdownOpen(true);
-                        setLocationSearchQuery(formData.namaLokasi);
-                      }}
-                      onChange={(e) => setLocationSearchQuery(e.target.value)}
-                      className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium pr-10"
-                    />
-                    <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none">
-                      {isLocationDropdownOpen ? 'search' : 'expand_more'}
-                    </span>
-                  </div>
-
-                  {isLocationDropdownOpen && (
-                    <div className="absolute z-[70] left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-stone-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                      <div className="max-h-60 overflow-y-auto custom-scrollbar">
-                        {filteredLocationOptions.length > 0 ? (
-                          filteredLocationOptions.map(name => (
-                            <button
-                              key={name}
-                              type="button"
-                              onClick={() => {
-                                setFormData({...formData, namaLokasi: name});
-                                setLocationSearchQuery('');
-                                setIsLocationDropdownOpen(false);
-                              }}
-                              className="w-full px-4 py-3 text-left text-sm font-medium hover:bg-stone-50 transition-colors border-b border-stone-50 last:border-none flex items-center justify-between group"
-                            >
-                              <span className={formData.namaLokasi === name ? 'text-stone-900 font-bold' : 'text-stone-600'}>
-                                {name}
-                              </span>
-                              {formData.namaLokasi === name && (
-                                <span className="material-symbols-outlined text-primary text-sm">check_circle</span>
-                              )}
-                            </button>
-                          ))
-                        ) : (
-                          <div className="px-4 py-8 text-center">
-                            <span className="material-symbols-outlined text-stone-200 text-2xl mb-2">location_off</span>
-                            <p className="text-xs text-stone-400 font-medium">Lokasi tidak ditemukan</p>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setFormData({...formData, namaLokasi: locationSearchQuery});
-                                setLocationSearchQuery('');
-                                setIsLocationDropdownOpen(false);
-                              }}
-                              className="mt-3 text-[10px] font-black uppercase text-primary hover:underline"
-                            >
-                              Gunakan "{locationSearchQuery}"
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                  {title !== "Billing Report" && (
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Tanggal</label>
+                      <input
+                        required
+                        type="date"
+                        value={formData.tanggal}
+                        onChange={(e) => setFormData({...formData, tanggal: e.target.value})}
+                        className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium"
+                      />
                     </div>
                   )}
-                  {/* Backdrop to close dropdown */}
-                  {isLocationDropdownOpen && (
-                    <div 
-                      className="fixed inset-0 z-[65]" 
-                      onClick={() => {
-                        setIsLocationDropdownOpen(false);
-                        setLocationSearchQuery('');
-                      }}
-                    />
-                  )}
                 </div>
+
+                {title !== "Billing Report" && (
+                  <div className="space-y-2 relative">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nama Lokasi</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        placeholder="Cari atau pilih lokasi..."
+                        value={isLocationDropdownOpen ? locationSearchQuery : formData.namaLokasi}
+                        onFocus={() => {
+                          setIsLocationDropdownOpen(true);
+                          setLocationSearchQuery(formData.namaLokasi);
+                        }}
+                        onChange={(e) => setLocationSearchQuery(e.target.value)}
+                        className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium pr-10"
+                      />
+                      <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none">
+                        {isLocationDropdownOpen ? 'search' : 'expand_more'}
+                      </span>
+                    </div>
+
+                    {isLocationDropdownOpen && (
+                      <div className="absolute z-[70] left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-stone-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                          {filteredLocationOptions.length > 0 ? (
+                            filteredLocationOptions.map(name => (
+                              <button
+                                key={name}
+                                type="button"
+                                onClick={() => {
+                                  setFormData({...formData, namaLokasi: name});
+                                  setLocationSearchQuery('');
+                                  setIsLocationDropdownOpen(false);
+                                }}
+                                className="w-full px-4 py-3 text-left text-sm font-medium hover:bg-stone-50 transition-colors border-b border-stone-50 last:border-none flex items-center justify-between group"
+                              >
+                                <span className={formData.namaLokasi === name ? 'text-stone-900 font-bold' : 'text-stone-600'}>
+                                  {name}
+                                </span>
+                                {formData.namaLokasi === name && (
+                                  <span className="material-symbols-outlined text-primary text-sm">check_circle</span>
+                                )}
+                              </button>
+                            ))
+                          ) : (
+                            <div className="px-4 py-8 text-center">
+                              <span className="material-symbols-outlined text-stone-200 text-2xl mb-2">location_off</span>
+                              <p className="text-xs text-stone-400 font-medium">Lokasi tidak ditemukan</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFormData({...formData, namaLokasi: locationSearchQuery});
+                                  setLocationSearchQuery('');
+                                  setIsLocationDropdownOpen(false);
+                                }}
+                                className="mt-3 text-[10px] font-black uppercase text-primary hover:underline"
+                              >
+                                Gunakan "{locationSearchQuery}"
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {/* Backdrop to close dropdown */}
+                    {isLocationDropdownOpen && (
+                      <div 
+                        className="fixed inset-0 z-[65]" 
+                        onClick={() => {
+                          setIsLocationDropdownOpen(false);
+                          setLocationSearchQuery('');
+                        }}
+                      />
+                    )}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                   <div className="space-y-2">
@@ -769,6 +780,41 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                     />
                   </div>
                 </div>
+
+                {title === "Billing Report" && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Piutang</label>
+                    <button
+                      type="button"
+                      onClick={() => setIsPiutangModalOpen(true)}
+                      className={`w-full px-4 py-3 rounded-2xl border-2 transition-all text-sm font-bold flex items-center justify-between ${
+                        formData.selectedOrderId 
+                          ? 'bg-orange-50 border-orange-200 text-orange-700' 
+                          : 'bg-stone-50 border-transparent hover:bg-stone-100 text-stone-600'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-base">
+                          {formData.selectedOrderId ? 'check_circle' : 'receipt_long'}
+                        </span>
+                        <span>{formData.selectedOrderId ? 'Order Terpilih' : 'Pilih dari Daftar Piutang'}</span>
+                      </div>
+                      <span className="material-symbols-outlined text-stone-400">arrow_forward_ios</span>
+                    </button>
+                    {formData.selectedOrderId && (
+                      <div className="flex items-center justify-between px-2">
+                        <p className="text-[10px] text-orange-600 font-bold italic">Terhubung dengan data orderan</p>
+                        <button 
+                          type="button"
+                          onClick={() => setFormData({...formData, selectedOrderId: ''})}
+                          className="text-[10px] text-red-500 font-black uppercase hover:underline"
+                        >
+                          Batalkan
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="space-y-4">
                   <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">
@@ -885,6 +931,103 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Piutang Modal */}
+      {isPiutangModalOpen && (
+        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[32px] w-full max-w-2xl max-h-[80vh] overflow-hidden shadow-2xl flex flex-col">
+            <div className="p-6 md:p-8 border-b border-stone-50 flex items-center justify-between bg-stone-50/30">
+              <div>
+                <h3 className="text-lg md:text-xl font-black text-stone-900 uppercase tracking-tight">Daftar Piutang</h3>
+                <p className="text-[10px] md:text-xs text-stone-500 font-medium uppercase tracking-widest">Data Orderan (Unpaid)</p>
+              </div>
+              <button 
+                onClick={() => setIsPiutangModalOpen(false)}
+                className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white border border-stone-100 flex items-center justify-center text-stone-400 hover:text-stone-900 transition-colors shadow-sm"
+              >
+                <span className="material-symbols-outlined text-sm md:text-base">close</span>
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-auto p-4 md:p-6">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-stone-50/50">
+                      <th className="px-4 py-3 text-[10px] font-black text-stone-400 uppercase tracking-widest">Tanggal</th>
+                      <th className="px-4 py-3 text-[10px] font-black text-stone-400 uppercase tracking-widest">Nama Lokasi</th>
+                      <th className="px-4 py-3 text-[10px] font-black text-stone-400 uppercase tracking-widest">Jumlah Uang</th>
+                      <th className="px-4 py-3 text-[10px] font-black text-stone-400 uppercase tracking-widest">Pembayaran</th>
+                      <th className="px-4 py-3 text-[10px] font-black text-stone-400 uppercase tracking-widest text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-50">
+                    {orders.filter(o => 
+                      o.pembayaran?.toUpperCase() === 'FALSE' && 
+                      (!formData.namaKurir || o.namaKurir === formData.namaKurir)
+                    ).length > 0 ? (
+                      orders
+                        .filter(o => 
+                          o.pembayaran?.toUpperCase() === 'FALSE' && 
+                          (!formData.namaKurir || o.namaKurir === formData.namaKurir)
+                        )
+                        .sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime())
+                        .map((order) => (
+                          <tr 
+                            key={order.id} 
+                            className={`group transition-colors cursor-pointer ${
+                              formData.selectedOrderId === order.id ? 'bg-orange-50/50' : 'hover:bg-stone-50/50'
+                            }`}
+                            onClick={() => {
+                              setFormData({
+                                ...formData,
+                                namaKurir: order.namaKurir,
+                                namaLokasi: order.namaLokasi,
+                                qtyPengiriman: order.jumlahUang,
+                                selectedOrderId: order.id
+                              });
+                              setIsPiutangModalOpen(false);
+                            }}
+                          >
+                            <td className="px-4 py-3 text-xs font-bold text-stone-600">{formatDate(order.tanggal)}</td>
+                            <td className="px-4 py-3 text-xs font-bold text-stone-900">{order.namaLokasi}</td>
+                            <td className="px-4 py-3 text-xs font-black text-stone-900">Rp {order.jumlahUang.toLocaleString('id-ID')}</td>
+                            <td className="px-4 py-3">
+                              <span className="px-2 py-1 rounded-lg bg-red-50 text-red-600 text-[10px] font-black uppercase">
+                                {order.pembayaran}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <button className="px-3 py-1.5 bg-stone-900 text-white text-[10px] font-black uppercase rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                Pilih
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                    ) : (
+                      <tr>
+                        <td colSpan={4} className="py-12 text-center text-stone-400 font-medium text-sm">
+                          {formData.namaKurir 
+                            ? `Tidak ada data piutang untuk kurir ${formData.namaKurir}`
+                            : "Tidak ada data piutang (semua sudah lunas)"}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <div className="p-6 border-t border-stone-50 bg-stone-50/30 flex justify-end">
+              <button 
+                onClick={() => setIsPiutangModalOpen(false)}
+                className="px-6 py-3 bg-stone-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-stone-800 transition-all"
+              >
+                Tutup
+              </button>
+            </div>
           </div>
         </div>
       )}

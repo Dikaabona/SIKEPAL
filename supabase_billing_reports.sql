@@ -1,5 +1,5 @@
--- Create deliveries table
-create table if not exists public.deliveries (
+-- Create billing_reports table
+create table if not exists public.billing_reports (
     id text primary key,
     "namaKurir" text not null,
     tanggal text not null,
@@ -16,11 +16,12 @@ create table if not exists public.deliveries (
 );
 
 -- Enable RLS
-alter table public.deliveries enable row level security;
+alter table public.billing_reports enable row level security;
 
--- Create policy to allow all access for now
-create policy "Allow all access to deliveries"
-on public.deliveries
+-- Drop policy if exists and create new one
+drop policy if exists "Allow all access to billing_reports" on public.billing_reports;
+create policy "Allow all access to billing_reports"
+on public.billing_reports
 for all
 using (true)
 with check (true);

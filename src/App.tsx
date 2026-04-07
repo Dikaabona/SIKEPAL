@@ -504,6 +504,27 @@ export default function App() {
       const { error } = await supabase.from('billing_reports').upsert(report);
       if (error) throw error;
       
+      // If this report is linked to an order, update the order's payment status and date
+      if (report.orderId) {
+        console.log('Updating order payment status for order:', report.orderId, 'with payment date:', report.tanggal);
+        const { error: orderError } = await supabase
+          .from('orders')
+          .update({ 
+            pembayaran: 'TRUE',
+            tanggalBayar: report.tanggal,
+            jumlahUang: report.qtyPengiriman // Update the paid amount
+          })
+          .eq('id', report.orderId);
+        
+        if (orderError) {
+          console.error('Error updating order status:', orderError);
+        } else {
+          // Update local orders state
+          setOrders(prev => prev.map(o => o.id === report.orderId ? { ...o, pembayaran: 'TRUE', tanggalBayar: report.tanggal, jumlahUang: report.qtyPengiriman } : o));
+          console.log('Order updated successfully in local state');
+        }
+      }
+
       setBillingReports(prev => {
         const index = prev.findIndex(r => r.id === report.id);
         if (index >= 0) {

@@ -1166,12 +1166,15 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Pembayaran</label>
-                  <input 
-                    type="text" 
+                  <select 
                     value={newOrder.pembayaran}
                     onChange={(e) => setNewOrder({...newOrder, pembayaran: e.target.value})}
                     className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  />
+                  >
+                    <option value="">Pilih Status</option>
+                    <option value="FALSE">FALSE</option>
+                    <option value="TRUE">TRUE</option>
+                  </select>
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Tanggal Bayar</label>

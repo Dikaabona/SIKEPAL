@@ -232,6 +232,7 @@ export interface DeliveryRecord {
   company: string;
   status: 'Pending' | 'Active' | 'Completed';
   createdAt: string;
+  orderId?: string;
 }
 
 export interface BillingRecord {
@@ -247,6 +248,7 @@ export interface BillingRecord {
   company: string;
   status: 'Pending' | 'Active' | 'Completed';
   createdAt: string;
+  orderId?: string;
 }
 
 export interface Division {
