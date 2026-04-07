@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Order, DeliveryRecord, BillingRecord } from '../types';
 import { motion } from 'motion/react';
-import { parseIndoDate, formatDate } from '../lib/utils';
+import { parseIndoDate, formatDate, getLocalDateString } from '../lib/utils';
 
 interface DailyReportModuleProps {
   orders: Order[];
@@ -13,15 +13,15 @@ interface DailyReportModuleProps {
 const ITEMS_PER_PAGE = 10;
 
 const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliveries, billingReports, company }) => {
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(getLocalDateString());
+  const [endDate, setEndDate] = useState(getLocalDateString());
   const [activeTab, setActiveTab] = useState<'delivery' | 'billing'>('delivery');
   const [currentPage, setCurrentPage] = useState(1);
 
   const normalizeDate = (dateStr: string) => {
     const d = parseIndoDate(dateStr);
     if (!d) return dateStr;
-    return d.toISOString().split('T')[0];
+    return getLocalDateString(d);
   };
 
   const reportData = useMemo(() => {
@@ -239,9 +239,7 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
                 <tr className="bg-stone-50 border-b border-stone-100">
                   <th className="px-6 py-4 text-xs font-black text-stone-400 uppercase tracking-widest">Tanggal</th>
                   <th className="px-6 py-4 text-xs font-black text-stone-400 uppercase tracking-widest">Nama Kurir</th>
-                  <th className="px-6 py-4 text-xs font-black text-stone-400 uppercase tracking-widest text-center">Total Tagihan</th>
                   <th className="px-6 py-4 text-xs font-black text-stone-400 uppercase tracking-widest text-center">Total Setoran</th>
-                  <th className="px-6 py-4 text-xs font-black text-stone-400 uppercase tracking-widest text-center">Selisih</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-50">
@@ -265,22 +263,13 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
                             <span className="font-bold text-stone-900">{row.namaKurir}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-center font-black text-stone-600">Rp {row.totalTagihan.toLocaleString('id-ID')}</td>
                         <td className="px-6 py-4 text-center font-black text-stone-600">Rp {row.totalSetoran.toLocaleString('id-ID')}</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className={`px-3 py-1 rounded-lg font-black text-xs ${
-                            selisih === 0 ? 'bg-green-100 text-green-600' : 
-                            selisih > 0 ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'
-                          }`}>
-                            {selisih > 0 ? `+Rp ${selisih.toLocaleString('id-ID')}` : `Rp ${selisih.toLocaleString('id-ID')}`}
-                          </span>
-                        </td>
                       </motion.tr>
                     );
                   })
                 ) : (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-stone-400 font-bold">
+                    <td colSpan={3} className="px-6 py-12 text-center text-stone-400 font-bold">
                       Tidak ada data untuk periode ini
                     </td>
                   </tr>

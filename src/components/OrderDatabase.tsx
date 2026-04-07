@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Order, UserRole, Store } from '../types';
+import { Order, UserRole, Store, Employee } from '../types';
 import { getPaginationRange, parseIndoDate, formatDate, getLocalDateString } from '../lib/utils';
 
 interface OrderDatabaseProps {
   orders: Order[];
   stores: Store[];
+  employees: Employee[];
   onSaveOrder: (order: Order) => Promise<void>;
   onDeleteAllOrders: () => Promise<void>;
   company: string;
@@ -16,6 +17,7 @@ interface OrderDatabaseProps {
 const OrderDatabase: React.FC<OrderDatabaseProps> = ({ 
   orders, 
   stores,
+  employees,
   onSaveOrder, 
   onDeleteAllOrders,
   company,
@@ -42,6 +44,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
   const [newOrder, setNewOrder] = useState<Partial<Order>>({
     tanggal: getLocalDateString(),
     namaKurir: '',
+    employeeId: '',
     namaLokasi: '',
     tunaPedes: 0,
     tunaMayo: 0,
@@ -139,6 +142,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
       id: newOrder.id || `order_${Date.now()}`,
       tanggal: newOrder.tanggal || '',
       namaKurir: newOrder.namaKurir || '',
+      employeeId: newOrder.employeeId || '',
       namaLokasi: newOrder.namaLokasi || '',
       tunaPedes: Number(newOrder.tunaPedes) || 0,
       tunaMayo: Number(newOrder.tunaMayo) || 0,
@@ -676,6 +680,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
               <tr className="bg-stone-50/50">
                 <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">TANGGAL</th>
                 <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">NAMA KURIR</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">DIVISI</th>
                 <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">NAMA LOKASI</th>
                 <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider text-center">TUNA PEDES</th>
                 <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider text-center">TUNA MAYO</th>
@@ -700,7 +705,12 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                 paginatedOrders.map((order) => (
                   <tr key={order.id} className="hover:bg-stone-50/50 transition-colors group">
                     <td className="px-4 py-4 text-xs text-stone-600">{formatDate(order.tanggal)}</td>
-                    <td className="px-4 py-4 text-xs font-bold text-stone-800">{order.namaKurir}</td>
+                    <td className="px-4 py-4 text-xs font-bold text-stone-800">
+                      {employees.find(e => e.id === order.employeeId)?.nama || order.namaKurir}
+                    </td>
+                    <td className="px-4 py-4 text-xs text-stone-500 italic">
+                      {employees.find(e => e.id === order.employeeId)?.division || '-'}
+                    </td>
                     <td className="px-4 py-4 text-xs font-bold text-stone-800">
                       <button 
                         onClick={() => {
@@ -780,7 +790,14 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                     >
                       {order.namaLokasi}
                     </button>
-                    <div className="text-xs font-bold text-primary uppercase">{order.namaKurir}</div>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-primary uppercase">
+                        {employees.find(e => e.id === order.employeeId)?.nama || order.namaKurir}
+                      </span>
+                      <span className="text-[10px] text-stone-500 italic">
+                        {employees.find(e => e.id === order.employeeId)?.division || '-'}
+                      </span>
+                    </div>
                   </div>
                   {userRole !== 'kurir' && (
                     <button 
@@ -1059,12 +1076,26 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nama Kurir</label>
-                  <input 
-                    type="text" 
-                    value={newOrder.namaKurir}
-                    onChange={(e) => setNewOrder({...newOrder, namaKurir: e.target.value})}
+                  <select 
+                    value={newOrder.employeeId || ''}
+                    onChange={(e) => {
+                      const emp = employees.find(emp => emp.id === e.target.value);
+                      setNewOrder({
+                        ...newOrder, 
+                        employeeId: e.target.value,
+                        namaKurir: emp ? emp.nama : ''
+                      });
+                    }}
                     className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  />
+                  >
+                    <option value="">Pilih Kurir</option>
+                    {employees
+                      .filter(emp => emp.division?.toLowerCase() === 'kurir' || emp.jabatan?.toLowerCase() === 'kurir')
+                      .map(emp => (
+                        <option key={emp.id} value={emp.id}>{emp.nama}</option>
+                      ))
+                    }
+                  </select>
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nama Lokasi *</label>

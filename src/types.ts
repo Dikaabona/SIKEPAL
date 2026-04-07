@@ -166,6 +166,7 @@ export interface Shift {
   startTime: string;
   endTime: string;
   color: string;
+  company: string;
 }
 
 export interface AdvertisingRecord {
@@ -200,6 +201,7 @@ export interface Order {
   id: string;
   tanggal: string;
   namaKurir: string;
+  employeeId?: string;
   namaLokasi: string;
   tunaPedes: number;
   tunaMayo: number;

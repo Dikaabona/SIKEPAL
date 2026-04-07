@@ -912,6 +912,7 @@ export default function App() {
           <OrderDatabase
             orders={orders}
             stores={stores}
+            employees={employees}
             onSaveOrder={handleSaveOrder}
             onDeleteAllOrders={handleDeleteAllOrders}
             company={userCompany}

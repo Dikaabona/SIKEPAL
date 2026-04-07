@@ -45,7 +45,8 @@ const ScheduleModule: React.FC<ScheduleModuleProps> = ({
       name: newShift.name,
       startTime: newShift.startTime || '08:00',
       endTime: newShift.endTime || '17:00',
-      color: newShift.color || '#3b82f6'
+      color: newShift.color || '#3b82f6',
+      company
     };
     await onSaveShift(shift);
     setIsAddShiftModalOpen(false);
