@@ -66,6 +66,10 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
     lokasiBukti: '',
     jamBukti: '',
     qtyPengiriman: 0,
+    sisa: 0,
+    originalNilai: 0,
+    hargaSikepal: 0,
+    metodePembayaran: '',
     keterangan: '',
     selectedOrderId: ''
   });
@@ -268,11 +272,20 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
     
     try {
       setIsSaving(true);
-      const { selectedOrderId, ...restFormData } = formData;
+      const { selectedOrderId, originalNilai, hargaSikepal, ...restFormData } = formData;
+      
+      const currentNilai = Number(formData.qtyPengiriman) || 0;
+      const origNilai = Number(formData.originalNilai) || 0;
+      const wastePercent = origNilai > 0 ? ((origNilai - currentNilai) / origNilai) * 100 : 0;
+
       const deliveryData: DeliveryRecord = {
         id: editingId || Math.random().toString(36).substr(2, 9),
         ...restFormData,
-        qtyPengiriman: Number(formData.qtyPengiriman) || 0,
+        qtyPengiriman: currentNilai,
+        sisa: Number(formData.sisa) || 0,
+        hargaSikepal: Number(formData.hargaSikepal) || 0,
+        metodePembayaran: formData.metodePembayaran || undefined,
+        waste: wastePercent,
         company,
         status: 'Completed',
         orderId: selectedOrderId || undefined,
@@ -300,6 +313,10 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       lokasiBukti: delivery.lokasiBukti || '',
       jamBukti: delivery.jamBukti || '',
       qtyPengiriman: delivery.qtyPengiriman,
+      sisa: delivery.sisa || 0,
+      hargaSikepal: delivery.hargaSikepal || 0,
+      metodePembayaran: delivery.metodePembayaran || '',
+      originalNilai: (delivery.qtyPengiriman || 0) + ((delivery.sisa || 0) * (delivery.hargaSikepal || 0)),
       keterangan: delivery.keterangan || '',
       selectedOrderId: delivery.orderId || ''
     });
@@ -321,6 +338,10 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       lokasiBukti: '',
       jamBukti: '',
       qtyPengiriman: 0,
+      sisa: 0,
+      originalNilai: 0,
+      hargaSikepal: 0,
+      metodePembayaran: '',
       keterangan: '',
       selectedOrderId: ''
     });
@@ -368,6 +389,12 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                 <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">
                   {title === "Billing Report" ? "NILAI" : "QTY"}
                 </th>
+                {title === "Billing Report" && (
+                  <>
+                    <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">SISA</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">WASTE</th>
+                  </>
+                )}
                 <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">KET</th>
                 {(userRole === 'owner' || userRole === 'admin') && (
                   <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">AKSI</th>
@@ -421,6 +448,20 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                           : delivery.qtyPengiriman}
                       </span>
                     </td>
+                    {title === "Billing Report" && (
+                      <>
+                        <td className="px-6 py-4 text-center">
+                          <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-lg bg-orange-50 text-orange-600 text-xs font-black whitespace-nowrap">
+                            {delivery.sisa || 0}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-lg bg-red-50 text-red-600 text-xs font-black whitespace-nowrap">
+                            {delivery.waste ? `${delivery.waste.toFixed(0)}%` : '0%'}
+                          </span>
+                        </td>
+                      </>
+                    )}
                     <td className="px-6 py-4">
                       <p className="text-stone-500 text-xs line-clamp-2 max-w-[200px]">
                         {delivery.keterangan || '-'}
@@ -495,6 +536,21 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                         ? `Nilai: Rp ${delivery.qtyPengiriman.toLocaleString('id-ID')}` 
                         : `Qty: ${delivery.qtyPengiriman}`}
                     </span>
+                    {title === "Billing Report" && delivery.sisa !== undefined && (
+                      <div className="flex gap-1">
+                        <span className="px-2 py-1 rounded-lg bg-orange-50 text-orange-600 text-[10px] font-black whitespace-nowrap">
+                          Sisa: {delivery.sisa}
+                        </span>
+                        <span className="px-2 py-1 rounded-lg bg-red-50 text-red-600 text-[10px] font-black whitespace-nowrap">
+                          Waste: {delivery.waste ? `${delivery.waste.toFixed(0)}%` : '0%'}
+                        </span>
+                      </div>
+                    )}
+                    {title === "Billing Report" && delivery.metodePembayaran && (
+                      <span className="px-2 py-1 rounded-lg bg-blue-50 text-blue-600 text-[10px] font-black whitespace-nowrap uppercase">
+                        {delivery.metodePembayaran}
+                      </span>
+                    )}
                     {(userRole === 'owner' || userRole === 'admin') && (
                       <div className="flex items-center gap-1">
                         <button
@@ -800,17 +856,67 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Jam Bukti</label>
-                    <input
-                      readOnly
-                      type="text"
-                      value={formData.jamBukti}
-                      placeholder="Otomatis saat foto"
-                      className="w-full px-4 py-3 rounded-2xl bg-stone-100 border-none text-sm font-medium text-stone-500 cursor-not-allowed"
-                    />
-                  </div>
+                  {title === "Billing Report" ? (
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Sisa (Qty)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.sisa}
+                        onChange={(e) => {
+                          const sisaVal = parseInt(e.target.value) || 0;
+                          const reduction = sisaVal * (formData.hargaSikepal || 0);
+                          setFormData({
+                            ...formData,
+                            sisa: sisaVal,
+                            qtyPengiriman: Math.max(0, formData.originalNilai - reduction)
+                          });
+                        }}
+                        placeholder="Masukkan sisa..."
+                        className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium"
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Jam Bukti</label>
+                      <input
+                        readOnly
+                        type="text"
+                        value={formData.jamBukti}
+                        placeholder="Otomatis saat foto"
+                        className="w-full px-4 py-3 rounded-2xl bg-stone-100 border-none text-sm font-medium text-stone-500 cursor-not-allowed"
+                      />
+                    </div>
+                  )}
                 </div>
+
+                {title === "Billing Report" && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Jam Bukti</label>
+                      <input
+                        readOnly
+                        type="text"
+                        value={formData.jamBukti}
+                        placeholder="Otomatis saat foto"
+                        className="w-full px-4 py-3 rounded-2xl bg-stone-100 border-none text-sm font-medium text-stone-500 cursor-not-allowed"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Metode Pembayaran</label>
+                      <select
+                        required
+                        value={formData.metodePembayaran}
+                        onChange={(e) => setFormData({...formData, metodePembayaran: e.target.value})}
+                        className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium appearance-none cursor-pointer"
+                      >
+                        <option value="" disabled>Pilih Metode</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Transfer">Transfer</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
 
                 {title === "Billing Report" && (
                   <div className="space-y-2">
@@ -841,6 +947,9 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                             ...formData, 
                             selectedOrderId: '',
                             qtyPengiriman: 0,
+                            originalNilai: 0,
+                            sisa: 0,
+                            hargaSikepal: 0,
                             namaKurir: '',
                             namaLokasi: ''
                           })}
@@ -1046,6 +1155,9 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                                 namaKurir: order.namaKurir,
                                 namaLokasi: order.namaLokasi,
                                 qtyPengiriman: order.jumlahUang,
+                                originalNilai: order.jumlahUang,
+                                hargaSikepal: order.hargaSikepal || 0,
+                                sisa: 0,
                                 selectedOrderId: order.id
                               });
                               setIsPiutangModalOpen(false);
@@ -1097,6 +1209,9 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                             namaKurir: order.namaKurir,
                             namaLokasi: order.namaLokasi,
                             qtyPengiriman: order.jumlahUang,
+                            originalNilai: order.jumlahUang,
+                            hargaSikepal: order.hargaSikepal || 0,
+                            sisa: 0,
                             selectedOrderId: order.id
                           });
                           setIsPiutangModalOpen(false);

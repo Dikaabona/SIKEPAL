@@ -50,7 +50,9 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         setMessage('Pendaftaran berhasil! Silakan periksa email Anda untuk verifikasi.');
         setMode('login');
       } else if (mode === 'forgot') {
-        const { error } = await supabase.auth.resetPasswordForEmail(email);
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: 'https://app.sikepal.id/lupapassword',
+        });
         if (error) throw error;
         setMessage('Instruksi reset password telah dikirim ke email Anda.');
         setMode('login');

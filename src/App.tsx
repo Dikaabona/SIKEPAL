@@ -527,12 +527,12 @@ export default function App() {
           .update({ 
             pembayaran: 'FALSE',
             tanggalBayar: '',
-            jumlahUang: 0
+            sisa: 0
           })
           .eq('id', oldReport.orderId);
         
         // Update local orders state for the old order
-        setOrders(prev => prev.map(o => o.id === oldReport.orderId ? { ...o, pembayaran: 'FALSE', tanggalBayar: '', jumlahUang: 0 } : o));
+        setOrders(prev => prev.map(o => o.id === oldReport.orderId ? { ...o, pembayaran: 'FALSE', tanggalBayar: '', sisa: 0 } : o));
       }
 
       const { error } = await supabase.from('billing_reports').upsert(report);
@@ -546,7 +546,7 @@ export default function App() {
           .update({ 
             pembayaran: 'TRUE',
             tanggalBayar: report.tanggal,
-            jumlahUang: report.qtyPengiriman // Update the paid amount
+            sisa: report.sisa || 0
           })
           .eq('id', report.orderId);
         
@@ -554,7 +554,7 @@ export default function App() {
           console.error('Error updating order status:', orderError);
         } else {
           // Update local orders state
-          setOrders(prev => prev.map(o => o.id === report.orderId ? { ...o, pembayaran: 'TRUE', tanggalBayar: report.tanggal, jumlahUang: report.qtyPengiriman } : o));
+          setOrders(prev => prev.map(o => o.id === report.orderId ? { ...o, pembayaran: 'TRUE', tanggalBayar: report.tanggal, sisa: report.sisa || 0 } : o));
           console.log('Order updated successfully in local state');
         }
       }
@@ -611,11 +611,11 @@ export default function App() {
           .update({ 
             pembayaran: 'FALSE',
             tanggalBayar: '',
-            jumlahUang: 0
+            sisa: 0
           })
           .eq('id', reportToDelete.orderId);
         
-        setOrders(prev => prev.map(o => o.id === reportToDelete.orderId ? { ...o, pembayaran: 'FALSE', tanggalBayar: '', jumlahUang: 0 } : o));
+        setOrders(prev => prev.map(o => o.id === reportToDelete.orderId ? { ...o, pembayaran: 'FALSE', tanggalBayar: '', sisa: 0 } : o));
       }
 
       const { error } = await supabase.from('billing_reports').delete().eq('id', id);

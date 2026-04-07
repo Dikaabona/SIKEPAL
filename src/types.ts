@@ -228,11 +228,15 @@ export interface DeliveryRecord {
   lokasiBukti?: string;
   jamBukti?: string;
   qtyPengiriman: number;
+  sisa?: number;
+  hargaSikepal?: number;
   keterangan?: string;
   company: string;
   status: 'Pending' | 'Active' | 'Completed';
   createdAt: string;
   orderId?: string;
+  metodePembayaran?: string;
+  waste?: number;
 }
 
 export interface BillingRecord {
@@ -244,11 +248,15 @@ export interface BillingRecord {
   lokasiBukti?: string;
   jamBukti?: string;
   qtyPengiriman: number;
+  sisa?: number;
+  hargaSikepal?: number;
   keterangan?: string;
   company: string;
   status: 'Pending' | 'Active' | 'Completed';
   createdAt: string;
   orderId?: string;
+  metodePembayaran?: string;
+  waste?: number;
 }
 
 export interface Division {
