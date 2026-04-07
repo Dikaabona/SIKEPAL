@@ -685,7 +685,6 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                 <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">JUMLAH UANG</th>
                 <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">PERIODE BAYAR</th>
                 <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">SISA</th>
-                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">JUMLAH PIUTANG</th>
                 <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">PEMBAYARAN</th>
                 <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">TANGGAL BAYAR</th>
                 <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">DISKON</th>
@@ -724,7 +723,6 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                     <td className="px-4 py-4 text-xs text-green-600 font-bold">Rp{order.jumlahUang.toLocaleString()}</td>
                     <td className="px-4 py-4 text-xs text-stone-600">{order.periodeBayar}</td>
                     <td className="px-4 py-4 text-xs text-stone-600">{order.sisa.toLocaleString()}</td>
-                    <td className="px-4 py-4 text-xs text-red-600 font-bold">{order.jumlahPiutang.toLocaleString()}</td>
                     <td className="px-4 py-4 text-xs text-stone-600">{order.pembayaran}</td>
                     <td className="px-4 py-4 text-xs text-stone-600">{formatDate(order.tanggalBayar)}</td>
                     <td className="px-4 py-4 text-xs text-stone-600">Rp{order.diskon.toLocaleString()}</td>
@@ -822,10 +820,6 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                   <div className="px-3 py-1.5 bg-green-50 rounded-lg border border-green-100 flex items-center gap-2">
                     <span className="text-[9px] font-black text-green-600 uppercase">Uang</span>
                     <span className="text-xs font-bold text-green-700">Rp{order.jumlahUang.toLocaleString()}</span>
-                  </div>
-                  <div className="px-3 py-1.5 bg-red-50 rounded-lg border border-red-100 flex items-center gap-2">
-                    <span className="text-[9px] font-black text-red-600 uppercase">Piutang</span>
-                    <span className="text-xs font-bold text-red-700">Rp{order.jumlahPiutang.toLocaleString()}</span>
                   </div>
                   <div className="px-3 py-1.5 bg-stone-50 rounded-lg border border-stone-100 flex items-center gap-2">
                     <span className="text-[9px] font-black text-stone-400 uppercase">Sisa</span>
@@ -1143,15 +1137,6 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                     type="number" 
                     value={newOrder.sisa}
                     onChange={(e) => setNewOrder({...newOrder, sisa: parseInt(e.target.value)})}
-                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Jumlah Piutang</label>
-                  <input 
-                    type="number" 
-                    value={newOrder.jumlahPiutang}
-                    onChange={(e) => setNewOrder({...newOrder, jumlahPiutang: parseInt(e.target.value)})}
                     className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                   />
                 </div>

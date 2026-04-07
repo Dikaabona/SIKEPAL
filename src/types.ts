@@ -115,7 +115,7 @@ export interface LiveSchedule {
   hostName: string;
 }
 
-export type SubmissionType = 'Izin' | 'Sakit' | 'Cuti' | 'Lembur' | 'Overtime' | 'Leave' | 'Reimbursement';
+export type SubmissionType = 'Izin' | 'Sakit' | 'Cuti' | 'Lembur' | 'Overtime' | 'Leave' | 'Reimbursement' | 'Notification';
 
 export interface Submission {
   id: string;

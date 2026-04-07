@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Employee, Submission, Broadcast, AttendanceRecord, ShiftAssignment, UserRole, Shift } from '../types';
+import { Employee, Submission, Broadcast, AttendanceRecord, ShiftAssignment, UserRole, Shift, BranchLocation } from '../types';
 
 interface DashboardProps {
   employees: Employee[];
@@ -17,6 +17,7 @@ interface DashboardProps {
   onViewProfile: (emp: Employee) => void;
   shifts: Shift[];
   onRefreshData: () => void;
+  branchLocations: BranchLocation[];
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ 
@@ -24,14 +25,52 @@ const Dashboard: React.FC<DashboardProps> = ({
   attendanceRecords, 
   onNavigate,
   broadcasts,
-  currentUserEmployee
+  currentUserEmployee,
+  branchLocations
 }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentDistance, setCurrentDistance] = useState<number | null>(null);
+
+  const assignedLocation = branchLocations.find(loc => loc.id === currentUserEmployee?.branchLocationId);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if ("geolocation" in navigator && assignedLocation) {
+      const watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const dist = calculateDistance(
+            position.coords.latitude,
+            position.coords.longitude,
+            assignedLocation.latitude,
+            assignedLocation.longitude
+          );
+          setCurrentDistance(Math.round(dist));
+        },
+        (error) => console.error("Error watching position:", error),
+        { enableHighAccuracy: true }
+      );
+      return () => navigator.geolocation.clearWatch(watchId);
+    }
+  }, [assignedLocation]);
+
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371e3; // metres
+    const φ1 = (lat1 * Math.PI) / 180;
+    const φ2 = (lat2 * Math.PI) / 180;
+    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+    const a =
+      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c;
+  };
 
   const presentToday = attendanceRecords.filter(r => r.status === 'Hadir').length;
   const totalEmployees = employees.length;
@@ -67,8 +106,8 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const leaveBalance = calculateLeaveBalance(currentUserEmployee?.tanggalMasuk);
   const today = new Date().toISOString().split('T')[0];
-  const todayRecord = attendanceRecords.find(r => r.employeeId === currentUserEmployee?.id && r.date === today);
-  const attendanceStatus = todayRecord?.clockIn && !todayRecord?.clockOut ? 'ABSEN PULANG' : 'ABSEN MASUK';
+  const locationRadius = assignedLocation?.radius || 10;
+  const locationName = assignedLocation?.namaCabang || 'AREA KANTOR';
 
   return (
     <motion.div 
@@ -101,7 +140,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <span className="material-symbols-outlined text-[#FFB300] text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
               </div>
               <span className="text-[11px] font-black text-[#827717] uppercase tracking-wider">
-                DI AREA KANTOR (10M)
+                DI {locationName} ({currentDistance !== null ? `${currentDistance}M` : `${locationRadius}M`})
               </span>
             </div>
           </motion.div>

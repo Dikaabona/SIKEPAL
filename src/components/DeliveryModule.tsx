@@ -122,6 +122,32 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // Piutang Modal States
+  const [piutangSearchQuery, setPiutangSearchQuery] = useState('');
+  const [piutangFilterKurir, setPiutangFilterKurir] = useState('');
+
+  // Initialize filter with formData.namaKurir when modal opens
+  React.useEffect(() => {
+    if (isPiutangModalOpen) {
+      setPiutangFilterKurir(formData.namaKurir || '');
+      setPiutangSearchQuery('');
+    }
+  }, [isPiutangModalOpen, formData.namaKurir]);
+
+  const filteredPiutangOrders = useMemo(() => {
+    return orders
+      .filter(o => {
+        const isUnpaid = o.pembayaran?.toUpperCase() === 'FALSE';
+        const matchesKurir = !piutangFilterKurir || o.namaKurir === piutangFilterKurir;
+        const matchesSearch = !piutangSearchQuery || 
+          o.namaLokasi.toLowerCase().includes(piutangSearchQuery.toLowerCase()) ||
+          o.namaKurir?.toLowerCase().includes(piutangSearchQuery.toLowerCase());
+        
+        return isUnpaid && matchesKurir && matchesSearch;
+      })
+      .sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
+  }, [orders, piutangFilterKurir, piutangSearchQuery]);
+
   // Reset to page 1 when deliveries list changes
   React.useEffect(() => {
     setCurrentPage(1);
@@ -316,7 +342,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
           <h3 className="font-bold text-stone-900 text-sm md:text-base">
             {title === "Billing Report" ? "Daftar Penagihan" : "Daftar Pengiriman"}
           </h3>
-          {!hideAddButton && (userRole === 'owner' || userRole === 'admin') && (
+          {!hideAddButton && (userRole === 'owner' || userRole === 'admin' || userRole === 'kurir') && (
             <button 
               onClick={() => setIsModalOpen(true)}
               className="px-4 py-2 bg-stone-900 text-white rounded-xl text-[10px] md:text-xs font-bold hover:bg-stone-800 transition-all flex items-center gap-2"
@@ -763,9 +789,14 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                       <input
                         required
                         type="number"
+                        readOnly={title === "Billing Report"}
                         value={formData.qtyPengiriman}
                         onChange={(e) => setFormData({...formData, qtyPengiriman: parseInt(e.target.value) || 0})}
-                        className={`w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium ${title === "Billing Report" ? 'pl-10' : ''}`}
+                        className={`w-full px-4 py-3 rounded-2xl border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium ${
+                          title === "Billing Report" 
+                            ? 'pl-10 bg-stone-100 text-stone-500 cursor-not-allowed' 
+                            : 'bg-stone-50 text-stone-900'
+                        }`}
                       />
                     </div>
                   </div>
@@ -806,7 +837,13 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                         <p className="text-[10px] text-orange-600 font-bold italic">Terhubung dengan data orderan</p>
                         <button 
                           type="button"
-                          onClick={() => setFormData({...formData, selectedOrderId: ''})}
+                          onClick={() => setFormData({
+                            ...formData, 
+                            selectedOrderId: '',
+                            qtyPengiriman: 0,
+                            namaKurir: '',
+                            namaLokasi: ''
+                          })}
                           className="text-[10px] text-red-500 font-black uppercase hover:underline"
                         >
                           Batalkan
@@ -951,30 +988,53 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
               </button>
             </div>
             
-            <div className="flex-1 overflow-auto p-4 md:p-6">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-stone-50/50">
-                      <th className="px-4 py-3 text-[10px] font-black text-stone-400 uppercase tracking-widest">Tanggal</th>
-                      <th className="px-4 py-3 text-[10px] font-black text-stone-400 uppercase tracking-widest">Nama Lokasi</th>
-                      <th className="px-4 py-3 text-[10px] font-black text-stone-400 uppercase tracking-widest">Jumlah Uang</th>
-                      <th className="px-4 py-3 text-[10px] font-black text-stone-400 uppercase tracking-widest">Pembayaran</th>
-                      <th className="px-4 py-3 text-[10px] font-black text-stone-400 uppercase tracking-widest text-right">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-stone-50">
-                    {orders.filter(o => 
-                      o.pembayaran?.toUpperCase() === 'FALSE' && 
-                      (!formData.namaKurir || o.namaKurir === formData.namaKurir)
-                    ).length > 0 ? (
-                      orders
-                        .filter(o => 
-                          o.pembayaran?.toUpperCase() === 'FALSE' && 
-                          (!formData.namaKurir || o.namaKurir === formData.namaKurir)
-                        )
-                        .sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime())
-                        .map((order) => (
+            <div className="flex-1 overflow-hidden flex flex-col">
+              {/* Search and Filter Bar */}
+              <div className="p-4 md:p-6 pb-2 border-b border-stone-50 bg-white space-y-4">
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1 relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">search</span>
+                    <input
+                      type="text"
+                      placeholder="Cari lokasi atau kurir..."
+                      value={piutangSearchQuery}
+                      onChange={(e) => setPiutangSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-xs font-medium"
+                    />
+                  </div>
+                  <div className="w-full md:w-48 relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">person</span>
+                    <select
+                      value={piutangFilterKurir}
+                      onChange={(e) => setPiutangFilterKurir(e.target.value)}
+                      className="w-full pl-10 pr-8 py-2.5 rounded-xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-xs font-medium appearance-none cursor-pointer"
+                    >
+                      <option value="">Semua Kurir</option>
+                      {courierOptions.map(name => (
+                        <option key={name} value={name}>{name}</option>
+                      ))}
+                    </select>
+                    <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm pointer-events-none">expand_more</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-auto p-4 md:p-6 pt-2">
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-stone-50/50">
+                        <th className="px-4 py-3 text-[10px] font-black text-stone-400 uppercase tracking-widest">Tanggal</th>
+                        <th className="px-4 py-3 text-[10px] font-black text-stone-400 uppercase tracking-widest">Nama Lokasi</th>
+                        <th className="px-4 py-3 text-[10px] font-black text-stone-400 uppercase tracking-widest">Jumlah Uang</th>
+                        <th className="px-4 py-3 text-[10px] font-black text-stone-400 uppercase tracking-widest">Pembayaran</th>
+                        <th className="px-4 py-3 text-[10px] font-black text-stone-400 uppercase tracking-widest text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-50">
+                      {filteredPiutangOrders.length > 0 ? (
+                        filteredPiutangOrders.map((order) => (
                           <tr 
                             key={order.id} 
                             className={`group transition-colors cursor-pointer ${
@@ -992,7 +1052,10 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                             }}
                           >
                             <td className="px-4 py-3 text-xs font-bold text-stone-600">{formatDate(order.tanggal)}</td>
-                            <td className="px-4 py-3 text-xs font-bold text-stone-900">{order.namaLokasi}</td>
+                            <td className="px-4 py-3 text-xs font-bold text-stone-900">
+                              <div>{order.namaLokasi}</div>
+                              <div className="text-[10px] text-stone-400 font-medium">{order.namaKurir}</div>
+                            </td>
                             <td className="px-4 py-3 text-xs font-black text-stone-900">Rp {order.jumlahUang.toLocaleString('id-ID')}</td>
                             <td className="px-4 py-3">
                               <span className="px-2 py-1 rounded-lg bg-red-50 text-red-600 text-[10px] font-black uppercase">
@@ -1006,17 +1069,77 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                             </td>
                           </tr>
                         ))
-                    ) : (
-                      <tr>
-                        <td colSpan={4} className="py-12 text-center text-stone-400 font-medium text-sm">
-                          {formData.namaKurir 
-                            ? `Tidak ada data piutang untuk kurir ${formData.namaKurir}`
-                            : "Tidak ada data piutang (semua sudah lunas)"}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="py-12 text-center text-stone-400 font-medium text-sm">
+                            <div className="w-12 h-12 bg-stone-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                              <span className="material-symbols-outlined text-stone-300 text-2xl">search_off</span>
+                            </div>
+                            {piutangSearchQuery || piutangFilterKurir 
+                              ? "Tidak ada piutang yang sesuai dengan pencarian/filter"
+                              : "Tidak ada data piutang (semua sudah lunas)"}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile List View */}
+                <div className="md:hidden space-y-3">
+                  {filteredPiutangOrders.length > 0 ? (
+                    filteredPiutangOrders.map((order) => (
+                      <div 
+                        key={order.id}
+                        onClick={() => {
+                          setFormData({
+                            ...formData,
+                            namaKurir: order.namaKurir,
+                            namaLokasi: order.namaLokasi,
+                            qtyPengiriman: order.jumlahUang,
+                            selectedOrderId: order.id
+                          });
+                          setIsPiutangModalOpen(false);
+                        }}
+                        className={`p-4 rounded-2xl border transition-all cursor-pointer active:scale-[0.98] ${
+                          formData.selectedOrderId === order.id 
+                            ? 'bg-orange-50 border-orange-200 shadow-sm' 
+                            : 'bg-white border-stone-100 hover:border-stone-200'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
+                            {formatDate(order.tanggal)}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-lg bg-red-50 text-red-600 text-[9px] font-black uppercase">
+                            {order.pembayaran}
+                          </span>
+                        </div>
+                        <div className="mb-3">
+                          <div className="text-sm font-black text-stone-900 leading-tight">{order.namaLokasi}</div>
+                          <div className="text-[10px] text-stone-500 font-bold uppercase tracking-wide mt-0.5">{order.namaKurir}</div>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <div className="text-sm font-black text-orange-600">
+                            Rp {order.jumlahUang.toLocaleString('id-ID')}
+                          </div>
+                          <div className="text-[10px] font-black text-stone-400 uppercase flex items-center gap-1">
+                            Pilih <span className="material-symbols-outlined text-xs">chevron_right</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="py-12 text-center text-stone-400 font-medium text-sm">
+                      <div className="w-12 h-12 bg-stone-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <span className="material-symbols-outlined text-stone-300 text-2xl">search_off</span>
+                      </div>
+                      {piutangSearchQuery || piutangFilterKurir 
+                        ? "Tidak ada piutang yang sesuai dengan pencarian/filter"
+                        : "Tidak ada data piutang (semua sudah lunas)"}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             

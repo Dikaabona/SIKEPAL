@@ -49,7 +49,14 @@ const AttendanceModule: React.FC<AttendanceModuleProps> = ({
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [isSelfieActive, setIsSelfieActive] = useState(initialSelfieMode || false);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [locationStatus, setLocationStatus] = useState<{ status: string, distance: string }>({ status: 'DI AREA KANTOR', distance: '10M' });
+  const assignedLocation = branchLocations.find(loc => loc.id === currentEmployee?.branchLocationId);
+  const initialStatus = assignedLocation?.namaCabang ? `DI ${assignedLocation.namaCabang}` : 'DI AREA KANTOR';
+  const initialDistance = assignedLocation?.radius ? `${assignedLocation.radius}M` : '10M';
+
+  const [locationStatus, setLocationStatus] = useState<{ status: string, distance: string }>({ 
+    status: initialStatus, 
+    distance: initialDistance 
+  });
   const [isCapturing, setIsCapturing] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -71,6 +78,28 @@ const AttendanceModule: React.FC<AttendanceModuleProps> = ({
     }
     return () => stopCamera();
   }, [isSelfieActive]);
+
+  useEffect(() => {
+    if ("geolocation" in navigator && assignedLocation) {
+      const watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const dist = calculateDistance(
+            position.coords.latitude,
+            position.coords.longitude,
+            assignedLocation.latitude,
+            assignedLocation.longitude
+          );
+          setLocationStatus({
+            status: assignedLocation.namaCabang ? `DI ${assignedLocation.namaCabang}` : 'DI AREA KANTOR',
+            distance: `${Math.round(dist)}M`
+          });
+        },
+        (error) => console.error("Error watching position:", error),
+        { enableHighAccuracy: true }
+      );
+      return () => navigator.geolocation.clearWatch(watchId);
+    }
+  }, [assignedLocation]);
 
   const startCamera = async () => {
     try {

@@ -499,8 +499,42 @@ export default function App() {
   };
 
   const handleSaveBillingReport = async (report: BillingRecord) => {
+    // Check if it's an edit
+    const oldReport = billingReports.find(r => r.id === report.id);
+    const isEdit = !!oldReport;
+
+    if (isEdit) {
+      if (userRole !== 'owner' && userRole !== 'admin') {
+        alert('Hanya Admin dan Owner yang dapat mengedit data Billing Report.');
+        return;
+      }
+    } else {
+      // For adding new report, allow owner, admin, and kurir
+      if (userRole !== 'owner' && userRole !== 'admin' && userRole !== 'kurir') {
+        alert('Hanya Admin, Owner, dan Kurir yang dapat menambah data Billing Report.');
+        return;
+      }
+    }
+
     try {
-      console.log('Saving billing report to Supabase:', report);
+
+      // Requirement 1: Revert previous order if it was linked and changed or if it's an edit
+      // We revert the old order first to ensure clean state
+      if (oldReport && oldReport.orderId) {
+        console.log('Reverting old order status for order:', oldReport.orderId);
+        await supabase
+          .from('orders')
+          .update({ 
+            pembayaran: 'FALSE',
+            tanggalBayar: '',
+            jumlahUang: 0
+          })
+          .eq('id', oldReport.orderId);
+        
+        // Update local orders state for the old order
+        setOrders(prev => prev.map(o => o.id === oldReport.orderId ? { ...o, pembayaran: 'FALSE', tanggalBayar: '', jumlahUang: 0 } : o));
+      }
+
       const { error } = await supabase.from('billing_reports').upsert(report);
       if (error) throw error;
       
@@ -525,6 +559,21 @@ export default function App() {
         }
       }
 
+      // Requirement 3: Notification in inbox if it's an edit
+      if (isEdit && currentUserEmployee) {
+        const notification: Submission = {
+          id: `notif_${Date.now()}`,
+          employeeId: currentUserEmployee.id,
+          employeeName: currentUserEmployee.nama,
+          company: userCompany,
+          type: 'Notification',
+          reason: `${currentUserEmployee.nama} telah mengedit data Billing Report untuk lokasi ${report.namaLokasi} pada tanggal ${report.tanggal}`,
+          status: 'Approved',
+          submittedAt: new Date().toISOString()
+        };
+        await handleSaveSubmission(notification);
+      }
+
       setBillingReports(prev => {
         const index = prev.findIndex(r => r.id === report.id);
         if (index >= 0) {
@@ -543,10 +592,32 @@ export default function App() {
   };
 
   const handleDeleteBillingReport = async (id: string) => {
+    if (userRole !== 'owner' && userRole !== 'admin') {
+      alert('Hanya Admin dan Owner yang dapat menghapus data Billing Report.');
+      return;
+    }
+
     if (!window.confirm('Apakah Anda yakin ingin menghapus data billing report ini?')) return;
     
     try {
       console.log('Deleting billing report from Supabase:', id);
+      const reportToDelete = billingReports.find(r => r.id === id);
+      
+      // Revert order status if it was linked
+      if (reportToDelete && reportToDelete.orderId) {
+        console.log('Reverting order status for order:', reportToDelete.orderId);
+        await supabase
+          .from('orders')
+          .update({ 
+            pembayaran: 'FALSE',
+            tanggalBayar: '',
+            jumlahUang: 0
+          })
+          .eq('id', reportToDelete.orderId);
+        
+        setOrders(prev => prev.map(o => o.id === reportToDelete.orderId ? { ...o, pembayaran: 'FALSE', tanggalBayar: '', jumlahUang: 0 } : o));
+      }
+
       const { error } = await supabase.from('billing_reports').delete().eq('id', id);
       if (error) throw error;
       
@@ -718,7 +789,7 @@ export default function App() {
   };
 
   const navItems = [
-    { id: 'home', label: 'Dashboard', icon: 'dashboard' },
+    { id: 'home', label: currentUserEmployee?.nama ? `Hi ${currentUserEmployee.nama.split(' ')[0]}` : 'Dashboard', icon: 'dashboard' },
     { 
       id: 'attendance', 
       label: 'Attendance', 
@@ -792,6 +863,7 @@ export default function App() {
             onViewProfile={() => {}}
             shifts={shifts}
             onRefreshData={refreshData}
+            branchLocations={branchLocations}
           />
         );
       case 'attendance':
@@ -1228,6 +1300,15 @@ export default function App() {
         {/* TopNavBar Component */}
         <header className="sticky top-0 w-full z-40 bg-white/80 backdrop-blur-xl border-b border-stone-100 h-16 px-4 md:px-6 flex justify-between items-center print:hidden">
           <div className="flex items-center gap-2 md:gap-4">
+            {/* Mobile Logo */}
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden border border-stone-200 bg-white shadow-sm md:hidden">
+              <img 
+                src="https://lh3.googleusercontent.com/d/1b-hkPOsHZ8_rW1f9aqABu7R5bw_ZJM0y" 
+                alt="Logo" 
+                className="w-full h-full object-contain"
+                referrerPolicy="no-referrer"
+              />
+            </div>
             <button 
               onClick={() => {
                 if (window.innerWidth < 768) {
@@ -1243,8 +1324,8 @@ export default function App() {
                 {window.innerWidth < 768 ? 'menu' : (isSidebarCollapsed ? 'menu' : 'menu_open')}
               </span>
             </button>
-            <h2 className="font-headline text-lg md:text-xl font-black tracking-tight text-stone-900 capitalize">
-              {activeTab.replace('_', ' ')}
+            <h2 className={`font-headline text-lg md:text-xl font-black tracking-tight text-stone-900 capitalize ${activeTab === 'home' ? 'hidden md:block' : ''}`}>
+              {activeTab === 'home' ? `Hi ${currentUserEmployee?.nama || 'User'}` : activeTab.replace('_', ' ')}
             </h2>
           </div>
           <div className="flex items-center gap-3 md:gap-4">
@@ -1258,7 +1339,7 @@ export default function App() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <div className="flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-2">
               <div className="w-8 h-8 md:w-9 md:h-9 rounded-full overflow-hidden border-2 border-orange-100 bg-white shadow-sm flex items-center justify-center">
                 <img
                   alt="User Profile"
@@ -1289,7 +1370,7 @@ export default function App() {
       {/* Bottom Navigation (Mobile) */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-stone-100 px-2 py-2 flex justify-around items-center md:hidden z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
         {[
-          { id: 'home', icon: 'home', label: 'Home' },
+          { id: 'home', icon: 'home', label: currentUserEmployee?.nama ? `Hi ${currentUserEmployee.nama.split(' ')[0]}` : 'Home' },
           { id: 'attendance', icon: 'how_to_reg', label: 'Absen' },
           { id: 'inbox', icon: 'inbox', label: 'Inbox' }
         ].map((item) => {
