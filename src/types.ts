@@ -214,6 +214,8 @@ export interface Order {
   jumlahUang: number;
   pembayaran: string;
   tanggalBayar: string;
+  nilaiPembayaran?: number;
+  waste?: number;
   diskon: number;
   company: string;
   updatedAt: string;

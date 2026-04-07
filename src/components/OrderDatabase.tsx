@@ -56,6 +56,8 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
     jumlahUang: 0,
     pembayaran: '',
     tanggalBayar: '',
+    nilaiPembayaran: 0,
+    waste: 0,
     diskon: 0,
     company: company
   });
@@ -687,6 +689,8 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                 <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">SISA</th>
                 <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">PEMBAYARAN</th>
                 <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">TANGGAL BAYAR</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">NILAI PEMBAYARAN</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">WASTE</th>
                 <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">DISKON</th>
                 <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider text-right">Actions</th>
               </tr>
@@ -725,6 +729,8 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                     <td className="px-4 py-4 text-xs text-stone-600">{order.sisa.toLocaleString()}</td>
                     <td className="px-4 py-4 text-xs text-stone-600">{order.pembayaran}</td>
                     <td className="px-4 py-4 text-xs text-stone-600">{formatDate(order.tanggalBayar)}</td>
+                    <td className="px-4 py-4 text-xs text-stone-600">Rp{(order.nilaiPembayaran || 0).toLocaleString()}</td>
+                    <td className="px-4 py-4 text-xs text-stone-600">{order.waste ? `${order.waste.toFixed(0)}%` : '0%'}</td>
                     <td className="px-4 py-4 text-xs text-stone-600">Rp{order.diskon.toLocaleString()}</td>
                     <td className="px-4 py-4 text-right">
                       {userRole !== 'kurir' && (
@@ -829,6 +835,18 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                     <span className="text-[9px] font-black text-blue-600 uppercase">Bayar</span>
                     <span className="text-xs font-bold text-blue-700">{order.pembayaran || '-'}</span>
                   </div>
+                  {order.nilaiPembayaran !== undefined && (
+                    <div className="px-3 py-1.5 bg-indigo-50 rounded-lg border border-indigo-100 flex items-center gap-2">
+                      <span className="text-[9px] font-black text-indigo-600 uppercase">Nilai Bayar</span>
+                      <span className="text-xs font-bold text-indigo-700">Rp{order.nilaiPembayaran.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {order.waste !== undefined && (
+                    <div className="px-3 py-1.5 bg-red-50 rounded-lg border border-red-100 flex items-center gap-2">
+                      <span className="text-[9px] font-black text-red-600 uppercase">Waste</span>
+                      <span className="text-xs font-bold text-red-700">{order.waste.toFixed(0)}%</span>
+                    </div>
+                  )}
                 </div>
               </div>
             ))
@@ -1167,6 +1185,24 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                     type="date" 
                     value={newOrder.tanggalBayar}
                     onChange={(e) => setNewOrder({...newOrder, tanggalBayar: e.target.value})}
+                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nilai Pembayaran</label>
+                  <input 
+                    type="number" 
+                    value={newOrder.nilaiPembayaran || 0}
+                    onChange={(e) => setNewOrder({...newOrder, nilaiPembayaran: parseInt(e.target.value)})}
+                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Waste (%)</label>
+                  <input 
+                    type="number" 
+                    value={newOrder.waste || 0}
+                    onChange={(e) => setNewOrder({...newOrder, waste: parseFloat(e.target.value)})}
                     className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                   />
                 </div>
