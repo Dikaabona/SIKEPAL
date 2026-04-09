@@ -72,6 +72,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
     originalNilai: 0,
     hargaSikepal: 0,
     metodePembayaran: '',
+    buktiTransfer: '',
     keterangan: '',
     selectedOrderId: '',
     tanggalPiutang: ''
@@ -290,6 +291,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
         sisa: Number(formData.sisa) || 0,
         hargaSikepal: Number(formData.hargaSikepal) || 0,
         metodePembayaran: formData.metodePembayaran || undefined,
+        buktiTransfer: formData.buktiTransfer || undefined,
         waste: wastePercent,
         tanggalPiutang: formData.tanggalPiutang || undefined,
         company,
@@ -322,6 +324,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       sisa: delivery.sisa || 0,
       hargaSikepal: delivery.hargaSikepal || 0,
       metodePembayaran: delivery.metodePembayaran || '',
+      buktiTransfer: delivery.buktiTransfer || '',
       originalNilai: (delivery.qtyPengiriman || 0) + ((delivery.sisa || 0) * (delivery.hargaSikepal || 0)),
       keterangan: delivery.keterangan || '',
       selectedOrderId: delivery.orderId || '',
@@ -350,6 +353,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       originalNilai: 0,
       hargaSikepal: 0,
       metodePembayaran: '',
+      buktiTransfer: '',
       keterangan: '',
       selectedOrderId: '',
       tanggalPiutang: ''
@@ -485,19 +489,30 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                     )}
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        {delivery.fotoBukti ? (
-                          <img 
-                            src={delivery.fotoBukti} 
-                            alt="Bukti" 
-                            className="w-10 h-10 rounded-lg object-cover border border-stone-100 cursor-zoom-in hover:scale-110 transition-transform"
-                            referrerPolicy="no-referrer"
-                            onClick={() => setPreviewImage(delivery.fotoBukti)}
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-lg bg-stone-50 flex items-center justify-center text-stone-300">
-                            <span className="material-symbols-outlined text-sm">image</span>
-                          </div>
-                        )}
+                        <div className="flex -space-x-2">
+                          {delivery.fotoBukti ? (
+                            <img 
+                              src={delivery.fotoBukti} 
+                              alt="Bukti" 
+                              className="w-10 h-10 rounded-lg object-cover border-2 border-white shadow-sm cursor-zoom-in hover:scale-110 transition-transform relative z-10"
+                              referrerPolicy="no-referrer"
+                              onClick={() => setPreviewImage(delivery.fotoBukti)}
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-stone-50 flex items-center justify-center text-stone-300 border-2 border-white shadow-sm">
+                              <span className="material-symbols-outlined text-sm">image</span>
+                            </div>
+                          )}
+                          {delivery.buktiTransfer && (
+                            <img 
+                              src={delivery.buktiTransfer} 
+                              alt="Transfer" 
+                              className="w-10 h-10 rounded-lg object-cover border-2 border-white shadow-sm cursor-zoom-in hover:scale-110 transition-transform relative z-20"
+                              referrerPolicy="no-referrer"
+                              onClick={() => setPreviewImage(delivery.buktiTransfer)}
+                            />
+                          )}
+                        </div>
                         <div className="text-[10px] leading-tight">
                           <div className="text-stone-400 flex items-center gap-1">
                             <span className="material-symbols-outlined text-[10px]">location_on</span>
@@ -589,19 +604,30 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                         onChange={() => handleSelectOne(delivery.id)}
                       />
                     )}
-                    {delivery.fotoBukti ? (
-                      <img 
-                        src={delivery.fotoBukti} 
-                        alt="Bukti" 
-                        className="w-12 h-12 rounded-xl object-cover border border-stone-100"
-                        referrerPolicy="no-referrer"
-                        onClick={() => setPreviewImage(delivery.fotoBukti)}
-                      />
-                    ) : (
-                      <div className="w-12 h-12 rounded-xl bg-stone-50 flex items-center justify-center text-stone-300">
-                        <span className="material-symbols-outlined">image</span>
-                      </div>
-                    )}
+                    <div className="flex -space-x-3">
+                      {delivery.fotoBukti ? (
+                        <img 
+                          src={delivery.fotoBukti} 
+                          alt="Bukti" 
+                          className="w-12 h-12 rounded-xl object-cover border-2 border-white shadow-sm relative z-10"
+                          referrerPolicy="no-referrer"
+                          onClick={() => setPreviewImage(delivery.fotoBukti)}
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-xl bg-stone-50 flex items-center justify-center text-stone-300 border-2 border-white shadow-sm">
+                          <span className="material-symbols-outlined">image</span>
+                        </div>
+                      )}
+                      {delivery.buktiTransfer && (
+                        <img 
+                          src={delivery.buktiTransfer} 
+                          alt="Transfer" 
+                          className="w-12 h-12 rounded-xl object-cover border-2 border-white shadow-sm relative z-20"
+                          referrerPolicy="no-referrer"
+                          onClick={() => setPreviewImage(delivery.buktiTransfer)}
+                        />
+                      )}
+                    </div>
                     <div>
                       <div className="font-bold text-stone-900 text-sm">{delivery.namaKurir}</div>
                       <div className="text-stone-500 text-[10px]">{formatDate(delivery.tanggal)}</div>
@@ -1043,6 +1069,50 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                   </div>
                 )}
 
+                {title === "Billing Report" && formData.metodePembayaran === 'Transfer' && (
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Bukti Transfer</label>
+                    <div className="flex flex-col items-center gap-4">
+                      {formData.buktiTransfer ? (
+                        <div className="relative w-full aspect-video rounded-3xl overflow-hidden border-4 border-stone-900 shadow-xl">
+                          <img 
+                            src={formData.buktiTransfer} 
+                            alt="Bukti Transfer" 
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setFormData({...formData, buktiTransfer: ''})}
+                            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+                          >
+                            <span className="material-symbols-outlined">delete</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="w-full py-12 rounded-3xl border-2 border-dashed border-stone-200 bg-stone-50 flex flex-col items-center justify-center gap-3 text-stone-400 hover:bg-stone-100 hover:border-stone-300 transition-all cursor-pointer">
+                          <span className="material-symbols-outlined text-4xl">cloud_upload</span>
+                          <span className="text-xs font-bold uppercase tracking-widest">Upload Bukti Transfer</span>
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setFormData({ ...formData, buktiTransfer: reader.result as string });
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-4">
                   <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">
                     {title === "Billing Report" ? "Bukti Penagihan (Selfie/Foto)" : "Bukti Pengiriman (Selfie/Foto)"}
@@ -1140,9 +1210,9 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={!formData.fotoBukti || isSaving}
+                  disabled={!formData.fotoBukti || (formData.metodePembayaran === 'Transfer' && !formData.buktiTransfer) || isSaving}
                   className={`flex-1 px-4 py-3 md:px-6 md:py-4 rounded-xl md:rounded-2xl text-white text-xs md:text-sm font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${
-                    formData.fotoBukti && !isSaving
+                    formData.fotoBukti && (formData.metodePembayaran !== 'Transfer' || formData.buktiTransfer) && !isSaving
                       ? 'bg-stone-900 hover:bg-stone-800 shadow-stone-900/20' 
                       : 'bg-stone-300 cursor-not-allowed'
                   }`}

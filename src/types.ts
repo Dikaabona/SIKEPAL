@@ -241,6 +241,7 @@ export interface DeliveryRecord {
   createdAt: string;
   orderId?: string;
   metodePembayaran?: string;
+  buktiTransfer?: string;
   waste?: number;
   tanggalPiutang?: string;
 }
@@ -262,6 +263,7 @@ export interface BillingRecord {
   createdAt: string;
   orderId?: string;
   metodePembayaran?: string;
+  buktiTransfer?: string;
   waste?: number;
   tanggalPiutang?: string;
 }
