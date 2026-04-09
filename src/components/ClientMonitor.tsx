@@ -13,6 +13,8 @@ const ClientMonitor: React.FC<ClientMonitorProps> = ({ stores, orders, company }
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClient, setSelectedClient] = useState<any | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [sortBy, setSortBy] = useState<'namaToko' | 'totalPiutang' | 'lastDelivery'>('namaToko');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const itemsPerPage = 10;
 
   const clientData = useMemo(() => {
@@ -43,10 +45,26 @@ const ClientMonitor: React.FC<ClientMonitorProps> = ({ stores, orders, company }
     });
   }, [stores, orders]);
 
-  const filteredData = clientData.filter(item => 
-    item.namaToko.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (item.namaPIC && item.namaPIC.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filteredData = useMemo(() => {
+    const filtered = clientData.filter(item => 
+      item.namaToko.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.namaPIC && item.namaPIC.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+
+    return [...filtered].sort((a, b) => {
+      let comparison = 0;
+      if (sortBy === 'namaToko') {
+        comparison = a.namaToko.localeCompare(b.namaToko);
+      } else if (sortBy === 'totalPiutang') {
+        comparison = a.totalPiutang - b.totalPiutang;
+      } else if (sortBy === 'lastDelivery') {
+        const dateA = a.lastDelivery === '-' ? 0 : new Date(a.lastDelivery.split('/').reverse().join('-')).getTime();
+        const dateB = b.lastDelivery === '-' ? 0 : new Date(b.lastDelivery.split('/').reverse().join('-')).getTime();
+        comparison = dateA - dateB;
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+  }, [clientData, searchQuery, sortBy, sortOrder]);
 
   // Pagination logic
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
@@ -56,6 +74,16 @@ const ClientMonitor: React.FC<ClientMonitorProps> = ({ stores, orders, company }
   // Reset to first page when searching
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleSort = (field: 'namaToko' | 'totalPiutang' | 'lastDelivery') => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
     setCurrentPage(1);
   };
 
@@ -71,8 +99,8 @@ const ClientMonitor: React.FC<ClientMonitorProps> = ({ stores, orders, company }
       </div>
 
       <div className="bg-white rounded-[32px] border border-stone-100 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-stone-50">
-          <div className="relative">
+        <div className="p-6 border-b border-stone-50 flex flex-col md:flex-row gap-4">
+          <div className="relative flex-1">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-stone-400">search</span>
             <input
               type="text"
@@ -82,17 +110,73 @@ const ClientMonitor: React.FC<ClientMonitorProps> = ({ stores, orders, company }
               className="w-full pl-12 pr-4 py-3 bg-stone-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-stone-900 transition-all"
             />
           </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-2">Sort By:</span>
+            <select
+              value={sortBy}
+              onChange={(e) => handleSort(e.target.value as any)}
+              className="bg-stone-50 border-none rounded-xl px-4 py-2 text-xs font-bold text-stone-600 focus:ring-2 focus:ring-stone-900 cursor-pointer"
+            >
+              <option value="namaToko">Nama Toko</option>
+              <option value="totalPiutang">Jumlah Piutang</option>
+              <option value="lastDelivery">Pengiriman Terakhir</option>
+            </select>
+            <button
+              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              className="p-2 bg-stone-50 rounded-xl text-stone-600 hover:bg-stone-100 transition-all"
+            >
+              <span className="material-symbols-outlined text-sm">
+                {sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+              </span>
+            </button>
+          </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-stone-50/50">
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">Nama Toko & Alamat</th>
+                <th 
+                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest cursor-pointer hover:text-stone-900 transition-colors"
+                  onClick={() => handleSort('namaToko')}
+                >
+                  <div className="flex items-center gap-1">
+                    Nama Toko & Alamat
+                    {sortBy === 'namaToko' && (
+                      <span className="material-symbols-outlined text-[14px]">
+                        {sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+                      </span>
+                    )}
+                  </div>
+                </th>
                 <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">PIC</th>
                 <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">Nomor Whatsapp</th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">Pengiriman Terakhir</th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-right">Jumlah Piutang</th>
+                <th 
+                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center cursor-pointer hover:text-stone-900 transition-colors"
+                  onClick={() => handleSort('lastDelivery')}
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    Pengiriman Terakhir
+                    {sortBy === 'lastDelivery' && (
+                      <span className="material-symbols-outlined text-[14px]">
+                        {sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+                      </span>
+                    )}
+                  </div>
+                </th>
+                <th 
+                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-right cursor-pointer hover:text-stone-900 transition-colors"
+                  onClick={() => handleSort('totalPiutang')}
+                >
+                  <div className="flex items-center justify-end gap-1">
+                    Jumlah Piutang
+                    {sortBy === 'totalPiutang' && (
+                      <span className="material-symbols-outlined text-[14px]">
+                        {sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+                      </span>
+                    )}
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-50">
@@ -133,17 +217,64 @@ const ClientMonitor: React.FC<ClientMonitorProps> = ({ stores, orders, company }
                   </td>
                 </tr>
               ))}
-              {filteredData.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-stone-400">
-                    <span className="material-symbols-outlined text-4xl mb-2 opacity-20">person_search</span>
-                    <p className="text-sm font-medium">Tidak ada data ditemukan</p>
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden divide-y divide-stone-100">
+          {paginatedData.map((item) => (
+            <div key={item.id} className="p-4 space-y-4">
+              <div className="flex justify-between items-start gap-4">
+                <div className="flex-1">
+                  <div className="font-black text-stone-900 text-base leading-tight uppercase tracking-tight">{item.namaToko}</div>
+                  <div className="text-stone-500 text-[10px] mt-1 flex items-start gap-1">
+                    <span className="material-symbols-outlined text-[14px] mt-0.5">location_on</span>
+                    <span className="flex-1">
+                      {item.alamat || '-'}
+                      {item.linkGmaps && (
+                        <a href={item.linkGmaps} target="_blank" rel="noopener noreferrer" className="text-blue-600 font-bold ml-1">
+                          MAPS
+                        </a>
+                      )}
+                    </span>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => item.totalPiutang > 0 && setSelectedClient(item)}
+                  className={`font-black text-xs px-3 py-2 rounded-xl transition-all whitespace-nowrap ${
+                    item.totalPiutang > 0 
+                      ? 'text-red-600 bg-red-50 active:scale-95' 
+                      : 'text-green-600 bg-green-50'
+                  }`}
+                >
+                  Rp {item.totalPiutang.toLocaleString('id-ID')}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 pt-2">
+                <div className="space-y-1">
+                  <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">PIC & WhatsApp</p>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-bold text-stone-800">{item.namaPIC || '-'}</span>
+                    <span className="text-[10px] text-stone-500">{item.nomorPIC || '-'}</span>
+                  </div>
+                </div>
+                <div className="space-y-1 text-right">
+                  <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Last Delivery</p>
+                  <p className="text-xs font-bold text-stone-800">{item.lastDelivery}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {filteredData.length === 0 && (
+          <div className="px-6 py-12 text-center text-stone-400">
+            <span className="material-symbols-outlined text-4xl mb-2 opacity-20">person_search</span>
+            <p className="text-sm font-medium">Tidak ada data ditemukan</p>
+          </div>
+        )}
 
         {/* Pagination Controls */}
         {totalPages > 1 && (

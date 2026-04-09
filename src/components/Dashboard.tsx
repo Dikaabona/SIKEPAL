@@ -26,7 +26,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   onNavigate,
   broadcasts,
   currentUserEmployee,
-  branchLocations
+  branchLocations,
+  userRole
 }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentDistance, setCurrentDistance] = useState<number | null>(null);
@@ -161,54 +162,68 @@ const Dashboard: React.FC<DashboardProps> = ({
           </motion.div>
 
           {/* Quick Menu Grid */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-4 gap-2">
             {/* Absen Selfie */}
             <motion.button
               variants={item}
               onClick={() => onNavigate('selfie_attendance')}
-              className="bg-white p-4 rounded-[24px] border border-stone-100 shadow-sm flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform"
+              className="bg-white p-2 rounded-[20px] border border-stone-100 shadow-sm flex flex-col items-center justify-center gap-1.5 active:scale-95 transition-transform"
             >
-              <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-200">
-                <span className="material-symbols-outlined text-xl">photo_camera</span>
+              <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-200">
+                <span className="material-symbols-outlined text-lg">photo_camera</span>
               </div>
-              <span className="text-[9px] font-black text-stone-800 uppercase tracking-wider">Absen Selfie</span>
+              <span className="text-[7px] font-black text-stone-800 uppercase tracking-tight text-center leading-tight">Absen Selfie</span>
             </motion.button>
 
             {/* Delivery Report */}
             <motion.button
               variants={item}
               onClick={() => onNavigate('delivery')}
-              className="bg-white p-4 rounded-[24px] border border-stone-100 shadow-sm flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform"
+              className="bg-white p-2 rounded-[20px] border border-stone-100 shadow-sm flex flex-col items-center justify-center gap-1.5 active:scale-95 transition-transform"
             >
-              <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center text-white shadow-lg shadow-blue-200">
-                <span className="material-symbols-outlined text-xl">local_shipping</span>
+              <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center text-white shadow-lg shadow-blue-200">
+                <span className="material-symbols-outlined text-lg">local_shipping</span>
               </div>
-              <span className="text-[9px] font-black text-stone-800 uppercase tracking-wider">Delivery Report</span>
+              <span className="text-[7px] font-black text-stone-800 uppercase tracking-tight text-center leading-tight">Delivery Report</span>
             </motion.button>
 
             {/* Billing Report */}
             <motion.button
               variants={item}
               onClick={() => onNavigate('billing_report')}
-              className="bg-white p-4 rounded-[24px] border border-stone-100 shadow-sm flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform"
+              className="bg-white p-2 rounded-[20px] border border-stone-100 shadow-sm flex flex-col items-center justify-center gap-1.5 active:scale-95 transition-transform"
             >
-              <div className="w-10 h-10 rounded-xl bg-purple-500 flex items-center justify-center text-white shadow-lg shadow-purple-200">
-                <span className="material-symbols-outlined text-xl">payments</span>
+              <div className="w-8 h-8 rounded-lg bg-purple-500 flex items-center justify-center text-white shadow-lg shadow-purple-200">
+                <span className="material-symbols-outlined text-lg">payments</span>
               </div>
-              <span className="text-[9px] font-black text-stone-800 uppercase tracking-wider">Billing Report</span>
+              <span className="text-[7px] font-black text-stone-800 uppercase tracking-tight text-center leading-tight">Billing Report</span>
             </motion.button>
 
             {/* Data Orderan */}
             <motion.button
               variants={item}
               onClick={() => onNavigate('order_database')}
-              className="bg-white p-4 rounded-[24px] border border-stone-100 shadow-sm flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform"
+              className="bg-white p-2 rounded-[20px] border border-stone-100 shadow-sm flex flex-col items-center justify-center gap-1.5 active:scale-95 transition-transform"
             >
-              <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-200">
-                <span className="material-symbols-outlined text-xl">receipt_long</span>
+              <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-200">
+                <span className="material-symbols-outlined text-lg">receipt_long</span>
               </div>
-              <span className="text-[9px] font-black text-stone-800 uppercase tracking-wider">Data Orderan</span>
+              <span className="text-[7px] font-black text-stone-800 uppercase tracking-tight text-center leading-tight">Data Orderan</span>
             </motion.button>
+
+            {/* Client Monitor */}
+            {(userRole === 'owner' || userRole === 'superadmin') && (
+              <motion.button
+                variants={item}
+                onClick={() => onNavigate('client_monitor')}
+                className="bg-white p-2 rounded-[20px] border border-stone-100 shadow-sm flex flex-col items-center justify-center gap-1.5 active:scale-95 transition-transform"
+              >
+                <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+                  <span className="material-symbols-outlined text-lg">monitor_heart</span>
+                </div>
+                <span className="text-[7px] font-black text-stone-800 uppercase tracking-tight text-center leading-tight">Client Monitor</span>
+              </motion.button>
+            )}
           </div>
 
           {/* Announcements Section */}
