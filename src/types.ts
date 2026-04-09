@@ -241,6 +241,7 @@ export interface DeliveryRecord {
   orderId?: string;
   metodePembayaran?: string;
   waste?: number;
+  tanggalPiutang?: string;
 }
 
 export interface BillingRecord {
@@ -261,6 +262,7 @@ export interface BillingRecord {
   orderId?: string;
   metodePembayaran?: string;
   waste?: number;
+  tanggalPiutang?: string;
 }
 
 export interface Division {

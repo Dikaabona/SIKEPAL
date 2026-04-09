@@ -14,6 +14,7 @@ interface DeliveryModuleProps {
   userRole: UserRole;
   onSaveDelivery: (delivery: DeliveryRecord) => Promise<void>;
   onDeleteDelivery: (id: string) => Promise<void>;
+  onBulkDelete?: (ids: string[]) => Promise<void>;
   initialPrefillLocation?: string;
   onPrefillHandled?: () => void;
 }
@@ -29,6 +30,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   userRole,
   onSaveDelivery,
   onDeleteDelivery,
+  onBulkDelete,
   initialPrefillLocation,
   onPrefillHandled
 }) => {
@@ -71,7 +73,8 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
     hargaSikepal: 0,
     metodePembayaran: '',
     keterangan: '',
-    selectedOrderId: ''
+    selectedOrderId: '',
+    tanggalPiutang: ''
   });
 
   // Handle camera stream attachment when isCameraActive becomes true
@@ -121,6 +124,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [locationSearchQuery, setLocationSearchQuery] = useState('');
   const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -166,6 +170,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
+    setSelectedIds([]); // Clear selection when page changes
     // Scroll to top of table/container if needed
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -286,6 +291,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
         hargaSikepal: Number(formData.hargaSikepal) || 0,
         metodePembayaran: formData.metodePembayaran || undefined,
         waste: wastePercent,
+        tanggalPiutang: formData.tanggalPiutang || undefined,
         company,
         status: 'Completed',
         orderId: selectedOrderId || undefined,
@@ -318,7 +324,8 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       metodePembayaran: delivery.metodePembayaran || '',
       originalNilai: (delivery.qtyPengiriman || 0) + ((delivery.sisa || 0) * (delivery.hargaSikepal || 0)),
       keterangan: delivery.keterangan || '',
-      selectedOrderId: delivery.orderId || ''
+      selectedOrderId: delivery.orderId || '',
+      tanggalPiutang: delivery.tanggalPiutang || ''
     });
     setIsModalOpen(true);
   };
@@ -327,6 +334,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
     setIsModalOpen(false);
     setIsPiutangModalOpen(false);
     setEditingId(null);
+    setSelectedIds([]);
     stopCamera();
     setLocationSearchQuery('');
     setIsLocationDropdownOpen(false);
@@ -343,8 +351,30 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       hargaSikepal: 0,
       metodePembayaran: '',
       keterangan: '',
-      selectedOrderId: ''
+      selectedOrderId: '',
+      tanggalPiutang: ''
     });
+  };
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedIds(paginatedDeliveries.map(d => d.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectOne = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (onBulkDelete && selectedIds.length > 0) {
+      await onBulkDelete(selectedIds);
+      setSelectedIds([]);
+    }
   };
 
   return (
@@ -363,16 +393,27 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
           <h3 className="font-bold text-stone-900 text-sm md:text-base">
             {title === "Billing Report" ? "Daftar Penagihan" : "Daftar Pengiriman"}
           </h3>
-          {!hideAddButton && (userRole === 'owner' || userRole === 'admin' || userRole === 'kurir') && (
-            <button 
-              onClick={() => setIsModalOpen(true)}
-              className="px-4 py-2 bg-stone-900 text-white rounded-xl text-[10px] md:text-xs font-bold hover:bg-stone-800 transition-all flex items-center gap-2"
-            >
-              <span className="material-symbols-outlined text-sm">add</span>
-              <span className="hidden sm:inline">{addButtonLabel}</span>
-              <span className="sm:hidden">Add</span>
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {selectedIds.length > 0 && onBulkDelete && (
+              <button 
+                onClick={handleBulkDelete}
+                className="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-[10px] md:text-xs font-bold hover:bg-red-100 transition-all flex items-center gap-2 border border-red-100"
+              >
+                <span className="material-symbols-outlined text-sm">delete_sweep</span>
+                <span>Hapus Massal ({selectedIds.length})</span>
+              </button>
+            )}
+            {!hideAddButton && (userRole === 'owner' || userRole === 'admin' || userRole === 'kurir') && (
+              <button 
+                onClick={() => setIsModalOpen(true)}
+                className="px-4 py-2 bg-stone-900 text-white rounded-xl text-[10px] md:text-xs font-bold hover:bg-stone-800 transition-all flex items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-sm">add</span>
+                <span className="hidden sm:inline">{addButtonLabel}</span>
+                <span className="sm:hidden">Add</span>
+              </button>
+            )}
+          </div>
         </div>
         
         {/* Desktop Table View */}
@@ -380,9 +421,22 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-stone-50/50">
+                {onBulkDelete && (
+                  <th className="px-6 py-4 w-10">
+                    <input 
+                      type="checkbox" 
+                      className="w-4 h-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900 cursor-pointer"
+                      checked={paginatedDeliveries.length > 0 && selectedIds.length === paginatedDeliveries.length}
+                      onChange={handleSelectAll}
+                    />
+                  </th>
+                )}
                 <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">NAMA KURIR</th>
                 <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">TANGGAL</th>
                 <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">NAMA LOKASI</th>
+                {title === "Billing Report" && (
+                  <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">TANGGAL PIUTANG</th>
+                )}
                 <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">
                   {title === "Billing Report" ? "BUKTI PENAGIHAN" : "BUKTI PENGIRIMAN"}
                 </th>
@@ -404,7 +458,17 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
             <tbody className="divide-y divide-stone-50">
               {paginatedDeliveries.length > 0 ? (
                 paginatedDeliveries.map((delivery) => (
-                  <tr key={delivery.id} className="hover:bg-stone-50/30 transition-colors">
+                  <tr key={delivery.id} className={`hover:bg-stone-50/30 transition-colors ${selectedIds.includes(delivery.id) ? 'bg-stone-50' : ''}`}>
+                    {onBulkDelete && (
+                      <td className="px-6 py-4">
+                        <input 
+                          type="checkbox" 
+                          className="w-4 h-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900 cursor-pointer"
+                          checked={selectedIds.includes(delivery.id)}
+                          onChange={() => handleSelectOne(delivery.id)}
+                        />
+                      </td>
+                    )}
                     <td className="px-6 py-4">
                       <div className="font-bold text-stone-900 text-sm">{delivery.namaKurir}</div>
                     </td>
@@ -414,6 +478,11 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                     <td className="px-6 py-4">
                       <div className="font-medium text-stone-900 text-sm">{delivery.namaLokasi}</div>
                     </td>
+                    {title === "Billing Report" && (
+                      <td className="px-6 py-4">
+                        <div className="text-stone-600 text-sm">{delivery.tanggalPiutang ? formatDate(delivery.tanggalPiutang) : '-'}</div>
+                      </td>
+                    )}
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         {delivery.fotoBukti ? (
@@ -509,9 +578,17 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
         <div className="md:hidden divide-y divide-stone-50">
           {paginatedDeliveries.length > 0 ? (
             paginatedDeliveries.map((delivery) => (
-              <div key={delivery.id} className="p-4 space-y-4">
+              <div key={delivery.id} className={`p-4 space-y-4 transition-colors ${selectedIds.includes(delivery.id) ? 'bg-stone-50' : ''}`}>
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3">
+                    {title === "Billing Report" && (
+                      <input 
+                        type="checkbox" 
+                        className="w-4 h-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900 cursor-pointer"
+                        checked={selectedIds.includes(delivery.id)}
+                        onChange={() => handleSelectOne(delivery.id)}
+                      />
+                    )}
                     {delivery.fotoBukti ? (
                       <img 
                         src={delivery.fotoBukti} 
@@ -575,6 +652,12 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                     <span className="material-symbols-outlined text-sm text-stone-400">store</span>
                     <span className="text-xs font-medium">{delivery.namaLokasi}</span>
                   </div>
+                  {title === "Billing Report" && delivery.tanggalPiutang && (
+                    <div className="flex items-center gap-2 text-stone-600">
+                      <span className="material-symbols-outlined text-sm text-stone-400">calendar_month</span>
+                      <span className="text-xs font-medium">Piutang: {formatDate(delivery.tanggalPiutang)}</span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-4 text-[10px] text-stone-400">
                     <div className="flex items-center gap-1">
                       <span className="material-symbols-outlined text-[10px]">location_on</span>
@@ -723,26 +806,25 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
 
             <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
               <div className="p-6 md:p-8 space-y-4 md:space-y-6 overflow-y-auto custom-scrollbar flex-1 pb-10 md:pb-8">
-                <div className={`grid grid-cols-1 ${title !== "Billing Report" ? 'md:grid-cols-2' : ''} gap-4 md:gap-6`}>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nama Kurir</label>
-                    <select
-                      required
-                      value={formData.namaKurir}
-                      onChange={(e) => setFormData({...formData, namaKurir: e.target.value})}
-                      className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium appearance-none cursor-pointer"
-                    >
-                      <option value="" disabled>Pilih Kurir</option>
-                      {courierOptions.length > 0 ? (
-                        courierOptions.map(name => (
-                          <option key={name} value={name}>{name}</option>
-                        ))
-                      ) : (
-                        <option value="" disabled>Tidak ada data kurir</option>
-                      )}
-                    </select>
-                  </div>
-                  {title !== "Billing Report" && (
+                  <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6`}>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nama Kurir</label>
+                      <select
+                        required
+                        value={formData.namaKurir}
+                        onChange={(e) => setFormData({...formData, namaKurir: e.target.value})}
+                        className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium appearance-none cursor-pointer"
+                      >
+                        <option value="" disabled>Pilih Kurir</option>
+                        {courierOptions.length > 0 ? (
+                          courierOptions.map(name => (
+                            <option key={name} value={name}>{name}</option>
+                          ))
+                        ) : (
+                          <option value="" disabled>Tidak ada data kurir</option>
+                        )}
+                      </select>
+                    </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Tanggal</label>
                       <input
@@ -753,8 +835,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                         className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium"
                       />
                     </div>
-                  )}
-                </div>
+                  </div>
 
                 {title !== "Billing Report" && (
                   <div className="space-y-2 relative">
@@ -1158,7 +1239,8 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                                 originalNilai: order.jumlahUang,
                                 hargaSikepal: order.hargaSikepal || 0,
                                 sisa: 0,
-                                selectedOrderId: order.id
+                                selectedOrderId: order.id,
+                                tanggalPiutang: order.tanggal
                               });
                               setIsPiutangModalOpen(false);
                             }}
@@ -1212,7 +1294,8 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                             originalNilai: order.jumlahUang,
                             hargaSikepal: order.hargaSikepal || 0,
                             sisa: 0,
-                            selectedOrderId: order.id
+                            selectedOrderId: order.id,
+                            tanggalPiutang: order.tanggal
                           });
                           setIsPiutangModalOpen(false);
                         }}

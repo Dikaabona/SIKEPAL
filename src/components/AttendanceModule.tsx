@@ -7,7 +7,7 @@ import * as XLSX from 'xlsx';
 interface AttendanceModuleProps {
   employees: Employee[];
   records: AttendanceRecord[];
-  onSaveRecord: (record: AttendanceRecord) => void;
+  onSaveRecord: (record: AttendanceRecord) => Promise<void>;
   onDeleteRecord: (recordId: string) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
@@ -58,6 +58,7 @@ const AttendanceModule: React.FC<AttendanceModuleProps> = ({
     distance: initialDistance 
   });
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -157,65 +158,75 @@ const AttendanceModule: React.FC<AttendanceModuleProps> = ({
   };
 
   const handleAttendance = async (photo: string) => {
-    if (!currentEmployee) return;
+    if (!currentEmployee || isSubmitting) return;
+    setIsSubmitting(true);
 
-    // Radius Check
-    if (currentEmployee.branchLocationId) {
-      const branch = branchLocations.find(b => b.id === currentEmployee.branchLocationId);
-      if (branch) {
-        try {
-          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject);
-          });
+    try {
+      // Radius Check
+      if (currentEmployee.branchLocationId) {
+        const branch = branchLocations.find(b => b.id === currentEmployee.branchLocationId);
+        if (branch) {
+          try {
+            const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(resolve, reject);
+            });
 
-          const distance = calculateDistance(
-            position.coords.latitude,
-            position.coords.longitude,
-            branch.latitude,
-            branch.longitude
-          );
+            const distance = calculateDistance(
+              position.coords.latitude,
+              position.coords.longitude,
+              branch.latitude,
+              branch.longitude
+            );
 
-          if (distance > branch.radius) {
-            alert(`Kamu diluar jangkauan! Jarak kamu ${Math.round(distance)}m dari lokasi ${branch.namaCabang}. Radius maksimal ${branch.radius}m.`);
+            if (distance > branch.radius) {
+              alert(`Kamu diluar jangkauan! Jarak kamu ${Math.round(distance)}m dari lokasi ${branch.namaCabang}. Radius maksimal ${branch.radius}m.`);
+              setIsSubmitting(false);
+              return;
+            }
+          } catch (err) {
+            console.error("Geolocation error:", err);
+            alert("Gagal mendapatkan lokasi. Pastikan izin lokasi telah diberikan.");
+            setIsSubmitting(false);
             return;
           }
-        } catch (err) {
-          console.error("Geolocation error:", err);
-          alert("Gagal mendapatkan lokasi. Pastikan izin lokasi telah diberikan.");
-          return;
         }
       }
+
+      const today = getLocalDateString();
+      const existingRecord = records.find(r => r.employeeId === currentEmployee.id && r.date === today);
+
+      const now = new Date();
+      const timeString = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+      if (existingRecord) {
+        // Clock out
+        await onSaveRecord({
+          ...existingRecord,
+          clockOut: timeString,
+          photoOut: photo,
+          status: 'Hadir'
+        });
+      } else {
+        // Clock in
+        await onSaveRecord({
+          id: crypto.randomUUID(),
+          employeeId: currentEmployee.id,
+          company: company,
+          date: today,
+          clockIn: timeString,
+          photoIn: photo,
+          status: 'Hadir',
+          submittedAt: new Date().toISOString()
+        });
+      }
+      setIsSelfieActive(false);
+      if (onFinish) onFinish();
+    } catch (error) {
+      console.error("Error handling attendance:", error);
+      alert("Gagal menyimpan absensi. Silakan coba lagi.");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const today = getLocalDateString();
-    const existingRecord = records.find(r => r.employeeId === currentEmployee.id && r.date === today);
-
-    const now = new Date();
-    const timeString = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-
-    if (existingRecord) {
-      // Clock out
-      onSaveRecord({
-        ...existingRecord,
-        clockOut: timeString,
-        photoOut: photo,
-        status: 'Hadir'
-      });
-    } else {
-      // Clock in
-      onSaveRecord({
-        id: crypto.randomUUID(),
-        employeeId: currentEmployee.id,
-        company: company,
-        date: today,
-        clockIn: timeString,
-        photoIn: photo,
-        status: 'Hadir',
-        submittedAt: new Date().toISOString()
-      });
-    }
-    setIsSelfieActive(false);
-    if (onFinish) onFinish();
   };
 
   const filteredEmployees = employees.filter(emp => 
@@ -341,11 +352,16 @@ const AttendanceModule: React.FC<AttendanceModuleProps> = ({
 
               <button 
                 onClick={capturePhoto}
-                className="w-20 h-20 bg-yellow-400 rounded-[2rem] flex items-center justify-center text-stone-900 shadow-[0_12px_30px_rgba(250,204,21,0.35)] hover:scale-105 active:scale-95 transition-all group relative border-4 border-white"
+                disabled={isSubmitting}
+                className={`w-20 h-20 bg-yellow-400 rounded-[2rem] flex items-center justify-center text-stone-900 shadow-[0_12px_30px_rgba(250,204,21,0.35)] hover:scale-105 active:scale-95 transition-all group relative border-4 border-white ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <span className="material-symbols-outlined text-3xl group-hover:rotate-12 transition-transform">photo_camera</span>
+                {isSubmitting ? (
+                  <div className="w-8 h-8 border-4 border-stone-900 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <span className="material-symbols-outlined text-3xl group-hover:rotate-12 transition-transform">photo_camera</span>
+                )}
                 <div className="absolute -bottom-1.5 bg-stone-900 text-white text-[7px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-widest whitespace-nowrap shadow-md">
-                  AMBIL FOTO
+                  {isSubmitting ? 'MEMPROSES...' : 'AMBIL FOTO'}
                 </div>
               </button>
             </div>

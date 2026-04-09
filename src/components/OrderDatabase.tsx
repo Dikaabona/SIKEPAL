@@ -8,6 +8,7 @@ interface OrderDatabaseProps {
   stores: Store[];
   employees: Employee[];
   onSaveOrder: (order: Order) => Promise<void>;
+  onBulkSaveOrders?: (orders: Order[]) => Promise<void>;
   onDeleteAllOrders: () => Promise<void>;
   company: string;
   userRole: UserRole;
@@ -19,6 +20,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
   stores,
   employees,
   onSaveOrder, 
+  onBulkSaveOrders,
   onDeleteAllOrders,
   company,
   userRole,
@@ -243,7 +245,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
       };
 
       const dataRows = rows.slice(1); // Skip header
-      let syncCount = 0;
+      const ordersToSync: Order[] = [];
       let skippedCount = 0;
 
       const parseNum = (val: string | undefined) => {
@@ -354,27 +356,31 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
           updatedAt: new Date().toISOString(),
         };
 
-        // Log specific date for debugging if requested
-        if (tanggalValue.includes('02/04/2026') || tanggalValue.includes('2/4/2026')) {
-          console.log('Syncing row for 02/04/2026:', {
-            lokasi: order.namaLokasi,
-            kurir: order.namaKurir,
-            jumlah: order.jumlahKirim,
-            id: orderId
-          });
-        }
+        ordersToSync.push(order);
+      }
 
-        await onSaveOrder(order);
-        syncCount++;
+      if (ordersToSync.length > 0) {
+        if (onBulkSaveOrders) {
+          await onBulkSaveOrders(ordersToSync);
+        } else {
+          // Fallback to sequential if bulk not provided
+          for (const order of ordersToSync) {
+            await onSaveOrder(order);
+          }
+        }
       }
 
       const monthLabel = syncMonth === 'Semua' ? '' : ` bulan ${new Date(2000, parseInt(syncMonth) - 1).toLocaleString('id-ID', { month: 'long' })}`;
       const dayLabel = syncDay === 'Semua' ? '' : ` tanggal ${syncDay}`;
-      alert(`Berhasil sinkronisasi ${syncCount} data orderan tahun ${syncYear}${monthLabel}${dayLabel}. (${skippedCount} data lain dilewati)`);
+      alert(`Berhasil sinkronisasi ${ordersToSync.length} data orderan tahun ${syncYear}${monthLabel}${dayLabel}. (${skippedCount} data lain dilewati)`);
       setShowSyncSettings(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Sync error:', error);
-      alert('Gagal sinkronisasi data. Pastikan URL spreadsheet benar dan dapat diakses publik.');
+      if (error.message?.includes('Failed to fetch')) {
+        alert('Gagal mengambil data dari Spreadsheet atau koneksi ke database terputus. Pastikan URL spreadsheet benar, dapat diakses publik, dan koneksi internet stabil.');
+      } else {
+        alert('Gagal sinkronisasi data: ' + (error.message || 'Unknown error'));
+      }
     } finally {
       setIsSyncing(false);
     }

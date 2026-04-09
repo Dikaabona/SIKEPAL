@@ -391,6 +391,23 @@ export default function App() {
 
   const handleSaveAttendanceRecord = async (record: AttendanceRecord) => {
     try {
+      // Prevent duplicates: if this is a new record (not updating an existing ID),
+      // check if a record for this employee and date already exists.
+      const isNewRecord = !attendanceRecords.some(r => r.id === record.id);
+      if (isNewRecord) {
+        const existing = attendanceRecords.find(r => r.employeeId === record.employeeId && r.date === record.date);
+        if (existing) {
+          console.warn('Duplicate attendance detected. Merging with existing record.');
+          // Merge the new data into the existing record
+          record.id = existing.id;
+          // If we are clocking in but already have a clockIn, keep the original one
+          if (record.clockIn && existing.clockIn) {
+            record.clockIn = existing.clockIn;
+            record.photoIn = existing.photoIn;
+          }
+        }
+      }
+
       const { error } = await supabase.from('attendance').upsert(record);
       if (error) throw error;
     } catch (error) {
@@ -457,6 +474,23 @@ export default function App() {
     }
   };
 
+  const handleBulkSaveOrders = async (ordersToSave: Order[]) => {
+    try {
+      console.log(`Bulk saving ${ordersToSave.length} orders to Supabase...`);
+      // Use chunks of 50 to avoid payload size limits
+      const chunkSize = 50;
+      for (let i = 0; i < ordersToSave.length; i += chunkSize) {
+        const chunk = ordersToSave.slice(i, i + chunkSize);
+        const { error } = await supabase.from('orders').upsert(chunk);
+        if (error) throw error;
+      }
+      console.log('Bulk save completed successfully');
+    } catch (error: any) {
+      console.error('Error bulk saving orders:', error);
+      throw error;
+    }
+  };
+
   const handleSaveDelivery = async (delivery: DeliveryRecord) => {
     try {
       console.log('Saving delivery to Supabase:', delivery);
@@ -495,6 +529,27 @@ export default function App() {
     } catch (error: any) {
       console.error('Error deleting delivery:', error);
       alert('Gagal menghapus delivery: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const handleBulkDeleteDelivery = async (ids: string[]) => {
+    if (userRole !== 'owner' && userRole !== 'admin') {
+      alert('Hanya Admin dan Owner yang dapat menghapus data Delivery Report.');
+      return;
+    }
+
+    if (!window.confirm(`Apakah Anda yakin ingin menghapus ${ids.length} data delivery ini?`)) return;
+    
+    try {
+      console.log('Bulk deleting deliveries from Supabase:', ids);
+      const { error } = await supabase.from('deliveries').delete().in('id', ids);
+      if (error) throw error;
+      
+      setDeliveries(prev => prev.filter(d => !ids.includes(d.id)));
+      console.log('Deliveries bulk deleted successfully');
+    } catch (error: any) {
+      console.error('Error bulk deleting deliveries:', error);
+      alert('Gagal menghapus deliveries: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -630,6 +685,53 @@ export default function App() {
     } catch (error: any) {
       console.error('Error deleting billing report:', error);
       alert('Gagal menghapus billing report: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const handleBulkDeleteBillingReport = async (ids: string[]) => {
+    if (userRole !== 'owner' && userRole !== 'admin') {
+      alert('Hanya Admin dan Owner yang dapat menghapus data Billing Report.');
+      return;
+    }
+
+    if (!window.confirm(`Apakah Anda yakin ingin menghapus ${ids.length} data billing report ini?`)) return;
+    
+    try {
+      console.log('Bulk deleting billing reports from Supabase:', ids);
+      
+      // Find all reports to be deleted to check for linked orders
+      const reportsToDelete = billingReports.filter(r => ids.includes(r.id));
+      
+      // Revert order status for all linked orders
+      for (const report of reportsToDelete) {
+        if (report.orderId) {
+          console.log('Reverting order status for order:', report.orderId);
+          await supabase
+            .from('orders')
+            .update({ 
+              pembayaran: 'FALSE',
+              tanggalBayar: '',
+              sisa: 0
+            })
+            .eq('id', report.orderId);
+        }
+      }
+
+      // Update local orders state
+      const linkedOrderIds = reportsToDelete.filter(r => r.orderId).map(r => r.orderId!);
+      if (linkedOrderIds.length > 0) {
+        setOrders(prev => prev.map(o => linkedOrderIds.includes(o.id) ? { ...o, pembayaran: 'FALSE', tanggalBayar: '', sisa: 0 } : o));
+      }
+
+      // Delete from Supabase
+      const { error } = await supabase.from('billing_reports').delete().in('id', ids);
+      if (error) throw error;
+      
+      setBillingReports(prev => prev.filter(r => !ids.includes(r.id)));
+      console.log('Billing reports bulk deleted successfully');
+    } catch (error: any) {
+      console.error('Error bulk deleting billing reports:', error);
+      alert('Gagal menghapus billing reports: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -914,6 +1016,7 @@ export default function App() {
             stores={stores}
             employees={employees}
             onSaveOrder={handleSaveOrder}
+            onBulkSaveOrders={handleBulkSaveOrders}
             onDeleteAllOrders={handleDeleteAllOrders}
             company={userCompany}
             userRole={userRole}
@@ -994,6 +1097,7 @@ export default function App() {
             userRole={userRole}
             onSaveDelivery={handleSaveDelivery}
             onDeleteDelivery={handleDeleteDelivery}
+            onBulkDelete={handleBulkDeleteDelivery}
             initialPrefillLocation={prefillData?.type === 'delivery' ? prefillData.location : undefined}
             onPrefillHandled={() => setPrefillData(null)}
           />
@@ -1033,6 +1137,7 @@ export default function App() {
             userRole={userRole}
             onSaveDelivery={handleSaveBillingReport as any}
             onDeleteDelivery={handleDeleteBillingReport}
+            onBulkDelete={handleBulkDeleteBillingReport}
             initialPrefillLocation={prefillData?.type === 'billing' ? prefillData.location : undefined}
             onPrefillHandled={() => setPrefillData(null)}
           />
