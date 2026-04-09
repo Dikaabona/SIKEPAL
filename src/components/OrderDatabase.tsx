@@ -359,12 +359,20 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
         ordersToSync.push(order);
       }
 
-      if (ordersToSync.length > 0) {
+      // Deduplicate ordersToSync by ID to prevent PostgreSQL error:
+      // "ON CONFLICT DO UPDATE command cannot affect row a second time"
+      const uniqueOrdersMap = new Map<string, Order>();
+      ordersToSync.forEach(order => {
+        uniqueOrdersMap.set(order.id, order);
+      });
+      const finalOrdersToSync = Array.from(uniqueOrdersMap.values());
+
+      if (finalOrdersToSync.length > 0) {
         if (onBulkSaveOrders) {
-          await onBulkSaveOrders(ordersToSync);
+          await onBulkSaveOrders(finalOrdersToSync);
         } else {
           // Fallback to sequential if bulk not provided
-          for (const order of ordersToSync) {
+          for (const order of finalOrdersToSync) {
             await onSaveOrder(order);
           }
         }
@@ -372,7 +380,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
 
       const monthLabel = syncMonth === 'Semua' ? '' : ` bulan ${new Date(2000, parseInt(syncMonth) - 1).toLocaleString('id-ID', { month: 'long' })}`;
       const dayLabel = syncDay === 'Semua' ? '' : ` tanggal ${syncDay}`;
-      alert(`Berhasil sinkronisasi ${ordersToSync.length} data orderan tahun ${syncYear}${monthLabel}${dayLabel}. (${skippedCount} data lain dilewati)`);
+      alert(`Berhasil sinkronisasi ${finalOrdersToSync.length} data orderan tahun ${syncYear}${monthLabel}${dayLabel}. (${skippedCount} data lain dilewati)`);
       setShowSyncSettings(false);
     } catch (error: any) {
       console.error('Sync error:', error);

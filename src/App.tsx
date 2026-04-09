@@ -26,6 +26,7 @@ import PrintAdmin from './components/PrintAdmin';
 import OrderReport from './components/OrderReport';
 import DeliveryModule from './components/DeliveryModule';
 import DailyReportModule from './components/DailyReportModule';
+import ClientMonitor from './components/ClientMonitor';
 import Login from './components/Login';
 import { Session } from '@supabase/supabase-js';
 
@@ -919,6 +920,7 @@ export default function App() {
     { id: 'schedule', label: 'Schedule', icon: 'calendar_month', hidden: userRole === 'admin' || userRole === 'kurir' },
     { id: 'finance', label: 'Finance', icon: 'payments', hidden: userRole === 'admin' || userRole === 'kurir' },
     { id: 'inventory', label: 'Inventory', icon: 'inventory_2', hidden: userRole === 'admin' || userRole === 'kurir' },
+    { id: 'client_monitor', label: 'Client Monitor', icon: 'monitor_heart', hidden: userRole === 'admin' || userRole === 'kurir' },
     { 
       id: 'delivery', 
       label: 'Delivery', 
@@ -1085,6 +1087,8 @@ export default function App() {
         return <PrintAdmin company={userCompany} orders={orders} />;
       case 'report_order':
         return <OrderReport company={userCompany} />;
+      case 'client_monitor':
+        return <ClientMonitor stores={stores} orders={orders} company={userCompany} />;
       case 'delivery':
         return (
           <DeliveryModule 
@@ -1207,7 +1211,13 @@ export default function App() {
               className="fixed left-0 top-0 bottom-0 w-[280px] bg-white z-[70] md:hidden shadow-2xl flex flex-col print:hidden"
             >
               <div className="p-6 flex items-center justify-between border-b border-stone-100">
-                <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => {
+                    setActiveTab('home');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-3 active:scale-95 transition-transform"
+                >
                   <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden border border-stone-200 bg-white shadow-sm">
                     <img 
                       src="https://lh3.googleusercontent.com/d/1b-hkPOsHZ8_rW1f9aqABu7R5bw_ZJM0y" 
@@ -1216,11 +1226,11 @@ export default function App() {
                       referrerPolicy="no-referrer"
                     />
                   </div>
-                  <div>
+                  <div className="text-left">
                     <h1 className="text-lg font-black text-orange-700 leading-tight">Sikepal</h1>
                     <p className="text-[10px] text-stone-500 font-medium uppercase tracking-wider">Premium Nasi Kepal</p>
                   </div>
-                </div>
+                </button>
                 <button 
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="p-2 text-stone-400 hover:bg-stone-100 rounded-full"
@@ -1312,7 +1322,10 @@ export default function App() {
       <aside className={`h-screen ${isSidebarCollapsed ? 'w-20' : 'w-64'} fixed left-0 top-0 z-50 bg-stone-50 border-r border-outline-variant/10 hidden md:block transition-all duration-300 ease-in-out print:hidden`}>
         <div className="flex flex-col gap-y-2 py-8 h-full">
           <div className={`px-6 mb-8 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
-            <div className="flex items-center gap-3 overflow-hidden">
+            <button 
+              onClick={() => setActiveTab('home')}
+              className="flex items-center gap-3 overflow-hidden active:scale-95 transition-transform"
+            >
               <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden border border-stone-200 bg-white shadow-sm">
                 <img 
                   src="https://lh3.googleusercontent.com/d/1b-hkPOsHZ8_rW1f9aqABu7R5bw_ZJM0y" 
@@ -1325,13 +1338,13 @@ export default function App() {
                 <motion.div
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="whitespace-nowrap"
+                  className="whitespace-nowrap text-left"
                 >
                   <h1 className="text-lg font-black text-orange-700 leading-tight">Sikepal</h1>
                   <p className="text-xs text-stone-500 font-medium">Premium Nasi Kepal</p>
                 </motion.div>
               )}
-            </div>
+            </button>
           </div>
           <nav className="flex-1 space-y-1 overflow-y-auto custom-scrollbar px-2">
             {navItems.map((item) => {
@@ -1411,14 +1424,17 @@ export default function App() {
         <header className="sticky top-0 w-full z-40 bg-white/80 backdrop-blur-xl border-b border-stone-100 h-16 px-4 md:px-6 flex justify-between items-center print:hidden">
           <div className="flex items-center gap-2 md:gap-4">
             {/* Mobile Logo */}
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden border border-stone-200 bg-white shadow-sm md:hidden">
+            <button 
+              onClick={() => setActiveTab('home')}
+              className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden border border-stone-200 bg-white shadow-sm md:hidden active:scale-95 transition-transform"
+            >
               <img 
                 src="https://lh3.googleusercontent.com/d/1b-hkPOsHZ8_rW1f9aqABu7R5bw_ZJM0y" 
                 alt="Logo" 
                 className="w-full h-full object-contain"
                 referrerPolicy="no-referrer"
               />
-            </div>
+            </button>
             <button 
               onClick={() => {
                 if (window.innerWidth < 768) {

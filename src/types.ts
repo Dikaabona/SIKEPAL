@@ -26,6 +26,7 @@ export type ActiveTab =
   | 'sales'
   | 'report'
   | 'delivery'
+  | 'client_monitor'
   | 'sales_report'
   | 'print_admin'
   | 'report_order'
@@ -186,12 +187,12 @@ export interface Store {
   grade: string;
   namaPIC: string;
   nomorPIC?: string;
+  alamat?: string;
   linkGmaps: string;
   kategori: string;
   harga: string;
   pembayaran: string;
   operasional: string;
-  kurir: string;
   note: string;
   company: string;
   updatedAt: string;

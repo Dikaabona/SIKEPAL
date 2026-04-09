@@ -27,12 +27,12 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
     grade: '',
     namaPIC: '',
     nomorPIC: '',
+    alamat: '',
     linkGmaps: '',
     kategori: '',
     harga: '',
     pembayaran: '',
     operasional: '',
-    kurir: '',
     note: '',
   });
 
@@ -58,12 +58,12 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
       grade: newStore.grade || '',
       namaPIC: newStore.namaPIC || '',
       nomorPIC: newStore.nomorPIC || '',
+      alamat: newStore.alamat || '',
       linkGmaps: newStore.linkGmaps || '',
       kategori: newStore.kategori || '',
       harga: newStore.harga || '',
       pembayaran: newStore.pembayaran || '',
       operasional: newStore.operasional || '',
-      kurir: newStore.kurir || '',
       note: newStore.note || '',
       company,
       updatedAt: new Date().toISOString(),
@@ -76,12 +76,12 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
       grade: '',
       namaPIC: '',
       nomorPIC: '',
+      alamat: '',
       linkGmaps: '',
       kategori: '',
       harga: '',
       pembayaran: '',
       operasional: '',
-      kurir: '',
       note: '',
     });
   };
@@ -93,12 +93,12 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
         'Grade': 'A',
         'Nama PIC': 'Budi',
         'Nomor PIC': '08123456789',
+        'Alamat': 'Jl. Contoh No. 123',
         'Link Gmaps': 'https://goo.gl/maps/...',
         'Kategori': 'Sekolah',
         'Harga': 'Rp7.500',
         'Pembayaran': 'Harian',
         'Operasional': 'Senin - Jumat',
-        'Kurir': 'Adol',
         'Note': '-'
       }
     ];
@@ -118,12 +118,12 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
       'Grade': store.grade,
       'Nama PIC': store.namaPIC,
       'Nomor PIC': store.nomorPIC,
+      'Alamat': store.alamat,
       'Link Gmaps': store.linkGmaps,
       'Kategori': store.kategori,
       'Harga': store.harga,
       'Pembayaran': store.pembayaran,
       'Operasional': store.operasional,
-      'Kurir': store.kurir,
       'Note': store.note
     }));
     const ws = XLSX.utils.json_to_sheet(exportData);
@@ -162,12 +162,12 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
             grade: row['Grade'] || row['grade'] || '',
             namaPIC: row['Nama PIC'] || row['namaPIC'] || '',
             nomorPIC: row['Nomor PIC'] || row['nomorPIC'] || '',
+            alamat: row['Alamat'] || row['alamat'] || '',
             linkGmaps: row['Link Gmaps'] || row['linkGmaps'] || '',
             kategori: row['Kategori'] || row['kategori'] || '',
             harga: row['Harga'] || row['harga'] || '',
             pembayaran: row['Pembayaran'] || row['pembayaran'] || '',
             operasional: row['Operasional'] || row['operasional'] || '',
-            kurir: row['Kurir'] || row['kurir'] || '',
             note: row['Note'] || row['note'] || '',
             company,
             updatedAt: new Date().toISOString(),
@@ -254,7 +254,6 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
           harga: row[6] || '',
           pembayaran: row[7] || '',
           operasional: row[8] || '',
-          kurir: row[9] || '', 
           note: row[10] || '', 
           company,
           updatedAt: new Date().toISOString(),
@@ -342,7 +341,6 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
                     harga: '',
                     pembayaran: '',
                     operasional: '',
-                    kurir: '',
                     note: '',
                   });
                   setIsAdding(true);
@@ -387,7 +385,6 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
                 <th className="px-6 py-4 text-[10px] font-black text-stone-500 uppercase tracking-widest whitespace-nowrap">Harga</th>
                 <th className="px-6 py-4 text-[10px] font-black text-stone-500 uppercase tracking-widest whitespace-nowrap">Pembayaran</th>
                 <th className="px-6 py-4 text-[10px] font-black text-stone-500 uppercase tracking-widest whitespace-nowrap">Operasional</th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-500 uppercase tracking-widest whitespace-nowrap">Kurir</th>
                 <th className="px-6 py-4 text-[10px] font-black text-stone-500 uppercase tracking-widest whitespace-nowrap">Note</th>
                 <th className="px-6 py-4 text-[10px] font-black text-stone-500 uppercase tracking-widest whitespace-nowrap text-right">Actions</th>
               </tr>
@@ -432,9 +429,6 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
                     <td className="px-6 py-4 whitespace-nowrap text-xs text-stone-600 font-bold">{store.harga || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-xs text-stone-500 font-medium uppercase">{store.pembayaran || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-xs text-stone-500 font-medium uppercase">{store.operasional || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-xs text-stone-700 font-bold uppercase">{store.kurir || '-'}</span>
-                    </td>
                     <td className="px-6 py-4 text-xs text-stone-500 font-medium max-w-[200px] truncate" title={store.note}>{store.note || '-'}</td>
                     <td className="px-6 py-4 text-right whitespace-nowrap">
                       {userRole !== 'kurir' && (
@@ -490,7 +484,6 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
                     </button>
                     <div className="flex flex-wrap gap-2 mt-2">
                       <span className="px-2 py-0.5 bg-stone-100 text-stone-600 rounded-md text-[9px] font-bold uppercase">{store.kategori || '-'}</span>
-                      <span className="px-2 py-0.5 bg-primary/5 text-primary rounded-md text-[9px] font-bold uppercase">{store.kurir || '-'}</span>
                     </div>
                   </div>
                   {userRole !== 'kurir' && (
@@ -520,6 +513,12 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
                 </div>
 
                 <div className="space-y-2">
+                  {store.alamat && (
+                    <div className="flex items-start gap-2 text-xs text-stone-600">
+                      <span className="material-symbols-outlined text-sm text-stone-400">location_on</span>
+                      <span className="font-medium">{store.alamat}</span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 text-xs text-stone-600">
                     <span className="material-symbols-outlined text-sm text-stone-400">schedule</span>
                     <span className="font-medium uppercase">{store.operasional || '-'}</span>
@@ -643,9 +642,6 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
                 <span className="px-4 py-1.5 bg-stone-100 text-stone-600 rounded-xl text-[10px] font-black uppercase tracking-widest">
                   {selectedStoreForDetail.kategori || '-'}
                 </span>
-                <span className="px-4 py-1.5 bg-orange-50 text-orange-700 rounded-xl text-[10px] font-black uppercase tracking-widest">
-                  {selectedStoreForDetail.kurir || '-'}
-                </span>
               </div>
 
               <div className="grid grid-cols-2 gap-4 mb-8">
@@ -757,6 +753,15 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
                   />
                 </div>
                 <div className="space-y-1">
+                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Alamat</label>
+                  <input 
+                    type="text" 
+                    value={newStore.alamat || ''}
+                    onChange={(e) => setNewStore({...newStore, alamat: e.target.value})}
+                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                  />
+                </div>
+                <div className="space-y-1">
                   <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Link Gmaps</label>
                   <input 
                     type="text" 
@@ -798,15 +803,6 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
                     type="text" 
                     value={newStore.operasional}
                     onChange={(e) => setNewStore({...newStore, operasional: e.target.value})}
-                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Kurir</label>
-                  <input 
-                    type="text" 
-                    value={newStore.kurir}
-                    onChange={(e) => setNewStore({...newStore, kurir: e.target.value})}
                     className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                   />
                 </div>
