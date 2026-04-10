@@ -1,6 +1,6 @@
 import { LucideIcon } from 'lucide-react';
 
-export type UserRole = 'owner' | 'admin' | 'kurir' | 'employee';
+export type UserRole = 'owner' | 'admin' | 'employee';
 
 export type ActiveTab = 
   | 'home' 
@@ -31,7 +31,8 @@ export type ActiveTab =
   | 'print_admin'
   | 'report_order'
   | 'daily_report'
-  | 'billing_report';
+  | 'billing_report'
+  | 'production';
 
 export interface Employee {
   id: string;
@@ -121,7 +122,6 @@ export type SubmissionType = 'Izin' | 'Sakit' | 'Cuti' | 'Lembur' | 'Overtime' |
 export interface Submission {
   id: string;
   employeeId: string;
-  employeeName?: string;
   company: string;
   type: SubmissionType;
   startDate?: string;

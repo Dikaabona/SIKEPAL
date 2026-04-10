@@ -417,9 +417,8 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
               <span className="sm:hidden">Clear</span>
             </button>
           )}
-          {userRole !== 'kurir' && (
-            <>
-              <button 
+          <>
+            <button 
                 onClick={() => setShowSyncSettings(true)}
                 disabled={isSyncing}
                 className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-xl font-bold text-[10px] md:text-sm transition-all shadow-sm ${
@@ -459,8 +458,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                 <span className="hidden sm:inline">Add Order</span>
                 <span className="sm:hidden">Order</span>
               </button>
-            </>
-          )}
+          </>
         </div>
       </div>
 
@@ -757,8 +755,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                     <td className="px-4 py-4 text-xs text-stone-600">{order.waste ? `${order.waste.toFixed(0)}%` : '0%'}</td>
                     <td className="px-4 py-4 text-xs text-stone-600">Rp{order.diskon.toLocaleString()}</td>
                     <td className="px-4 py-4 text-right">
-                      {userRole !== 'kurir' && (
-                        <button 
+                      <button 
                           onClick={() => {
                             setNewOrder(order);
                             setIsAdding(true);
@@ -767,7 +764,6 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                         >
                           <span className="material-symbols-outlined text-lg">edit</span>
                         </button>
-                      )}
                     </td>
                   </tr>
                 ))
@@ -813,8 +809,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                       </span>
                     </div>
                   </div>
-                  {userRole !== 'kurir' && (
-                    <button 
+                  <button 
                       onClick={() => {
                         setNewOrder(order);
                         setIsAdding(true);
@@ -823,7 +818,6 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                     >
                       <span className="material-symbols-outlined text-lg">edit</span>
                     </button>
-                  )}
                 </div>
 
                 <div className="grid grid-cols-3 gap-2">

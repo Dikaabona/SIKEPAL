@@ -83,7 +83,7 @@ const EmployeeDatabase: React.FC<EmployeeDatabaseProps> = ({
           <span className="material-symbols-outlined text-primary">info</span>
           <h3 className="text-sm font-bold text-stone-900 uppercase tracking-wider">Panduan Role & Akses</h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="bg-white p-4 rounded-2xl border border-stone-100 shadow-sm">
             <div className="flex items-center gap-2 mb-2">
               <span className="w-2 h-2 rounded-full bg-primary"></span>
@@ -99,16 +99,7 @@ const EmployeeDatabase: React.FC<EmployeeDatabaseProps> = ({
               <span className="text-xs font-black text-stone-900 uppercase">Admin</span>
             </div>
             <p className="text-[10px] text-stone-500 leading-relaxed font-medium">
-              Akses ke menu Database (Toko & Order) dan Laporan Penjualan. Dibatasi dari menu Absensi, Karyawan, dan Keuangan.
-            </p>
-          </div>
-          <div className="bg-white p-4 rounded-2xl border border-stone-100 shadow-sm">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="w-2 h-2 rounded-full bg-orange-500"></span>
-              <span className="text-xs font-black text-stone-900 uppercase">Kurir</span>
-            </div>
-            <p className="text-[10px] text-stone-500 leading-relaxed font-medium">
-              Akses lihat (view-only) menu Database. Tidak dapat menambah, mengedit, atau menghapus data toko/orderan.
+              Akses ke menu Database (Toko & Order), Laporan Penjualan, dan Delivery. Dibatasi dari menu Absensi, Karyawan, dan Keuangan.
             </p>
           </div>
           <div className="bg-white p-4 rounded-2xl border border-stone-100 shadow-sm">
@@ -117,7 +108,7 @@ const EmployeeDatabase: React.FC<EmployeeDatabaseProps> = ({
               <span className="text-xs font-black text-stone-900 uppercase">Employee</span>
             </div>
             <p className="text-[10px] text-stone-500 leading-relaxed font-medium">
-              Akses standar untuk fitur operasional dasar seperti absensi dan pengajuan izin/lembur.
+              Akses terbatas untuk staf operasional. Hanya dapat melakukan Absen Selfie, melihat riwayat kehadiran pribadi, dan melihat jadwal kerja. Tidak memiliki akses ke database toko, orderan, keuangan, atau manajemen sistem lainnya.
             </p>
           </div>
         </div>
@@ -168,12 +159,10 @@ const EmployeeDatabase: React.FC<EmployeeDatabaseProps> = ({
                       className={`text-[10px] font-bold uppercase px-3 py-1.5 rounded-lg border-2 transition-all outline-none cursor-pointer ${
                         emp.role === 'owner' ? 'border-primary bg-primary/5 text-primary' :
                         emp.role === 'admin' ? 'border-blue-500 bg-blue-50 text-blue-600' :
-                        emp.role === 'kurir' ? 'border-orange-500 bg-orange-50 text-orange-600' :
                         'border-stone-200 bg-stone-50 text-stone-500'
                       }`}
                     >
                       <option value="employee">Employee</option>
-                      <option value="kurir">Kurir</option>
                       <option value="admin">Admin</option>
                       <option value="owner">Owner</option>
                     </select>
@@ -266,12 +255,10 @@ const EmployeeDatabase: React.FC<EmployeeDatabaseProps> = ({
                   className={`text-[10px] font-black uppercase px-4 py-2 rounded-xl border-2 transition-all outline-none cursor-pointer ${
                     emp.role === 'owner' ? 'border-primary bg-white text-primary' :
                     emp.role === 'admin' ? 'border-blue-500 bg-white text-blue-600' :
-                    emp.role === 'kurir' ? 'border-orange-500 bg-white text-orange-600' :
                     'border-stone-200 bg-white text-stone-500'
                   }`}
                 >
                   <option value="employee">Employee</option>
-                  <option value="kurir">Kurir</option>
                   <option value="admin">Admin</option>
                   <option value="owner">Owner</option>
                 </select>

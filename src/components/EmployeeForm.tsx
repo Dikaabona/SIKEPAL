@@ -147,7 +147,6 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ initialData, userCompany, o
                 onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
               >
                 <option value="employee">Employee</option>
-                <option value="kurir">Kurir</option>
                 <option value="admin">Admin</option>
                 <option value="owner">Owner</option>
               </select>

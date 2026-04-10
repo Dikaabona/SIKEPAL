@@ -295,7 +295,9 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
         waste: wastePercent,
         tanggalPiutang: formData.tanggalPiutang || undefined,
         company,
-        status: 'Completed',
+        status: editingId 
+          ? (deliveries.find(d => d.id === editingId)?.status || 'Completed')
+          : (title === "Billing Report" ? 'Pending' : 'Completed'),
         orderId: selectedOrderId || undefined,
         createdAt: editingId 
           ? (deliveries.find(d => d.id === editingId)?.createdAt || new Date().toISOString())
@@ -407,7 +409,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                 <span>Hapus Massal ({selectedIds.length})</span>
               </button>
             )}
-            {!hideAddButton && (userRole === 'owner' || userRole === 'admin' || userRole === 'kurir') && (
+            {!hideAddButton && (userRole === 'owner' || userRole === 'admin') && (
               <button 
                 onClick={() => setIsModalOpen(true)}
                 className="px-4 py-2 bg-stone-900 text-white rounded-xl text-[10px] md:text-xs font-bold hover:bg-stone-800 transition-all flex items-center gap-2"
@@ -451,6 +453,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                   <>
                     <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">SISA</th>
                     <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">WASTE</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">STATUS</th>
                   </>
                 )}
                 <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">KET</th>
@@ -544,6 +547,15 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                             {delivery.waste ? `${delivery.waste.toFixed(0)}%` : '0%'}
                           </span>
                         </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-[10px] font-black whitespace-nowrap uppercase ${
+                            delivery.status === 'Completed' 
+                              ? 'bg-green-50 text-green-600' 
+                              : 'bg-orange-50 text-orange-600'
+                          }`}>
+                            {delivery.status === 'Completed' ? 'Approved' : 'Pending'}
+                          </span>
+                        </td>
                       </>
                     )}
                     <td className="px-6 py-4">
@@ -554,6 +566,15 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                     {(userRole === 'owner' || userRole === 'admin') && (
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-2">
+                          {title === "Billing Report" && delivery.status !== 'Completed' && (
+                            <button
+                              onClick={() => onSaveDelivery({ ...delivery, status: 'Completed' })}
+                              className="w-8 h-8 rounded-lg bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-100 transition-colors"
+                              title="Approve"
+                            >
+                              <span className="material-symbols-outlined text-sm">check_circle</span>
+                            </button>
+                          )}
                           <button
                             onClick={() => handleEdit(delivery)}
                             className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-colors"
@@ -640,12 +661,21 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                         : `Qty: ${delivery.qtyPengiriman}`}
                     </span>
                     {title === "Billing Report" && delivery.sisa !== undefined && (
-                      <div className="flex gap-1">
-                        <span className="px-2 py-1 rounded-lg bg-orange-50 text-orange-600 text-[10px] font-black whitespace-nowrap">
-                          Sisa: {delivery.sisa}
-                        </span>
-                        <span className="px-2 py-1 rounded-lg bg-red-50 text-red-600 text-[10px] font-black whitespace-nowrap">
-                          Waste: {delivery.waste ? `${delivery.waste.toFixed(0)}%` : '0%'}
+                      <div className="flex flex-col items-end gap-1">
+                        <div className="flex gap-1">
+                          <span className="px-2 py-1 rounded-lg bg-orange-50 text-orange-600 text-[10px] font-black whitespace-nowrap">
+                            Sisa: {delivery.sisa}
+                          </span>
+                          <span className="px-2 py-1 rounded-lg bg-red-50 text-red-600 text-[10px] font-black whitespace-nowrap">
+                            Waste: {delivery.waste ? `${delivery.waste.toFixed(0)}%` : '0%'}
+                          </span>
+                        </div>
+                        <span className={`px-2 py-1 rounded-lg text-[10px] font-black whitespace-nowrap uppercase ${
+                          delivery.status === 'Completed' 
+                            ? 'bg-green-50 text-green-600' 
+                            : 'bg-orange-50 text-orange-600'
+                        }`}>
+                          {delivery.status === 'Completed' ? 'Approved' : 'Pending'}
                         </span>
                       </div>
                     )}
@@ -656,6 +686,15 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                     )}
                     {(userRole === 'owner' || userRole === 'admin') && (
                       <div className="flex items-center gap-1">
+                        {title === "Billing Report" && delivery.status !== 'Completed' && (
+                          <button
+                            onClick={() => onSaveDelivery({ ...delivery, status: 'Completed' })}
+                            className="w-7 h-7 rounded-lg bg-green-50 text-green-600 flex items-center justify-center"
+                            title="Approve"
+                          >
+                            <span className="material-symbols-outlined text-xs">check_circle</span>
+                          </button>
+                        )}
                         <button
                           onClick={() => handleEdit(delivery)}
                           className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center"

@@ -87,6 +87,15 @@ const ClientMonitor: React.FC<ClientMonitorProps> = ({ stores, orders, company }
     setCurrentPage(1);
   };
 
+  const getWhatsAppLink = (phone: string | undefined) => {
+    if (!phone || phone === '-') return null;
+    // Remove all non-numeric characters
+    const cleanNumber = phone.replace(/\D/g, '');
+    // If it starts with 0, replace with 62 (Indonesia)
+    const finalNumber = cleanNumber.startsWith('0') ? '62' + cleanNumber.slice(1) : cleanNumber;
+    return `https://wa.me/${finalNumber}`;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -198,7 +207,24 @@ const ClientMonitor: React.FC<ClientMonitorProps> = ({ stores, orders, company }
                     <div className="font-medium text-stone-900 text-sm">{item.namaPIC || '-'}</div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="text-stone-600 text-sm">{item.nomorPIC || '-'}</div>
+                    {item.nomorPIC && item.nomorPIC !== '-' ? (
+                      <a 
+                        href={getWhatsAppLink(item.nomorPIC) || '#'} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-emerald-600 hover:text-emerald-700 font-bold flex items-center gap-1 transition-colors"
+                      >
+                        <img 
+                          src="https://lh3.googleusercontent.com/d/1c4UQAJIWS0-U2newQ6D8n-m0pd1f1vGJ" 
+                          alt="WA" 
+                          className="w-4 h-4 object-contain" 
+                          referrerPolicy="no-referrer"
+                        />
+                        {item.nomorPIC}
+                      </a>
+                    ) : (
+                      <div className="text-stone-400 text-sm">-</div>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-center">
                     <div className="text-stone-600 text-sm">{item.lastDelivery}</div>
@@ -257,7 +283,24 @@ const ClientMonitor: React.FC<ClientMonitorProps> = ({ stores, orders, company }
                   <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">PIC & WhatsApp</p>
                   <div className="flex flex-col">
                     <span className="text-xs font-bold text-stone-800">{item.namaPIC || '-'}</span>
-                    <span className="text-[10px] text-stone-500">{item.nomorPIC || '-'}</span>
+                    {item.nomorPIC && item.nomorPIC !== '-' ? (
+                      <a 
+                        href={getWhatsAppLink(item.nomorPIC) || '#'} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-[10px] font-bold text-emerald-600 flex items-center gap-1 mt-0.5"
+                      >
+                        <img 
+                          src="https://lh3.googleusercontent.com/d/1c4UQAJIWS0-U2newQ6D8n-m0pd1f1vGJ" 
+                          alt="WA" 
+                          className="w-3 h-3 object-contain" 
+                          referrerPolicy="no-referrer"
+                        />
+                        {item.nomorPIC}
+                      </a>
+                    ) : (
+                      <span className="text-[10px] text-stone-500">{item.nomorPIC || '-'}</span>
+                    )}
                   </div>
                 </div>
                 <div className="space-y-1 text-right">

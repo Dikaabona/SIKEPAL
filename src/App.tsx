@@ -565,8 +565,8 @@ export default function App() {
         return;
       }
     } else {
-      // For adding new report, allow owner, admin, and kurir
-      if (userRole !== 'owner' && userRole !== 'admin' && userRole !== 'kurir') {
+      // For adding new report, allow owner and admin
+      if (userRole !== 'owner' && userRole !== 'admin') {
         alert('Hanya Admin, Owner, dan Kurir yang dapat menambah data Billing Report.');
         return;
       }
@@ -576,7 +576,7 @@ export default function App() {
 
       // Requirement 1: Revert previous order if it was linked and changed or if it's an edit
       // We revert the old order first to ensure clean state
-      if (oldReport && oldReport.orderId) {
+      if (oldReport && oldReport.orderId && oldReport.status === 'Completed') {
         console.log('Reverting old order status for order:', oldReport.orderId);
         await supabase
           .from('orders')
@@ -597,7 +597,8 @@ export default function App() {
       if (error) throw error;
       
       // If this report is linked to an order, update the order's payment status and date
-      if (report.orderId) {
+      // ONLY if the status is 'Completed' (Approved)
+      if (report.orderId && report.status === 'Completed') {
         console.log('Updating order payment status for order:', report.orderId, 'with payment date:', report.tanggal);
         const { error: orderError } = await supabase
           .from('orders')
@@ -624,7 +625,6 @@ export default function App() {
         const notification: Submission = {
           id: `notif_${Date.now()}`,
           employeeId: currentUserEmployee.id,
-          employeeName: currentUserEmployee.nama,
           company: userCompany,
           type: 'Notification',
           reason: `${currentUserEmployee.nama} telah mengedit data Billing Report untuk lokasi ${report.namaLokasi} pada tanggal ${report.tanggal}`,
@@ -663,19 +663,21 @@ export default function App() {
       console.log('Deleting billing report from Supabase:', id);
       const reportToDelete = billingReports.find(r => r.id === id);
       
-      // Revert order status if it was linked
-      if (reportToDelete && reportToDelete.orderId) {
+      // Revert order status if it was linked and approved
+      if (reportToDelete && reportToDelete.orderId && reportToDelete.status === 'Completed') {
         console.log('Reverting order status for order:', reportToDelete.orderId);
         await supabase
           .from('orders')
           .update({ 
             pembayaran: 'FALSE',
             tanggalBayar: '',
-            sisa: 0
+            sisa: 0,
+            nilaiPembayaran: 0,
+            waste: 0
           })
           .eq('id', reportToDelete.orderId);
         
-        setOrders(prev => prev.map(o => o.id === reportToDelete.orderId ? { ...o, pembayaran: 'FALSE', tanggalBayar: '', sisa: 0 } : o));
+        setOrders(prev => prev.map(o => o.id === reportToDelete.orderId ? { ...o, pembayaran: 'FALSE', tanggalBayar: '', sisa: 0, nilaiPembayaran: 0, waste: 0 } : o));
       }
 
       const { error } = await supabase.from('billing_reports').delete().eq('id', id);
@@ -703,25 +705,30 @@ export default function App() {
       // Find all reports to be deleted to check for linked orders
       const reportsToDelete = billingReports.filter(r => ids.includes(r.id));
       
-      // Revert order status for all linked orders
+      // Revert order status for all linked orders that were approved
       for (const report of reportsToDelete) {
-        if (report.orderId) {
+        if (report.orderId && report.status === 'Completed') {
           console.log('Reverting order status for order:', report.orderId);
           await supabase
             .from('orders')
             .update({ 
               pembayaran: 'FALSE',
               tanggalBayar: '',
-              sisa: 0
+              sisa: 0,
+              nilaiPembayaran: 0,
+              waste: 0
             })
             .eq('id', report.orderId);
         }
       }
 
-      // Update local orders state
-      const linkedOrderIds = reportsToDelete.filter(r => r.orderId).map(r => r.orderId!);
-      if (linkedOrderIds.length > 0) {
-        setOrders(prev => prev.map(o => linkedOrderIds.includes(o.id) ? { ...o, pembayaran: 'FALSE', tanggalBayar: '', sisa: 0 } : o));
+      // Update local orders state for approved reports
+      const approvedLinkedOrderIds = reportsToDelete
+        .filter(r => r.orderId && r.status === 'Completed')
+        .map(r => r.orderId!);
+      
+      if (approvedLinkedOrderIds.length > 0) {
+        setOrders(prev => prev.map(o => approvedLinkedOrderIds.includes(o.id) ? { ...o, pembayaran: 'FALSE', tanggalBayar: '', sisa: 0, nilaiPembayaran: 0, waste: 0 } : o));
       }
 
       // Delete from Supabase
@@ -901,7 +908,7 @@ export default function App() {
       id: 'attendance', 
       label: 'Attendance', 
       icon: 'group',
-      hidden: userRole === 'admin' || userRole === 'kurir',
+      hidden: userRole === 'admin',
       subItems: [
         { id: 'attendance', label: 'List Attendance', icon: 'list_alt' },
         { id: 'selfie_attendance', label: 'Absen Selfie', icon: 'photo_camera' },
@@ -915,17 +922,18 @@ export default function App() {
         { id: 'store_database', label: 'Data Toko', icon: 'storefront' },
       ]
     },
-    { id: 'employee_database', label: 'Employee DB', icon: 'badge', hidden: userRole === 'admin' || userRole === 'kurir' },
-    { id: 'inbox', label: 'Inbox', icon: 'mail', hidden: userRole === 'admin' || userRole === 'kurir' },
-    { id: 'schedule', label: 'Schedule', icon: 'calendar_month', hidden: userRole === 'admin' || userRole === 'kurir' },
-    { id: 'finance', label: 'Finance', icon: 'payments', hidden: userRole === 'admin' || userRole === 'kurir' },
-    { id: 'inventory', label: 'Inventory', icon: 'inventory_2', hidden: userRole === 'admin' || userRole === 'kurir' },
-    { id: 'client_monitor', label: 'Client Monitor', icon: 'monitor_heart', hidden: userRole === 'admin' || userRole === 'kurir' },
+    { id: 'employee_database', label: 'Employee DB', icon: 'badge', hidden: userRole === 'admin' },
+    { id: 'inbox', label: 'Inbox', icon: 'mail', hidden: userRole === 'admin' },
+    { id: 'schedule', label: 'Schedule', icon: 'calendar_month', hidden: userRole === 'admin' },
+    { id: 'finance', label: 'Finance', icon: 'payments', hidden: userRole === 'admin' },
+    { id: 'inventory', label: 'Inventory', icon: 'inventory_2', hidden: userRole === 'admin' },
+    { id: 'production', label: 'Produksi', icon: 'https://lh3.googleusercontent.com/d/1xnGnOOO6RvjqUW4MTVx9-u7yDTE-qBxl', hidden: userRole === 'admin' },
+    { id: 'client_monitor', label: 'Client Monitor', icon: 'monitor_heart', hidden: userRole === 'admin' },
     { 
       id: 'delivery', 
       label: 'Delivery', 
       icon: 'local_shipping', 
-      hidden: userRole === 'admin' || userRole === 'kurir',
+      hidden: userRole === 'admin',
       subItems: [
         { id: 'delivery', label: 'Delivery Report', icon: 'dashboard' },
         { id: 'order_database', label: 'Data Orderan', icon: 'receipt_long' },
@@ -938,7 +946,7 @@ export default function App() {
       id: 'report', 
       label: 'Sales Report', 
       icon: 'assessment',
-      hidden: userRole === 'kurir',
+      hidden: false,
       subItems: [
         { id: 'sales_report', label: 'Sales Report', icon: 'trending_up' },
         { id: 'report_order', label: 'Order', icon: 'receipt_long' },
@@ -1146,6 +1154,33 @@ export default function App() {
             onPrefillHandled={() => setPrefillData(null)}
           />
         );
+      case 'production':
+        return (
+          <div className="p-6 space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight">Produksi</h2>
+                <p className="text-xs md:text-sm text-stone-500 font-medium">
+                  Manajemen data produksi harian untuk {userCompany}
+                </p>
+              </div>
+            </div>
+            <div className="bg-white rounded-[32px] border border-stone-100 shadow-sm p-12 text-center">
+              <div className="w-20 h-20 bg-orange-50 rounded-3xl flex items-center justify-center mx-auto mb-6 overflow-hidden">
+                <img 
+                  src="https://lh3.googleusercontent.com/d/1xnGnOOO6RvjqUW4MTVx9-u7yDTE-qBxl" 
+                  alt="Produksi" 
+                  className="w-12 h-12 object-contain" 
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+              <h3 className="text-xl font-black text-stone-800 mb-2">Modul Produksi</h3>
+              <p className="text-stone-500 font-medium max-w-md mx-auto">
+                Modul ini sedang dalam tahap pengembangan. Segera hadir untuk membantu Anda mengelola proses produksi nasi kepal dengan lebih efisien.
+              </p>
+            </div>
+          </div>
+        );
       default:
         return (
           <div className="flex items-center justify-center h-full text-stone-400">
@@ -1261,9 +1296,18 @@ export default function App() {
                             : 'text-stone-600 hover:bg-stone-50'
                         }`}
                       >
-                        <span className="material-symbols-outlined" style={{ fontVariationSettings: isActive ? "'FILL' 1" : "" }}>
-                          {item.icon}
-                        </span>
+                        {item.icon.startsWith('http') ? (
+                          <img 
+                            src={item.icon} 
+                            alt={item.label} 
+                            className="w-6 h-6 object-contain" 
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <span className="material-symbols-outlined" style={{ fontVariationSettings: isActive ? "'FILL' 1" : "" }}>
+                            {item.icon}
+                          </span>
+                        )}
                         <span className="flex-1 text-left">{item.label}</span>
                         {hasSubItems && (
                           <span className={`material-symbols-outlined text-xs transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
@@ -1369,9 +1413,18 @@ export default function App() {
                         : 'text-stone-600 hover:bg-stone-200'
                     }`}
                   >
-                    <span className="material-symbols-outlined" style={{ fontVariationSettings: isActive ? "'FILL' 1" : "" }}>
-                      {item.icon}
-                    </span>
+                    {item.icon.startsWith('http') ? (
+                      <img 
+                        src={item.icon} 
+                        alt={item.label} 
+                        className="w-6 h-6 object-contain" 
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <span className="material-symbols-outlined" style={{ fontVariationSettings: isActive ? "'FILL' 1" : "" }}>
+                        {item.icon}
+                      </span>
+                    )}
                     {!isSidebarCollapsed && (
                       <div className="flex-1 flex items-center justify-between">
                         <span className="whitespace-nowrap">{item.label}</span>

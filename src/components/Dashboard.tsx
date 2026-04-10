@@ -224,6 +224,25 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <span className="text-[7px] font-black text-stone-800 uppercase tracking-tight text-center leading-tight">Client Monitor</span>
               </motion.button>
             )}
+
+            {/* Produksi */}
+            {(userRole === 'owner' || userRole === 'admin') && (
+              <motion.button
+                variants={item}
+                onClick={() => onNavigate('production')}
+                className="bg-white p-2 rounded-[20px] border border-stone-100 shadow-sm flex flex-col items-center justify-center gap-1.5 active:scale-95 transition-transform"
+              >
+                <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center overflow-hidden shadow-lg shadow-orange-100">
+                  <img 
+                    src="https://lh3.googleusercontent.com/d/1xnGnOOO6RvjqUW4MTVx9-u7yDTE-qBxl" 
+                    alt="Produksi" 
+                    className="w-5 h-5 object-contain" 
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+                <span className="text-[7px] font-black text-stone-800 uppercase tracking-tight text-center leading-tight">Produksi</span>
+              </motion.button>
+            )}
           </div>
 
           {/* Announcements Section */}

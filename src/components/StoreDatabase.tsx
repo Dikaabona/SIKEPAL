@@ -295,9 +295,8 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
               <span className="sm:hidden">Clear</span>
             </button>
           )}
-          {userRole !== 'kurir' && (
-            <>
-              <input 
+          <>
+            <input 
                 type="file" 
                 ref={fileInputRef} 
                 onChange={handleImport} 
@@ -351,8 +350,7 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
                 <span className="hidden sm:inline">Add New Store</span>
                 <span className="sm:hidden">Add Store</span>
               </button>
-            </>
-          )}
+          </>
         </div>
       </div>
 
@@ -431,8 +429,7 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
                     <td className="px-6 py-4 whitespace-nowrap text-xs text-stone-500 font-medium uppercase">{store.operasional || '-'}</td>
                     <td className="px-6 py-4 text-xs text-stone-500 font-medium max-w-[200px] truncate" title={store.note}>{store.note || '-'}</td>
                     <td className="px-6 py-4 text-right whitespace-nowrap">
-                      {userRole !== 'kurir' && (
-                        <button 
+                      <button 
                           onClick={() => {
                             setNewStore(store);
                             setIsAdding(true);
@@ -441,7 +438,6 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
                         >
                           <span className="material-symbols-outlined text-lg">edit</span>
                         </button>
-                      )}
                     </td>
                   </tr>
                 ))
@@ -486,8 +482,7 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
                       <span className="px-2 py-0.5 bg-stone-100 text-stone-600 rounded-md text-[9px] font-bold uppercase">{store.kategori || '-'}</span>
                     </div>
                   </div>
-                  {userRole !== 'kurir' && (
-                    <button 
+                  <button 
                       onClick={() => {
                         setNewStore(store);
                         setIsAdding(true);
@@ -496,7 +491,6 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
                     >
                       <span className="material-symbols-outlined text-lg">edit</span>
                     </button>
-                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -624,8 +618,7 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
                     {selectedStoreForDetail.namaToko}
                   </h3>
                 </div>
-                {userRole !== 'kurir' && (
-                  <button 
+                <button 
                     onClick={() => {
                       setNewStore(selectedStoreForDetail);
                       setSelectedStoreForDetail(null);
@@ -635,7 +628,6 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
                   >
                     <span className="material-symbols-outlined">edit</span>
                   </button>
-                )}
               </div>
 
               <div className="flex flex-wrap gap-2 mb-8">
