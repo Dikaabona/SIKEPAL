@@ -16,6 +16,7 @@ interface DeliveryModuleProps {
   onDeleteDelivery: (id: string) => Promise<void>;
   onBulkDelete?: (ids: string[]) => Promise<void>;
   initialPrefillLocation?: string;
+  initialPrefillCourier?: string;
   onPrefillHandled?: () => void;
 }
 
@@ -32,6 +33,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   onDeleteDelivery,
   onBulkDelete,
   initialPrefillLocation,
+  initialPrefillCourier,
   onPrefillHandled
 }) => {
   // Extract unique courier names from orders
@@ -189,6 +191,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       setFormData(prev => ({
         ...prev,
         namaLokasi: initialPrefillLocation,
+        namaKurir: initialPrefillCourier || prev.namaKurir,
         tanggal: getLocalDateString(),
         qtyPengiriman: 0,
         keterangan: '',
@@ -200,7 +203,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       setIsModalOpen(true);
       onPrefillHandled?.();
     }
-  }, [initialPrefillLocation, onPrefillHandled]);
+  }, [initialPrefillLocation, initialPrefillCourier, onPrefillHandled]);
 
   const capturePhoto = () => {
     if (videoRef.current && canvasRef.current) {
@@ -895,9 +898,14 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                       <input
                         required
                         type="date"
+                        readOnly={title === "Billing Report"}
                         value={formData.tanggal}
                         onChange={(e) => setFormData({...formData, tanggal: e.target.value})}
-                        className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium"
+                        className={`w-full px-4 py-3 rounded-2xl border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium ${
+                          title === "Billing Report" 
+                            ? 'bg-stone-100 text-stone-500 cursor-not-allowed' 
+                            : 'bg-stone-50 text-stone-900'
+                        }`}
                       />
                     </div>
                   </div>

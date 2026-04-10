@@ -186,7 +186,7 @@ export default function App() {
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [session, setSession] = useState<Session | null>(null);
-  const [prefillData, setPrefillData] = useState<{ location: string; type: 'delivery' | 'billing' } | null>(null);
+  const [prefillData, setPrefillData] = useState<{ location: string; type: 'delivery' | 'billing'; courier?: string } | null>(null);
 
   const [isDataMissing, setIsDataMissing] = useState(false);
 
@@ -955,8 +955,8 @@ export default function App() {
     { id: 'settings', label: 'Settings', icon: 'settings' },
   ].filter(item => !item.hidden);
 
-  const handlePrefillRequest = (location: string, type: 'delivery' | 'billing') => {
-    setPrefillData({ location, type });
+  const handlePrefillRequest = (location: string, type: 'delivery' | 'billing', courier?: string) => {
+    setPrefillData({ location, type, courier });
     setActiveTab(type === 'delivery' ? 'delivery' : 'billing_report');
   };
 
@@ -1111,6 +1111,7 @@ export default function App() {
             onDeleteDelivery={handleDeleteDelivery}
             onBulkDelete={handleBulkDeleteDelivery}
             initialPrefillLocation={prefillData?.type === 'delivery' ? prefillData.location : undefined}
+            initialPrefillCourier={prefillData?.type === 'delivery' ? prefillData.courier : undefined}
             onPrefillHandled={() => setPrefillData(null)}
           />
         );
@@ -1151,6 +1152,7 @@ export default function App() {
             onDeleteDelivery={handleDeleteBillingReport}
             onBulkDelete={handleBulkDeleteBillingReport}
             initialPrefillLocation={prefillData?.type === 'billing' ? prefillData.location : undefined}
+            initialPrefillCourier={prefillData?.type === 'billing' ? prefillData.courier : undefined}
             onPrefillHandled={() => setPrefillData(null)}
           />
         );

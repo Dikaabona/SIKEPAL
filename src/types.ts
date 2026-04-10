@@ -193,6 +193,7 @@ export interface Store {
   harga: string;
   pembayaran: string;
   operasional: string;
+  kurir?: string;
   note: string;
   company: string;
   updatedAt: string;

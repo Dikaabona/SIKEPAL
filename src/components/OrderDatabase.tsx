@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Order, UserRole, Store, Employee } from '../types';
 import { getPaginationRange, parseIndoDate, formatDate, getLocalDateString } from '../lib/utils';
@@ -12,7 +12,7 @@ interface OrderDatabaseProps {
   onDeleteAllOrders: () => Promise<void>;
   company: string;
   userRole: UserRole;
-  onPrefillRequest?: (location: string, type: 'delivery' | 'billing') => void;
+  onPrefillRequest?: (location: string, type: 'delivery' | 'billing', courier?: string) => void;
 }
 
 const OrderDatabase: React.FC<OrderDatabaseProps> = ({ 
@@ -42,6 +42,9 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
   const [showSyncSettings, setShowSyncSettings] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  const [lokasiSearch, setLokasiSearch] = useState('');
+  const [showLokasiDropdown, setShowLokasiDropdown] = useState(false);
 
   const [newOrder, setNewOrder] = useState<Partial<Order>>({
     tanggal: getLocalDateString(),
@@ -133,6 +136,12 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
   }, [filteredOrders]);
 
   const percentageSisa = summary.jumlahKirim > 0 ? (summary.sisa / summary.jumlahKirim) * 100 : 0;
+
+  useEffect(() => {
+    if (isAdding) {
+      setLokasiSearch(newOrder.namaLokasi || '');
+    }
+  }, [isAdding, newOrder.namaLokasi]);
 
   const handleSave = async () => {
     if (!newOrder.namaLokasi || !newOrder.tanggal) {
@@ -1105,14 +1114,57 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                     }
                   </select>
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 relative">
                   <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nama Lokasi *</label>
-                  <input 
-                    type="text" 
-                    value={newOrder.namaLokasi}
-                    onChange={(e) => setNewOrder({...newOrder, namaLokasi: e.target.value})}
-                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  />
+                  <div className="relative">
+                    <input 
+                      type="text" 
+                      placeholder="Cari lokasi..."
+                      value={lokasiSearch}
+                      onChange={(e) => {
+                        setLokasiSearch(e.target.value);
+                        setShowLokasiDropdown(true);
+                      }}
+                      onFocus={() => setShowLokasiDropdown(true)}
+                      className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                    <span className="material-symbols-outlined absolute right-3 top-2 text-stone-400 text-sm pointer-events-none">
+                      search
+                    </span>
+                  </div>
+                  
+                  {showLokasiDropdown && (
+                    <>
+                      <div 
+                        className="fixed inset-0 z-[105]" 
+                        onClick={() => setShowLokasiDropdown(false)} 
+                      />
+                      <div className="absolute z-[110] left-0 right-0 top-full mt-1 bg-white border border-stone-200 rounded-xl shadow-xl max-h-60 overflow-y-auto custom-scrollbar">
+                        {stores
+                          .filter(s => s.namaToko.toLowerCase().includes(lokasiSearch.toLowerCase()))
+                          .map(store => (
+                            <button
+                              key={store.id}
+                              type="button"
+                              onClick={() => {
+                                setNewOrder({...newOrder, namaLokasi: store.namaToko});
+                                setLokasiSearch(store.namaToko);
+                                setShowLokasiDropdown(false);
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm hover:bg-stone-50 transition-colors border-b border-stone-50 last:border-0"
+                            >
+                              {store.namaToko}
+                            </button>
+                          ))
+                        }
+                        {stores.filter(s => s.namaToko.toLowerCase().includes(lokasiSearch.toLowerCase())).length === 0 && (
+                          <div className="px-4 py-3 text-xs text-stone-400 italic text-center">
+                            Lokasi tidak ditemukan
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="space-y-1">
@@ -1353,7 +1405,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                 <div className="flex gap-3 mt-2">
                   <button 
                     onClick={() => {
-                      onPrefillRequest?.(selectedStore.namaToko, 'delivery');
+                      onPrefillRequest?.(selectedStore.namaToko, 'delivery', selectedStore.kurir);
                       setSelectedStore(null);
                     }}
                     className="flex-1 flex flex-col items-center gap-2 p-3 bg-orange-50 rounded-2xl border border-orange-100 hover:bg-orange-100 transition-all group"
@@ -1365,7 +1417,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                   </button>
                   <button 
                     onClick={() => {
-                      onPrefillRequest?.(selectedStore.namaToko, 'billing');
+                      onPrefillRequest?.(selectedStore.namaToko, 'billing', selectedStore.kurir);
                       setSelectedStore(null);
                     }}
                     className="flex-1 flex flex-col items-center gap-2 p-3 bg-blue-50 rounded-2xl border border-blue-100 hover:bg-blue-100 transition-all group"
