@@ -553,7 +553,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
           
           <button 
             onClick={handleDownloadTemplate}
-            className="flex items-center gap-2 px-4 py-2 bg-white text-stone-700 rounded-full font-bold text-xs md:text-sm border border-stone-200 hover:bg-stone-50 transition-all shadow-sm"
+            className="hidden md:flex items-center gap-2 px-4 py-2 bg-white text-stone-700 rounded-full font-bold text-xs md:text-sm border border-stone-200 hover:bg-stone-50 transition-all shadow-sm"
           >
             <span className="material-symbols-outlined text-lg">description</span>
             <span>Template</span>
@@ -561,7 +561,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
 
           <button 
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 px-4 py-2 bg-white text-stone-700 rounded-full font-bold text-xs md:text-sm border border-stone-200 hover:bg-stone-50 transition-all shadow-sm"
+            className="hidden md:flex items-center gap-2 px-4 py-2 bg-white text-stone-700 rounded-full font-bold text-xs md:text-sm border border-stone-200 hover:bg-stone-50 transition-all shadow-sm"
           >
             <span className="material-symbols-outlined text-lg">upload</span>
             <span>Import</span>
@@ -569,7 +569,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
 
           <button 
             onClick={handleExportExcel}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-full font-bold text-xs md:text-sm hover:bg-primary/90 transition-all shadow-md shadow-primary/20"
+            className="hidden md:flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-full font-bold text-xs md:text-sm hover:bg-primary/90 transition-all shadow-md shadow-primary/20"
           >
             <span className="material-symbols-outlined text-lg">download</span>
             <span>Ekspor</span>
@@ -582,11 +582,10 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                   onDeleteAllOrders();
                 }
               }}
-              className="px-3 md:px-4 py-2 bg-red-50 text-red-600 rounded-xl text-[10px] md:text-xs font-bold hover:bg-red-100 transition-all flex items-center gap-2"
+              className="hidden md:flex px-3 md:px-4 py-2 bg-red-50 text-red-600 rounded-xl text-[10px] md:text-xs font-bold hover:bg-red-100 transition-all items-center gap-2"
             >
               <span className="material-symbols-outlined text-sm">delete_sweep</span>
-              <span className="hidden sm:inline">Clear All</span>
-              <span className="sm:hidden">Clear</span>
+              <span>Clear All</span>
             </button>
           )}
           <>

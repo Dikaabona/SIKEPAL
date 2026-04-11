@@ -98,37 +98,37 @@ const ClientMonitor: React.FC<ClientMonitorProps> = ({ stores, orders, company }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-4">
         <div>
-          <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight">Client Monitor</h2>
-          <p className="text-xs md:text-sm text-stone-500 font-medium">
-            Pantau status dan piutang pelanggan Anda untuk {company}
+          <h2 className="text-xl md:text-3xl font-black uppercase tracking-tight">Client Monitor</h2>
+          <p className="text-[10px] md:text-sm text-stone-500 font-medium">
+            Pantau status dan piutang pelanggan Anda
           </p>
         </div>
       </div>
 
-      <div className="bg-white rounded-[32px] border border-stone-100 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-stone-50 flex flex-col md:flex-row gap-4">
+      <div className="bg-white rounded-2xl md:rounded-[32px] border border-stone-100 shadow-sm overflow-hidden">
+        <div className="p-4 md:p-6 border-b border-stone-50 flex flex-col md:flex-row gap-3 md:gap-4">
           <div className="relative flex-1">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-stone-400">search</span>
+            <span className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-stone-400 text-lg md:text-base">search</span>
             <input
               type="text"
-              placeholder="Cari nama toko atau PIC..."
+              placeholder="Cari toko atau PIC..."
               value={searchQuery}
               onChange={handleSearchChange}
-              className="w-full pl-12 pr-4 py-3 bg-stone-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-stone-900 transition-all"
+              className="w-full pl-10 md:pl-12 pr-4 py-2.5 md:py-3 bg-stone-50 border-none rounded-xl md:rounded-2xl text-xs md:text-sm focus:ring-2 focus:ring-stone-900 transition-all"
             />
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-2">Sort By:</span>
+            <span className="hidden md:inline text-[10px] font-black text-stone-400 uppercase tracking-widest ml-2">Sort By:</span>
             <select
               value={sortBy}
               onChange={(e) => handleSort(e.target.value as any)}
-              className="bg-stone-50 border-none rounded-xl px-4 py-2 text-xs font-bold text-stone-600 focus:ring-2 focus:ring-stone-900 cursor-pointer"
+              className="flex-1 md:flex-none bg-stone-50 border-none rounded-xl px-3 md:px-4 py-2 text-[10px] md:text-xs font-bold text-stone-600 focus:ring-2 focus:ring-stone-900 cursor-pointer"
             >
               <option value="namaToko">Nama Toko</option>
-              <option value="totalPiutang">Jumlah Piutang</option>
-              <option value="lastDelivery">Pengiriman Terakhir</option>
+              <option value="totalPiutang">Piutang</option>
+              <option value="lastDelivery">Terakhir</option>
             </select>
             <button
               onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
@@ -250,25 +250,23 @@ const ClientMonitor: React.FC<ClientMonitorProps> = ({ stores, orders, company }
         {/* Mobile Card View */}
         <div className="md:hidden divide-y divide-stone-100">
           {paginatedData.map((item) => (
-            <div key={item.id} className="p-4 space-y-4">
-              <div className="flex justify-between items-start gap-4">
-                <div className="flex-1">
-                  <div className="font-black text-stone-900 text-base leading-tight uppercase tracking-tight">{item.namaToko}</div>
-                  <div className="text-stone-500 text-[10px] mt-1 flex items-start gap-1">
-                    <span className="material-symbols-outlined text-[14px] mt-0.5">location_on</span>
-                    <span className="flex-1">
-                      {item.alamat || '-'}
-                      {item.linkGmaps && (
-                        <a href={item.linkGmaps} target="_blank" rel="noopener noreferrer" className="text-blue-600 font-bold ml-1">
-                          MAPS
-                        </a>
-                      )}
-                    </span>
+            <div key={item.id} className="p-3 space-y-2">
+              <div className="flex justify-between items-start gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="font-black text-stone-900 text-sm leading-tight uppercase truncate">{item.namaToko}</div>
+                  <div className="text-stone-500 text-[9px] mt-0.5 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[12px]">location_on</span>
+                    <span className="truncate">{item.alamat || '-'}</span>
+                    {item.linkGmaps && (
+                      <a href={item.linkGmaps} target="_blank" rel="noopener noreferrer" className="text-blue-600 font-bold ml-1 shrink-0">
+                        MAPS
+                      </a>
+                    )}
                   </div>
                 </div>
                 <button 
                   onClick={() => item.totalPiutang > 0 && setSelectedClient(item)}
-                  className={`font-black text-xs px-3 py-2 rounded-xl transition-all whitespace-nowrap ${
+                  className={`font-black text-[10px] px-2 py-1.5 rounded-lg transition-all whitespace-nowrap shrink-0 ${
                     item.totalPiutang > 0 
                       ? 'text-red-600 bg-red-50 active:scale-95' 
                       : 'text-green-600 bg-green-50'
@@ -278,34 +276,32 @@ const ClientMonitor: React.FC<ClientMonitorProps> = ({ stores, orders, company }
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                <div className="space-y-1">
-                  <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">PIC & WhatsApp</p>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-stone-800">{item.namaPIC || '-'}</span>
-                    {item.nomorPIC && item.nomorPIC !== '-' ? (
-                      <a 
-                        href={getWhatsAppLink(item.nomorPIC) || '#'} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-[10px] font-bold text-emerald-600 flex items-center gap-1 mt-0.5"
-                      >
-                        <img 
-                          src="https://lh3.googleusercontent.com/d/1c4UQAJIWS0-U2newQ6D8n-m0pd1f1vGJ" 
-                          alt="WA" 
-                          className="w-3 h-3 object-contain" 
-                          referrerPolicy="no-referrer"
-                        />
-                        {item.nomorPIC}
-                      </a>
-                    ) : (
-                      <span className="text-[10px] text-stone-500">{item.nomorPIC || '-'}</span>
-                    )}
+              <div className="flex items-center justify-between pt-1">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1">
+                    <span className="material-symbols-outlined text-stone-400 text-sm">person</span>
+                    <span className="text-[10px] font-bold text-stone-700 truncate max-w-[80px]">{item.namaPIC || '-'}</span>
                   </div>
+                  {item.nomorPIC && item.nomorPIC !== '-' && (
+                    <a 
+                      href={getWhatsAppLink(item.nomorPIC) || '#'} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1"
+                    >
+                      <img 
+                        src="https://lh3.googleusercontent.com/d/1c4UQAJIWS0-U2newQ6D8n-m0pd1f1vGJ" 
+                        alt="WA" 
+                        className="w-3 h-3 object-contain" 
+                        referrerPolicy="no-referrer"
+                      />
+                      <span className="text-[10px] font-bold text-emerald-600">{item.nomorPIC}</span>
+                    </a>
+                  )}
                 </div>
-                <div className="space-y-1 text-right">
-                  <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Last Delivery</p>
-                  <p className="text-xs font-bold text-stone-800">{item.lastDelivery}</p>
+                <div className="flex items-center gap-1 text-stone-500">
+                  <span className="material-symbols-outlined text-sm">schedule</span>
+                  <span className="text-[10px] font-bold">{item.lastDelivery}</span>
                 </div>
               </div>
             </div>

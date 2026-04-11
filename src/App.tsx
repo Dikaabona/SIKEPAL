@@ -304,19 +304,19 @@ export default function App() {
         if (storeData) setStores(storeData);
 
         // Orders
-        const { data: orderData, error: orderError } = await supabase.from('orders').select('*');
+        const { data: orderData, error: orderError } = await supabase.from('orders').select('*').limit(10000);
         if (orderError) throw orderError;
         if (orderData) setOrders(orderData);
 
         // Deliveries
-        const { data: deliveryData, error: deliveryError } = await supabase.from('deliveries').select('*').order('createdAt', { ascending: false });
+        const { data: deliveryData, error: deliveryError } = await supabase.from('deliveries').select('*').order('createdAt', { ascending: false }).limit(10000);
         if (deliveryError) throw deliveryError;
         if (deliveryData) {
           setDeliveries(deliveryData);
         }
 
         // Billing Reports
-        const { data: billingData, error: billingError } = await supabase.from('billing_reports').select('*').order('createdAt', { ascending: false });
+        const { data: billingData, error: billingError } = await supabase.from('billing_reports').select('*').order('createdAt', { ascending: false }).limit(10000);
         if (billingError) {
           // If table doesn't exist yet, we'll just set an empty array
           console.warn('Billing reports table might not exist yet:', billingError.message);

@@ -296,7 +296,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
         sisa: Number(formData.sisa) || 0,
         hargaSikepal: Number(formData.hargaSikepal) || 0,
         metodePembayaran: formData.metodePembayaran || undefined,
-        buktiTransfer: formData.buktiTransfer || undefined,
+        buktiTransfer: formData.buktiTransfer || null,
         waste: wastePercent,
         tanggalPiutang: formData.tanggalPiutang || undefined,
         company,
@@ -444,13 +444,19 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                 )}
                 <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">NAMA KURIR</th>
                 <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">TANGGAL</th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">NAMA LOKASI</th>
+                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest min-w-[200px]">NAMA LOKASI</th>
                 {title === "Billing Report" && (
                   <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">TANGGAL PIUTANG</th>
                 )}
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">
+                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest min-w-[280px]">
                   {title === "Billing Report" ? "BUKTI PENAGIHAN" : "BUKTI PENGIRIMAN"}
                 </th>
+                {title === "Billing Report" && (
+                  <>
+                    <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">METODE</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">BUKTI TRANSFER</th>
+                  </>
+                )}
                 <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">
                   {title === "Billing Report" ? "NILAI" : "QTY"}
                 </th>
@@ -487,38 +493,29 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                     <td className="px-6 py-4">
                       <div className="text-stone-600 text-sm">{formatDate(delivery.tanggal)}</div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-stone-900 text-sm">{delivery.namaLokasi}</div>
+                    <td className="px-6 py-4 min-w-[200px]">
+                      <div className="font-medium text-stone-900 text-sm whitespace-nowrap">{delivery.namaLokasi}</div>
                     </td>
                     {title === "Billing Report" && (
                       <td className="px-6 py-4">
                         <div className="text-stone-600 text-sm">{delivery.tanggalPiutang ? formatDate(delivery.tanggalPiutang) : '-'}</div>
                       </td>
                     )}
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
+                    <td className="px-6 py-4 min-w-[280px]">
+                      <div className="flex items-center gap-4">
                         <div className="flex -space-x-2">
                           {delivery.fotoBukti ? (
                             <img 
                               src={delivery.fotoBukti} 
                               alt="Bukti" 
-                              className="w-10 h-10 rounded-lg object-cover border-2 border-white shadow-sm cursor-zoom-in hover:scale-110 transition-transform relative z-10"
+                              className="w-24 h-24 rounded-xl object-cover border-2 border-white shadow-md cursor-zoom-in hover:scale-105 transition-transform relative z-10"
                               referrerPolicy="no-referrer"
                               onClick={() => setPreviewImage(delivery.fotoBukti)}
                             />
                           ) : (
-                            <div className="w-10 h-10 rounded-lg bg-stone-50 flex items-center justify-center text-stone-300 border-2 border-white shadow-sm">
-                              <span className="material-symbols-outlined text-sm">image</span>
+                            <div className="w-24 h-24 rounded-xl bg-stone-50 flex items-center justify-center text-stone-300 border-2 border-white shadow-sm">
+                              <span className="material-symbols-outlined text-xl">image</span>
                             </div>
-                          )}
-                          {delivery.buktiTransfer && (
-                            <img 
-                              src={delivery.buktiTransfer} 
-                              alt="Transfer" 
-                              className="w-10 h-10 rounded-lg object-cover border-2 border-white shadow-sm cursor-zoom-in hover:scale-110 transition-transform relative z-20"
-                              referrerPolicy="no-referrer"
-                              onClick={() => setPreviewImage(delivery.buktiTransfer)}
-                            />
                           )}
                         </div>
                         <div className="text-[10px] leading-tight">
@@ -533,6 +530,34 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                         </div>
                       </div>
                     </td>
+                    {title === "Billing Report" && (
+                      <>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                            delivery.metodePembayaran === 'Transfer' 
+                              ? 'bg-blue-50 text-blue-600 border border-blue-100' 
+                              : 'bg-stone-50 text-stone-600 border border-stone-100'
+                          }`}>
+                            {delivery.metodePembayaran || 'Cash'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          {delivery.buktiTransfer ? (
+                            <img 
+                              src={delivery.buktiTransfer} 
+                              alt="Transfer" 
+                              className="w-24 h-24 rounded-xl object-cover border-2 border-white shadow-md cursor-zoom-in hover:scale-105 transition-transform relative z-20"
+                              referrerPolicy="no-referrer"
+                              onClick={() => setPreviewImage(delivery.buktiTransfer)}
+                            />
+                          ) : (
+                            <div className="w-24 h-24 rounded-xl bg-stone-50 flex items-center justify-center text-stone-300 border-2 border-white shadow-sm" title="Bukan Transfer / Belum Upload">
+                              <span className="material-symbols-outlined text-xl">payments</span>
+                            </div>
+                          )}
+                        </td>
+                      </>
+                    )}
                     <td className="px-6 py-4 text-center">
                       <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-lg bg-stone-100 text-stone-900 text-xs font-black whitespace-nowrap">
                         {title === "Billing Report" 
@@ -619,128 +644,148 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
         <div className="md:hidden divide-y divide-stone-50">
           {paginatedDeliveries.length > 0 ? (
             paginatedDeliveries.map((delivery) => (
-              <div key={delivery.id} className={`p-4 space-y-4 transition-colors ${selectedIds.includes(delivery.id) ? 'bg-stone-50' : ''}`}>
-                <div className="flex items-start justify-between gap-4">
+              <div key={delivery.id} className={`p-5 space-y-4 transition-colors ${selectedIds.includes(delivery.id) ? 'bg-stone-50' : ''}`}>
+                {/* Header: Images & Actions */}
+                <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     {title === "Billing Report" && (
                       <input 
                         type="checkbox" 
-                        className="w-4 h-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900 cursor-pointer"
+                        className="w-5 h-5 rounded border-stone-300 text-stone-900 focus:ring-stone-900 cursor-pointer"
                         checked={selectedIds.includes(delivery.id)}
                         onChange={() => handleSelectOne(delivery.id)}
                       />
                     )}
-                    <div className="flex -space-x-3">
+                    <div className="flex gap-2">
                       {delivery.fotoBukti ? (
                         <img 
                           src={delivery.fotoBukti} 
                           alt="Bukti" 
-                          className="w-12 h-12 rounded-xl object-cover border-2 border-white shadow-sm relative z-10"
+                          className="w-14 h-14 rounded-2xl object-cover border-2 border-white shadow-md"
                           referrerPolicy="no-referrer"
                           onClick={() => setPreviewImage(delivery.fotoBukti)}
                         />
                       ) : (
-                        <div className="w-12 h-12 rounded-xl bg-stone-50 flex items-center justify-center text-stone-300 border-2 border-white shadow-sm">
-                          <span className="material-symbols-outlined">image</span>
+                        <div className="w-14 h-14 rounded-2xl bg-stone-50 flex items-center justify-center text-stone-300 border-2 border-white shadow-sm">
+                          <span className="material-symbols-outlined text-xl">image</span>
                         </div>
                       )}
                       {delivery.buktiTransfer && (
                         <img 
                           src={delivery.buktiTransfer} 
                           alt="Transfer" 
-                          className="w-12 h-12 rounded-xl object-cover border-2 border-white shadow-sm relative z-20"
+                          className="w-14 h-14 rounded-2xl object-cover border-2 border-white shadow-md"
                           referrerPolicy="no-referrer"
                           onClick={() => setPreviewImage(delivery.buktiTransfer)}
                         />
                       )}
                     </div>
-                    <div>
-                      <div className="font-bold text-stone-900 text-sm">{delivery.namaKurir}</div>
-                      <div className="text-stone-500 text-[10px]">{formatDate(delivery.tanggal)}</div>
-                    </div>
                   </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <span className="px-2 py-1 rounded-lg bg-stone-100 text-stone-900 text-[10px] font-black whitespace-nowrap">
+
+                  {(userRole === 'owner' || userRole === 'admin') && (
+                    <div className="flex items-center gap-2">
+                      {title === "Billing Report" && delivery.status !== 'Completed' && (
+                        <button
+                          onClick={() => onSaveDelivery({ ...delivery, status: 'Completed' })}
+                          className="w-9 h-9 rounded-xl bg-green-50 text-green-600 flex items-center justify-center shadow-sm border border-green-100 active:scale-90 transition-transform"
+                          title="Approve"
+                        >
+                          <span className="material-symbols-outlined text-lg">check_circle</span>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleEdit(delivery)}
+                        className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-sm border border-blue-100 active:scale-90 transition-transform"
+                      >
+                        <span className="material-symbols-outlined text-lg">edit</span>
+                      </button>
+                      <button
+                        onClick={() => onDeleteDelivery(delivery.id)}
+                        className="w-9 h-9 rounded-xl bg-red-50 text-red-600 flex items-center justify-center shadow-sm border border-red-100 active:scale-90 transition-transform"
+                      >
+                        <span className="material-symbols-outlined text-lg">delete</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Main Info: Courier & Badges */}
+                <div className="space-y-3">
+                  <div>
+                    <div className="font-black text-stone-900 text-base uppercase tracking-tight">{delivery.namaKurir}</div>
+                    <div className="text-stone-400 text-[10px] font-bold uppercase tracking-widest">{formatDate(delivery.tanggal)}</div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <span className="px-2.5 py-1 rounded-lg bg-stone-900 text-white text-[10px] font-black whitespace-nowrap shadow-sm">
                       {title === "Billing Report" 
-                        ? `Nilai: Rp ${delivery.qtyPengiriman.toLocaleString('id-ID')}` 
-                        : `Qty: ${delivery.qtyPengiriman}`}
+                        ? `Rp ${delivery.qtyPengiriman.toLocaleString('id-ID')}` 
+                        : `QTY: ${delivery.qtyPengiriman}`}
                     </span>
-                    {title === "Billing Report" && delivery.sisa !== undefined && (
-                      <div className="flex flex-col items-end gap-1">
-                        <div className="flex gap-1">
-                          <span className="px-2 py-1 rounded-lg bg-orange-50 text-orange-600 text-[10px] font-black whitespace-nowrap">
-                            Sisa: {delivery.sisa}
-                          </span>
-                          <span className="px-2 py-1 rounded-lg bg-red-50 text-red-600 text-[10px] font-black whitespace-nowrap">
-                            Waste: {delivery.waste ? `${delivery.waste.toFixed(0)}%` : '0%'}
-                          </span>
-                        </div>
-                        <span className={`px-2 py-1 rounded-lg text-[10px] font-black whitespace-nowrap uppercase ${
-                          delivery.status === 'Completed' 
-                            ? 'bg-green-50 text-green-600' 
-                            : 'bg-orange-50 text-orange-600'
-                        }`}>
-                          {delivery.status === 'Completed' ? 'Approved' : 'Pending'}
+                    {title === "Billing Report" && (
+                      <>
+                        <span className="px-2.5 py-1 rounded-lg bg-orange-50 text-orange-600 border border-orange-100 text-[10px] font-black whitespace-nowrap">
+                          SISA: {delivery.sisa || 0}
                         </span>
-                      </div>
-                    )}
-                    {title === "Billing Report" && delivery.metodePembayaran && (
-                      <span className="px-2 py-1 rounded-lg bg-blue-50 text-blue-600 text-[10px] font-black whitespace-nowrap uppercase">
-                        {delivery.metodePembayaran}
-                      </span>
-                    )}
-                    {(userRole === 'owner' || userRole === 'admin') && (
-                      <div className="flex items-center gap-1">
-                        {title === "Billing Report" && delivery.status !== 'Completed' && (
-                          <button
-                            onClick={() => onSaveDelivery({ ...delivery, status: 'Completed' })}
-                            className="w-7 h-7 rounded-lg bg-green-50 text-green-600 flex items-center justify-center"
-                            title="Approve"
-                          >
-                            <span className="material-symbols-outlined text-xs">check_circle</span>
-                          </button>
+                        <span className="px-2.5 py-1 rounded-lg bg-red-50 text-red-600 border border-red-100 text-[10px] font-black whitespace-nowrap">
+                          WASTE: {delivery.waste ? `${delivery.waste.toFixed(0)}%` : '0%'}
+                        </span>
+                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black whitespace-nowrap uppercase border ${
+                          delivery.status === 'Completed' 
+                            ? 'bg-green-50 text-green-600 border-green-100' 
+                            : 'bg-orange-50 text-orange-600 border-orange-100'
+                        }`}>
+                          {delivery.status === 'Completed' ? 'APPROVED' : 'PENDING'}
+                        </span>
+                        {delivery.metodePembayaran && (
+                          <span className="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 text-[10px] font-black whitespace-nowrap uppercase">
+                            {delivery.metodePembayaran}
+                          </span>
                         )}
-                        <button
-                          onClick={() => handleEdit(delivery)}
-                          className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center"
-                        >
-                          <span className="material-symbols-outlined text-xs">edit</span>
-                        </button>
-                        <button
-                          onClick={() => onDeleteDelivery(delivery.id)}
-                          className="w-7 h-7 rounded-lg bg-red-50 text-red-600 flex items-center justify-center"
-                        >
-                          <span className="material-symbols-outlined text-xs">delete</span>
-                        </button>
-                      </div>
+                      </>
                     )}
                   </div>
                 </div>
                 
-                <div className="bg-stone-50/50 rounded-2xl p-3 space-y-2">
-                  <div className="flex items-center gap-2 text-stone-600">
-                    <span className="material-symbols-outlined text-sm text-stone-400">store</span>
-                    <span className="text-xs font-medium">{delivery.namaLokasi}</span>
+                {/* Details Section */}
+                <div className="bg-stone-50 rounded-2xl p-4 space-y-3 border border-stone-100/50">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-stone-400 shadow-sm flex-shrink-0">
+                      <span className="material-symbols-outlined text-lg">store</span>
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-black text-stone-400 uppercase tracking-widest">Lokasi Toko</div>
+                      <div className="text-xs font-bold text-stone-900">{delivery.namaLokasi}</div>
+                    </div>
                   </div>
+
                   {title === "Billing Report" && delivery.tanggalPiutang && (
-                    <div className="flex items-center gap-2 text-stone-600">
-                      <span className="material-symbols-outlined text-sm text-stone-400">calendar_month</span>
-                      <span className="text-xs font-medium">Piutang: {formatDate(delivery.tanggalPiutang)}</span>
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-stone-400 shadow-sm flex-shrink-0">
+                        <span className="material-symbols-outlined text-lg">calendar_month</span>
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-black text-stone-400 uppercase tracking-widest">Tanggal Piutang</div>
+                        <div className="text-xs font-bold text-stone-900">{formatDate(delivery.tanggalPiutang)}</div>
+                      </div>
                     </div>
                   )}
-                  <div className="flex items-center gap-4 text-[10px] text-stone-400">
-                    <div className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[10px]">location_on</span>
-                      {delivery.lokasiBukti || '-'}
+
+                  <div className="flex items-center gap-6 pt-1">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-stone-400 text-base">location_on</span>
+                      <span className="text-[10px] font-bold text-stone-500">{delivery.lokasiBukti || '-'}</span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[10px]">schedule</span>
-                      {delivery.jamBukti || '-'}
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-stone-400 text-base">schedule</span>
+                      <span className="text-[10px] font-bold text-stone-500">{delivery.jamBukti || '-'}</span>
                     </div>
                   </div>
+
                   {delivery.keterangan && (
-                    <div className="pt-1 border-t border-stone-100">
-                      <p className="text-[10px] text-stone-500 italic">"{delivery.keterangan}"</p>
+                    <div className="pt-3 border-t border-stone-200/50">
+                      <div className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">Keterangan</div>
+                      <p className="text-xs text-stone-600 font-medium italic leading-relaxed">"{delivery.keterangan}"</p>
                     </div>
                   )}
                 </div>
