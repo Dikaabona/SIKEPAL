@@ -32,6 +32,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
+  const [selectedOrderForModal, setSelectedOrderForModal] = useState<Order | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -669,41 +670,38 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
               </div>
             </div>
             
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              <div className="bg-pink-50 p-2.5 rounded-2xl border border-pink-100">
-                <span className="text-[8px] font-black text-pink-500 uppercase block mb-0.5">Tuna Pedes</span>
-                <span className="text-base font-black text-pink-700">{summary.tunaPedes}</span>
+            <div className="grid grid-cols-4 gap-1.5">
+              <div className="bg-pink-50 p-2 rounded-xl border border-pink-100">
+                <span className="text-[7px] font-black text-pink-500 uppercase block mb-0.5 truncate">Tuna Pedes</span>
+                <span className="text-sm font-black text-pink-700">{summary.tunaPedes}</span>
               </div>
-              <div className="bg-blue-50 p-2.5 rounded-2xl border border-blue-100">
-                <span className="text-[8px] font-black text-blue-500 uppercase block mb-0.5">Tuna Mayo</span>
-                <span className="text-base font-black text-blue-700">{summary.tunaMayo}</span>
+              <div className="bg-blue-50 p-2 rounded-xl border border-blue-100">
+                <span className="text-[7px] font-black text-blue-500 uppercase block mb-0.5 truncate">Tuna Mayo</span>
+                <span className="text-sm font-black text-blue-700">{summary.tunaMayo}</span>
               </div>
-              <div className="bg-yellow-50 p-2.5 rounded-2xl border border-yellow-100">
-                <span className="text-[8px] font-black text-yellow-600 uppercase block mb-0.5">Ayam Mayo</span>
-                <span className="text-base font-black text-yellow-700">{summary.ayamMayo}</span>
+              <div className="bg-yellow-50 p-2 rounded-xl border border-yellow-100">
+                <span className="text-[7px] font-black text-yellow-600 uppercase block mb-0.5 truncate">Ayam Mayo</span>
+                <span className="text-sm font-black text-yellow-700">{summary.ayamMayo}</span>
               </div>
-              <div className="bg-red-50 p-2.5 rounded-2xl border border-red-100">
-                <span className="text-[8px] font-black text-red-500 uppercase block mb-0.5">Ayam Pedes</span>
-                <span className="text-base font-black text-red-700">{summary.ayamPedes}</span>
+              <div className="bg-red-50 p-2 rounded-xl border border-red-100">
+                <span className="text-[7px] font-black text-red-500 uppercase block mb-0.5 truncate">Ayam Pedes</span>
+                <span className="text-sm font-black text-red-700">{summary.ayamPedes}</span>
               </div>
-              <div className="bg-green-50 p-2.5 rounded-2xl border border-green-100">
-                <span className="text-[8px] font-black text-green-600 uppercase block mb-0.5">Menu Bln</span>
-                <span className="text-base font-black text-green-700">{summary.menuBulanan}</span>
+              <div className="bg-green-50 p-2 rounded-xl border border-green-100">
+                <span className="text-[7px] font-black text-green-600 uppercase block mb-0.5 truncate">Menu Bln</span>
+                <span className="text-sm font-black text-green-700">{summary.menuBulanan}</span>
               </div>
-              <div className="bg-stone-100 p-2.5 rounded-2xl border border-stone-200">
-                <span className="text-[8px] font-black text-stone-500 uppercase block mb-0.5">Total Kirim</span>
-                <span className="text-base font-black text-stone-800">{summary.jumlahKirim}</span>
+              <div className="bg-stone-100 p-2 rounded-xl border border-stone-200">
+                <span className="text-[7px] font-black text-stone-500 uppercase block mb-0.5 truncate">Total Kirim</span>
+                <span className="text-sm font-black text-stone-800">{summary.jumlahKirim}</span>
               </div>
-            </div>
-            
-            <div className="flex gap-2">
-              <div className="flex-1 bg-stone-50 p-3 rounded-2xl border border-stone-100 flex justify-between items-center">
-                <span className="text-[10px] font-black text-stone-400 uppercase">Sisa</span>
+              <div className="bg-stone-50 p-2 rounded-xl border border-stone-100">
+                <span className="text-[7px] font-black text-stone-500 uppercase block mb-0.5 truncate">Sisa</span>
                 <span className="text-sm font-black text-stone-800">{summary.sisa}</span>
               </div>
-              <div className="flex-1 bg-stone-50 p-3 rounded-2xl border border-stone-100 flex justify-between items-center">
-                <span className="text-[10px] font-black text-stone-400 uppercase">Persentase</span>
-                <span className="text-sm font-black text-stone-800">{percentageSisa.toFixed(2)}%</span>
+              <div className="bg-stone-50 p-2 rounded-xl border border-stone-100">
+                <span className="text-[7px] font-black text-stone-500 uppercase block mb-0.5 truncate">Persentase</span>
+                <span className="text-sm font-black text-stone-800">{percentageSisa.toFixed(1)}%</span>
               </div>
             </div>
           </div>
@@ -815,6 +813,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                         const store = stores.find(s => s.namaToko.toLowerCase() === order.namaLokasi.toLowerCase());
                         if (store) {
                           setSelectedStore(store);
+                          setSelectedOrderForModal(order);
                         } else {
                           alert(`Data toko "${order.namaLokasi}" tidak ditemukan di database toko.`);
                         }
@@ -868,33 +867,6 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                     <span className="text-[8px] font-black text-primary uppercase block">Total</span>
                     <span className="text-sm font-black text-primary">{order.jumlahKirim}</span>
                   </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <div className="px-3 py-1.5 bg-green-50 rounded-lg border border-green-100 flex items-center gap-2">
-                    <span className="text-[9px] font-black text-green-600 uppercase">Uang</span>
-                    <span className="text-xs font-bold text-green-700">Rp{order.jumlahUang.toLocaleString()}</span>
-                  </div>
-                  <div className="px-3 py-1.5 bg-stone-50 rounded-lg border border-stone-100 flex items-center gap-2">
-                    <span className="text-[9px] font-black text-stone-400 uppercase">Sisa</span>
-                    <span className="text-xs font-bold text-stone-600">{order.sisa}</span>
-                  </div>
-                  <div className="px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-100 flex items-center gap-2">
-                    <span className="text-[9px] font-black text-blue-600 uppercase">Bayar</span>
-                    <span className="text-xs font-bold text-blue-700">{order.pembayaran || '-'}</span>
-                  </div>
-                  {order.nilaiPembayaran !== undefined && (
-                    <div className="px-3 py-1.5 bg-indigo-50 rounded-lg border border-indigo-100 flex items-center gap-2">
-                      <span className="text-[9px] font-black text-indigo-600 uppercase">Nilai Bayar</span>
-                      <span className="text-xs font-bold text-indigo-700">Rp{order.nilaiPembayaran.toLocaleString()}</span>
-                    </div>
-                  )}
-                  {order.waste !== undefined && (
-                    <div className="px-3 py-1.5 bg-red-50 rounded-lg border border-red-100 flex items-center gap-2">
-                      <span className="text-[9px] font-black text-red-600 uppercase">Waste</span>
-                      <span className="text-xs font-bold text-red-700">{order.waste.toFixed(0)}%</span>
-                    </div>
-                  )}
                 </div>
               </div>
             ))
@@ -1348,14 +1320,17 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setSelectedStore(null)}
+              onClick={() => {
+                setSelectedStore(null);
+                setSelectedOrderForModal(null);
+              }}
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
             <motion.div 
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative bg-white rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden p-6"
+              className="relative bg-white rounded-[32px] shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6 scrollbar-hide"
             >
               <div className="flex justify-between items-start mb-6">
                 <div className="flex items-center gap-3">
@@ -1384,7 +1359,10 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                   </div>
                 </div>
                 <button 
-                  onClick={() => setSelectedStore(null)}
+                  onClick={() => {
+                    setSelectedStore(null);
+                    setSelectedOrderForModal(null);
+                  }}
                   className="w-10 h-10 rounded-full hover:bg-stone-100 flex items-center justify-center text-stone-400 transition-colors border border-stone-100 shadow-sm"
                 >
                   <span className="material-symbols-outlined">close</span>
@@ -1413,6 +1391,39 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                 {selectedStore.note && (
                   <div className="p-4 bg-stone-50/50 rounded-2xl border border-stone-100 text-xs text-stone-500 italic leading-relaxed">
                     {selectedStore.note}
+                  </div>
+                )}
+
+                {selectedOrderForModal && (
+                  <div className="p-4 bg-stone-50/50 rounded-3xl border border-stone-100 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest">Informasi Pembayaran</span>
+                      <span className="text-[10px] font-bold text-stone-400">{formatDate(selectedOrderForModal.tanggal)}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="px-3 py-2 bg-green-50 rounded-xl border border-green-100 flex flex-col">
+                        <span className="text-[8px] font-black text-green-600 uppercase">Uang</span>
+                        <span className="text-xs font-bold text-green-700">Rp{selectedOrderForModal.jumlahUang.toLocaleString()}</span>
+                      </div>
+                      <div className="px-3 py-2 bg-stone-50 rounded-xl border border-stone-100 flex flex-col">
+                        <span className="text-[8px] font-black text-stone-400 uppercase">Sisa</span>
+                        <span className="text-xs font-bold text-stone-600">{selectedOrderForModal.sisa}</span>
+                      </div>
+                      <div className="px-3 py-2 bg-blue-50 rounded-xl border border-blue-100 flex flex-col">
+                        <span className="text-[8px] font-black text-blue-600 uppercase">Bayar</span>
+                        <span className="text-xs font-bold text-blue-700">{selectedOrderForModal.pembayaran || '-'}</span>
+                      </div>
+                      <div className="px-3 py-2 bg-indigo-50 rounded-xl border border-indigo-100 flex flex-col">
+                        <span className="text-[8px] font-black text-indigo-600 uppercase">Nilai Bayar</span>
+                        <span className="text-xs font-bold text-indigo-700">Rp{(selectedOrderForModal.nilaiPembayaran || 0).toLocaleString()}</span>
+                      </div>
+                    </div>
+                    {selectedOrderForModal.waste !== undefined && (
+                      <div className="px-3 py-2 bg-red-50 rounded-xl border border-red-100 flex justify-between items-center">
+                        <span className="text-[8px] font-black text-red-600 uppercase">Waste</span>
+                        <span className="text-xs font-bold text-red-700">{selectedOrderForModal.waste.toFixed(0)}%</span>
+                      </div>
+                    )}
                   </div>
                 )}
 
