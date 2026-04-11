@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import * as XLSX from 'xlsx';
 import { Order, UserRole, Store, Employee } from '../types';
 import { getPaginationRange, parseIndoDate, formatDate, getLocalDateString } from '../lib/utils';
 
@@ -46,6 +47,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
   const [syncGid, setSyncGid] = useState('0');
   const [showSyncSettings, setShowSyncSettings] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const itemsPerPage = 10;
 
   const [lokasiSearch, setLokasiSearch] = useState('');
@@ -114,6 +116,120 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
       return (dateB?.getTime() || 0) - (dateA?.getTime() || 0);
     });
   }, [orders, searchQuery, startDate, endDate, filterKurir, filterLokasi, filterPembayaran]);
+
+  const handleDownloadTemplate = () => {
+    const templateData = [
+      {
+        'Tanggal (YYYY-MM-DD)': getLocalDateString(),
+        'Nama Kurir': '',
+        'Nama Lokasi': '',
+        'Tuna Pedes': 0,
+        'Tuna Mayo': 0,
+        'Ayam Mayo': 0,
+        'Ayam Pedes': 0,
+        'Menu Bulanan': 0,
+        'Harga Sikepal': 0,
+        'Periode Bayar': '',
+        'Jumlah Uang': 0,
+        'Pembayaran': '',
+        'Sisa': 0,
+        'Diskon': 0
+      }
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Template Order');
+    XLSX.writeFile(wb, 'template_order.xlsx');
+  };
+
+  const handleExportExcel = () => {
+    const exportData = filteredOrders.map(order => ({
+      'Tanggal': order.tanggal,
+      'Nama Kurir': order.namaKurir,
+      'Nama Lokasi': order.namaLokasi,
+      'Tuna Pedes': order.tunaPedes,
+      'Tuna Mayo': order.tunaMayo,
+      'Ayam Mayo': order.ayamMayo,
+      'Ayam Pedes': order.ayamPedes,
+      'Menu Bulanan': order.menuBulanan,
+      'Jumlah Kirim': order.jumlahKirim,
+      'Harga Sikepal': order.hargaSikepal,
+      'Jumlah Uang': order.jumlahUang,
+      'Periode Bayar': order.periodeBayar,
+      'Pembayaran': order.pembayaran,
+      'Sisa': order.sisa,
+      'Diskon': order.diskon
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Data Orderan');
+    XLSX.writeFile(wb, `data_orderan_${getLocalDateString()}.xlsx`);
+  };
+
+  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const data = new Uint8Array(event.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
+
+        const newOrders: Order[] = jsonData.map(row => {
+          const tunaPedes = Number(row['Tuna Pedes'] || 0);
+          const tunaMayo = Number(row['Tuna Mayo'] || 0);
+          const ayamMayo = Number(row['Ayam Mayo'] || 0);
+          const ayamPedes = Number(row['Ayam Pedes'] || 0);
+          const menuBulanan = Number(row['Menu Bulanan'] || 0);
+          const jumlahKirim = tunaPedes + tunaMayo + ayamMayo + ayamPedes + menuBulanan;
+
+          return {
+            id: crypto.randomUUID(),
+            tanggal: row['Tanggal (YYYY-MM-DD)'] || getLocalDateString(),
+            namaKurir: row['Nama Kurir'] || '',
+            namaLokasi: row['Nama Lokasi'] || '',
+            tunaPedes,
+            tunaMayo,
+            ayamMayo,
+            ayamPedes,
+            menuBulanan,
+            jumlahKirim,
+            hargaSikepal: Number(row['Harga Sikepal'] || 0),
+            periodeBayar: row['Periode Bayar'] || '',
+            jumlahUang: Number(row['Jumlah Uang'] || 0),
+            pembayaran: row['Pembayaran'] || '',
+            sisa: Number(row['Sisa'] || 0),
+            diskon: Number(row['Diskon'] || 0),
+            jumlahPiutang: 0,
+            tanggalBayar: '',
+            company: company,
+            updatedAt: new Date().toISOString()
+          };
+        });
+
+        if (onBulkSaveOrders) {
+          await onBulkSaveOrders(newOrders);
+          alert(`Berhasil mengimpor ${newOrders.length} data orderan.`);
+        } else {
+          for (const order of newOrders) {
+            await onSaveOrder(order);
+          }
+          alert(`Berhasil mengimpor ${newOrders.length} data orderan.`);
+        }
+      } catch (error) {
+        console.error('Error importing Excel:', error);
+        alert('Gagal mengimpor file Excel. Pastikan format sesuai template.');
+      }
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    reader.readAsArrayBuffer(file);
+  };
 
   const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -427,6 +543,38 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
         </div>
         
         <div className="flex flex-wrap items-center gap-2 md:gap-3">
+          <input 
+            type="file" 
+            ref={fileInputRef}
+            onChange={handleImportExcel}
+            accept=".xlsx, .xls"
+            className="hidden"
+          />
+          
+          <button 
+            onClick={handleDownloadTemplate}
+            className="flex items-center gap-2 px-4 py-2 bg-white text-stone-700 rounded-full font-bold text-xs md:text-sm border border-stone-200 hover:bg-stone-50 transition-all shadow-sm"
+          >
+            <span className="material-symbols-outlined text-lg">description</span>
+            <span>Template</span>
+          </button>
+
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 px-4 py-2 bg-white text-stone-700 rounded-full font-bold text-xs md:text-sm border border-stone-200 hover:bg-stone-50 transition-all shadow-sm"
+          >
+            <span className="material-symbols-outlined text-lg">upload</span>
+            <span>Import</span>
+          </button>
+
+          <button 
+            onClick={handleExportExcel}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-full font-bold text-xs md:text-sm hover:bg-primary/90 transition-all shadow-md shadow-primary/20"
+          >
+            <span className="material-symbols-outlined text-lg">download</span>
+            <span>Ekspor</span>
+          </button>
+
           {userRole === 'owner' && (
             <button 
               onClick={() => {
