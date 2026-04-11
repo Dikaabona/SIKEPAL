@@ -12,7 +12,9 @@ interface OrderDatabaseProps {
   onDeleteAllOrders: () => Promise<void>;
   company: string;
   userRole: UserRole;
-  onPrefillRequest?: (location: string, type: 'delivery' | 'billing', courier?: string) => void;
+  onPrefillRequest?: (location: string, type: 'delivery' | 'billing', courier?: string, storeId?: string) => void;
+  initialSelectedStoreId?: string;
+  onStoreOpened?: () => void;
 }
 
 const OrderDatabase: React.FC<OrderDatabaseProps> = ({ 
@@ -24,7 +26,9 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
   onDeleteAllOrders,
   company,
   userRole,
-  onPrefillRequest
+  onPrefillRequest,
+  initialSelectedStoreId,
+  onStoreOpened
 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
@@ -142,6 +146,16 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
       setLokasiSearch(newOrder.namaLokasi || '');
     }
   }, [isAdding, newOrder.namaLokasi]);
+
+  useEffect(() => {
+    if (initialSelectedStoreId) {
+      const store = stores.find(s => s.id === initialSelectedStoreId);
+      if (store) {
+        setSelectedStore(store);
+        onStoreOpened?.();
+      }
+    }
+  }, [initialSelectedStoreId, stores, onStoreOpened]);
 
   const handleSave = async () => {
     if (!newOrder.namaLokasi || !newOrder.tanggal) {
@@ -1405,7 +1419,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                 <div className="flex gap-3 mt-2">
                   <button 
                     onClick={() => {
-                      onPrefillRequest?.(selectedStore.namaToko, 'delivery', selectedStore.kurir);
+                      onPrefillRequest?.(selectedStore.namaToko, 'delivery', selectedStore.kurir, selectedStore.id);
                       setSelectedStore(null);
                     }}
                     className="flex-1 flex flex-col items-center gap-2 p-3 bg-orange-50 rounded-2xl border border-orange-100 hover:bg-orange-100 transition-all group"
@@ -1417,7 +1431,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                   </button>
                   <button 
                     onClick={() => {
-                      onPrefillRequest?.(selectedStore.namaToko, 'billing', selectedStore.kurir);
+                      onPrefillRequest?.(selectedStore.namaToko, 'billing', selectedStore.kurir, selectedStore.id);
                       setSelectedStore(null);
                     }}
                     className="flex-1 flex flex-col items-center gap-2 p-3 bg-blue-50 rounded-2xl border border-blue-100 hover:bg-blue-100 transition-all group"

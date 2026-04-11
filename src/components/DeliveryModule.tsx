@@ -18,6 +18,7 @@ interface DeliveryModuleProps {
   initialPrefillLocation?: string;
   initialPrefillCourier?: string;
   onPrefillHandled?: () => void;
+  onCancel?: () => void;
 }
 
 const DeliveryModule: React.FC<DeliveryModuleProps> = ({ 
@@ -34,7 +35,8 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   onBulkDelete,
   initialPrefillLocation,
   initialPrefillCourier,
-  onPrefillHandled
+  onPrefillHandled,
+  onCancel
 }) => {
   // Extract unique courier names from orders
   const courierOptions = useMemo(() => {
@@ -1250,7 +1252,10 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
               <div className="p-6 md:p-8 pt-4 pb-12 md:pb-8 border-t border-stone-50 flex gap-3 md:gap-4 bg-white flex-shrink-0">
                 <button
                   type="button"
-                  onClick={closeModal}
+                  onClick={() => {
+                    closeModal();
+                    onCancel?.();
+                  }}
                   className="flex-1 px-4 py-3 md:px-6 md:py-4 rounded-xl md:rounded-2xl bg-stone-100 text-stone-600 text-xs md:text-sm font-bold hover:bg-stone-200 transition-all"
                 >
                   Batal

@@ -187,6 +187,7 @@ export default function App() {
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [session, setSession] = useState<Session | null>(null);
   const [prefillData, setPrefillData] = useState<{ location: string; type: 'delivery' | 'billing'; courier?: string } | null>(null);
+  const [returnStoreId, setReturnStoreId] = useState<string | null>(null);
 
   const [isDataMissing, setIsDataMissing] = useState(false);
 
@@ -510,6 +511,10 @@ export default function App() {
       });
       
       console.log('Delivery saved successfully');
+      
+      if (returnStoreId) {
+        setActiveTab('order_database');
+      }
     } catch (error: any) {
       console.error('Error saving delivery:', error);
       alert('Gagal menyimpan delivery: ' + (error.message || 'Unknown error'));
@@ -645,6 +650,10 @@ export default function App() {
       });
       
       console.log('Billing report saved successfully');
+      
+      if (returnStoreId) {
+        setActiveTab('order_database');
+      }
     } catch (error: any) {
       console.error('Error saving billing report:', error);
       alert('Gagal menyimpan billing report: ' + (error.message || 'Unknown error'));
@@ -955,8 +964,9 @@ export default function App() {
     { id: 'settings', label: 'Settings', icon: 'settings' },
   ].filter(item => !item.hidden);
 
-  const handlePrefillRequest = (location: string, type: 'delivery' | 'billing', courier?: string) => {
+  const handlePrefillRequest = (location: string, type: 'delivery' | 'billing', courier?: string, storeId?: string) => {
     setPrefillData({ location, type, courier });
+    setReturnStoreId(storeId || null);
     setActiveTab(type === 'delivery' ? 'delivery' : 'billing_report');
   };
 
@@ -1031,6 +1041,8 @@ export default function App() {
             company={userCompany}
             userRole={userRole}
             onPrefillRequest={handlePrefillRequest}
+            initialSelectedStoreId={returnStoreId || undefined}
+            onStoreOpened={() => setReturnStoreId(null)}
           />
         );
       case 'employee_database':
@@ -1113,6 +1125,12 @@ export default function App() {
             initialPrefillLocation={prefillData?.type === 'delivery' ? prefillData.location : undefined}
             initialPrefillCourier={prefillData?.type === 'delivery' ? prefillData.courier : undefined}
             onPrefillHandled={() => setPrefillData(null)}
+            onCancel={() => {
+              if (returnStoreId) {
+                setActiveTab('home');
+                setReturnStoreId(null);
+              }
+            }}
           />
         );
       case 'schedule':
@@ -1154,6 +1172,12 @@ export default function App() {
             initialPrefillLocation={prefillData?.type === 'billing' ? prefillData.location : undefined}
             initialPrefillCourier={prefillData?.type === 'billing' ? prefillData.courier : undefined}
             onPrefillHandled={() => setPrefillData(null)}
+            onCancel={() => {
+              if (returnStoreId) {
+                setActiveTab('home');
+                setReturnStoreId(null);
+              }
+            }}
           />
         );
       case 'production':
