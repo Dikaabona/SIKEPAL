@@ -37,6 +37,25 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
   const [activeTab, setActiveTab] = useState<'maps' | 'org' | 'system' | 'account'>('maps');
   const [newDivision, setNewDivision] = useState('');
   const [newPosition, setNewPosition] = useState('');
+  const [deferredPrompt, setDeferredPrompt] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  };
 
   // Branch Location Form State
   const [branchForm, setBranchForm] = useState<Partial<BranchLocation>>({
@@ -358,6 +377,35 @@ const SettingsModule: React.FC<SettingsModuleProps> = ({
               System Settings
             </h3>
             <div className="space-y-4">
+              <div className="p-6 bg-orange-50 rounded-3xl border border-orange-100 flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-orange-200">
+                    <img 
+                      src="https://lh3.googleusercontent.com/d/1b-hkPOsHZ8_rW1f9aqABu7R5bw_ZJM0y" 
+                      alt="Logo" 
+                      className="w-10 h-10 object-contain"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                  <div>
+                    <h4 className="font-black text-orange-900">Download Aplikasi SIKEPAL</h4>
+                    <p className="text-xs text-orange-600 font-medium">Pasang aplikasi di layar utama HP atau Komputer Anda</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={handleInstallClick}
+                  disabled={!deferredPrompt}
+                  className={`px-8 py-3 rounded-2xl font-black text-sm shadow-lg transition-all flex items-center gap-2 ${
+                    deferredPrompt 
+                      ? 'bg-orange-600 text-white hover:bg-orange-700 hover:scale-105 active:scale-95' 
+                      : 'bg-stone-200 text-stone-400 cursor-not-allowed'
+                  }`}
+                >
+                  <span className="material-symbols-outlined">download</span>
+                  {deferredPrompt ? 'PASANG SEKARANG' : 'SUDAH TERPASANG'}
+                </button>
+              </div>
+
               <div className="flex items-center justify-between p-4 bg-stone-50 rounded-2xl">
                 <div>
                   <p className="font-bold text-stone-900">Enable Geolocation</p>

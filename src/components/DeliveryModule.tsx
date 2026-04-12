@@ -46,24 +46,6 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
     return Array.from(new Set(names)).sort();
   }, [orders]);
 
-  // Extract unique location names from orders and stores
-  const locationOptions = useMemo(() => {
-    const orderLocations = orders
-      .map(order => order.namaLokasi)
-      .filter((name): name is string => !!name && name.trim() !== '');
-    
-    const storeLocations = stores
-      .map(store => store.namaToko)
-      .filter((name): name is string => !!name && name.trim() !== '');
-      
-    return Array.from(new Set([...orderLocations, ...storeLocations])).sort();
-  }, [orders, stores]);
-
-  const [isCameraActive, setIsCameraActive] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-
   const [formData, setFormData] = useState({
     namaKurir: '',
     tanggal: getLocalDateString(),
@@ -79,8 +61,31 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
     buktiTransfer: '',
     keterangan: '',
     selectedOrderId: '',
-    tanggalPiutang: ''
+    tanggalPiutang: '',
+    jumlahKirim: 0
   });
+
+  // Extract unique location names from orders and stores
+  const locationOptions = useMemo(() => {
+    const selectedCourier = formData.namaKurir;
+
+    const orderLocations = orders
+      .filter(order => !selectedCourier || order.namaKurir === selectedCourier)
+      .map(order => order.namaLokasi)
+      .filter((name): name is string => !!name && name.trim() !== '');
+    
+    const storeLocations = stores
+      .filter(store => !selectedCourier || store.kurir === selectedCourier)
+      .map(store => store.namaToko)
+      .filter((name): name is string => !!name && name.trim() !== '');
+      
+    return Array.from(new Set([...orderLocations, ...storeLocations])).sort();
+  }, [orders, stores, formData.namaKurir]);
+
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   // Handle camera stream attachment when isCameraActive becomes true
   React.useEffect(() => {
@@ -186,6 +191,14 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       name.toLowerCase().includes(locationSearchQuery.toLowerCase())
     );
   }, [locationOptions, locationSearchQuery]);
+
+  const currentWastePercent = useMemo(() => {
+    const currentNilai = Number(formData.qtyPengiriman) || 0;
+    const origNilai = Number(formData.originalNilai) || 0;
+    return origNilai > 0 ? ((origNilai - currentNilai) / origNilai) * 100 : 0;
+  }, [formData.qtyPengiriman, formData.originalNilai]);
+
+  const isKeteranganRequired = title === "Billing Report" && currentWastePercent > 20;
 
   // Handle prefill from props
   React.useEffect(() => {
@@ -945,14 +958,10 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                       <input
                         required
                         type="date"
-                        readOnly={title === "Billing Report"}
+                        readOnly
                         value={formData.tanggal}
                         onChange={(e) => setFormData({...formData, tanggal: e.target.value})}
-                        className={`w-full px-4 py-3 rounded-2xl border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium ${
-                          title === "Billing Report" 
-                            ? 'bg-stone-100 text-stone-500 cursor-not-allowed' 
-                            : 'bg-stone-50 text-stone-900'
-                        }`}
+                        className="w-full px-4 py-3 rounded-2xl border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium bg-stone-100 text-stone-500 cursor-not-allowed"
                       />
                     </div>
                   </div>
@@ -1030,6 +1039,71 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                           setLocationSearchQuery('');
                         }}
                       />
+                    )}
+                  </div>
+                )}
+
+                {title === "Billing Report" && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Piutang</label>
+                    <button
+                      type="button"
+                      onClick={() => setIsPiutangModalOpen(true)}
+                      className={`w-full px-4 py-3 rounded-2xl border-2 transition-all text-sm font-bold flex items-center justify-between ${
+                        formData.selectedOrderId 
+                          ? 'bg-orange-50 border-orange-200 text-orange-700' 
+                          : 'bg-stone-50 border-transparent hover:bg-stone-100 text-stone-600'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-base">
+                          {formData.selectedOrderId ? 'check_circle' : 'receipt_long'}
+                        </span>
+                        <span>
+                          {formData.selectedOrderId 
+                            ? `${formData.namaLokasi} (Rp ${formData.qtyPengiriman.toLocaleString('id-ID')})` 
+                            : 'Pilih dari Daftar Piutang'}
+                        </span>
+                      </div>
+                      <span className="material-symbols-outlined text-stone-400">arrow_forward_ios</span>
+                    </button>
+                    {formData.selectedOrderId && (
+                      <div className="flex flex-col gap-1 px-2">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[10px] text-orange-600 font-bold italic">Terhubung dengan data orderan</p>
+                          <button 
+                            type="button"
+                            onClick={() => setFormData({
+                              ...formData, 
+                              selectedOrderId: '',
+                              qtyPengiriman: 0,
+                              originalNilai: 0,
+                              sisa: 0,
+                              hargaSikepal: 0,
+                              namaKurir: '',
+                              namaLokasi: '',
+                              jumlahKirim: 0
+                            })}
+                            className="text-[10px] text-red-500 font-black uppercase hover:underline"
+                          >
+                            Batalkan
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-stone-500 font-bold uppercase tracking-wider">
+                          <div className="flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[12px]">location_on</span>
+                            {formData.namaLokasi}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[12px]">inventory_2</span>
+                            Qty: {formData.jumlahKirim}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[12px]">payments</span>
+                            Nilai: Rp {formData.qtyPengiriman.toLocaleString('id-ID')}
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}
@@ -1116,50 +1190,6 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                         <option value="Transfer">Transfer</option>
                       </select>
                     </div>
-                  </div>
-                )}
-
-                {title === "Billing Report" && (
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Piutang</label>
-                    <button
-                      type="button"
-                      onClick={() => setIsPiutangModalOpen(true)}
-                      className={`w-full px-4 py-3 rounded-2xl border-2 transition-all text-sm font-bold flex items-center justify-between ${
-                        formData.selectedOrderId 
-                          ? 'bg-orange-50 border-orange-200 text-orange-700' 
-                          : 'bg-stone-50 border-transparent hover:bg-stone-100 text-stone-600'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-base">
-                          {formData.selectedOrderId ? 'check_circle' : 'receipt_long'}
-                        </span>
-                        <span>{formData.selectedOrderId ? 'Order Terpilih' : 'Pilih dari Daftar Piutang'}</span>
-                      </div>
-                      <span className="material-symbols-outlined text-stone-400">arrow_forward_ios</span>
-                    </button>
-                    {formData.selectedOrderId && (
-                      <div className="flex items-center justify-between px-2">
-                        <p className="text-[10px] text-orange-600 font-bold italic">Terhubung dengan data orderan</p>
-                        <button 
-                          type="button"
-                          onClick={() => setFormData({
-                            ...formData, 
-                            selectedOrderId: '',
-                            qtyPengiriman: 0,
-                            originalNilai: 0,
-                            sisa: 0,
-                            hargaSikepal: 0,
-                            namaKurir: '',
-                            namaLokasi: ''
-                          })}
-                          className="text-[10px] text-red-500 font-black uppercase hover:underline"
-                        >
-                          Batalkan
-                        </button>
-                      </div>
-                    )}
                   </div>
                 )}
 
@@ -1284,12 +1314,16 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Keterangan</label>
+                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">
+                    Keterangan {isKeteranganRequired && <span className="text-red-500">* (Wajib jika waste &gt; 20%)</span>}
+                  </label>
                   <textarea
                     value={formData.keterangan}
                     onChange={(e) => setFormData({...formData, keterangan: e.target.value})}
-                    placeholder="Catatan tambahan..."
-                    className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium h-24 resize-none"
+                    placeholder={isKeteranganRequired ? "Wajib diisi karena waste > 20%..." : "Catatan tambahan..."}
+                    className={`w-full px-4 py-3 rounded-2xl border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium h-24 resize-none ${
+                      isKeteranganRequired && !formData.keterangan.trim() ? 'bg-red-50 ring-1 ring-red-200' : 'bg-stone-50'
+                    }`}
                   />
                 </div>
               </div>
@@ -1307,9 +1341,9 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={!formData.fotoBukti || (formData.metodePembayaran === 'Transfer' && !formData.buktiTransfer) || isSaving}
+                  disabled={!formData.fotoBukti || (formData.metodePembayaran === 'Transfer' && !formData.buktiTransfer) || (isKeteranganRequired && !formData.keterangan.trim()) || isSaving}
                   className={`flex-1 px-4 py-3 md:px-6 md:py-4 rounded-xl md:rounded-2xl text-white text-xs md:text-sm font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${
-                    formData.fotoBukti && (formData.metodePembayaran !== 'Transfer' || formData.buktiTransfer) && !isSaving
+                    formData.fotoBukti && (formData.metodePembayaran !== 'Transfer' || formData.buktiTransfer) && (!isKeteranganRequired || formData.keterangan.trim()) && !isSaving
                       ? 'bg-stone-900 hover:bg-stone-800 shadow-stone-900/20' 
                       : 'bg-stone-300 cursor-not-allowed'
                   }`}
@@ -1407,7 +1441,8 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                                 hargaSikepal: order.hargaSikepal || 0,
                                 sisa: 0,
                                 selectedOrderId: order.id,
-                                tanggalPiutang: order.tanggal
+                                tanggalPiutang: order.tanggal,
+                                jumlahKirim: order.jumlahKirim
                               });
                               setIsPiutangModalOpen(false);
                             }}
@@ -1417,7 +1452,10 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                               <div>{order.namaLokasi}</div>
                               <div className="text-[10px] text-stone-400 font-medium">{order.namaKurir}</div>
                             </td>
-                            <td className="px-4 py-3 text-xs font-black text-stone-900">Rp {order.jumlahUang.toLocaleString('id-ID')}</td>
+                            <td className="px-4 py-3 text-xs font-black text-stone-900">
+                              <div>Rp {order.jumlahUang.toLocaleString('id-ID')}</div>
+                              <div className="text-[10px] text-stone-400 font-medium">Qty: {order.jumlahKirim}</div>
+                            </td>
                             <td className="px-4 py-3">
                               <span className="px-2 py-1 rounded-lg bg-red-50 text-red-600 text-[10px] font-black uppercase">
                                 {order.pembayaran}
@@ -1462,7 +1500,8 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                             hargaSikepal: order.hargaSikepal || 0,
                             sisa: 0,
                             selectedOrderId: order.id,
-                            tanggalPiutang: order.tanggal
+                            tanggalPiutang: order.tanggal,
+                            jumlahKirim: order.jumlahKirim
                           });
                           setIsPiutangModalOpen(false);
                         }}
@@ -1485,8 +1524,13 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                           <div className="text-[10px] text-stone-500 font-bold uppercase tracking-wide mt-0.5">{order.namaKurir}</div>
                         </div>
                         <div className="flex justify-between items-center">
-                          <div className="text-sm font-black text-orange-600">
-                            Rp {order.jumlahUang.toLocaleString('id-ID')}
+                          <div className="flex flex-col">
+                            <div className="text-sm font-black text-orange-600">
+                              Rp {order.jumlahUang.toLocaleString('id-ID')}
+                            </div>
+                            <div className="text-[10px] font-bold text-stone-400">
+                              Qty: {order.jumlahKirim}
+                            </div>
                           </div>
                           <div className="text-[10px] font-black text-stone-400 uppercase flex items-center gap-1">
                             Pilih <span className="material-symbols-outlined text-xs">chevron_right</span>

@@ -92,6 +92,15 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
     return Array.from(options).sort();
   }, [orders]);
 
+  const piutangData = useMemo(() => {
+    if (!selectedStore) return { qty: 0, rp: 0 };
+    const unpaidOrders = orders.filter(o => o.namaLokasi === selectedStore.namaToko && o.pembayaran === 'FALSE');
+    return {
+      qty: unpaidOrders.length,
+      rp: unpaidOrders.reduce((sum, o) => sum + (o.jumlahUang || 0), 0)
+    };
+  }, [selectedStore, orders]);
+
   const filteredOrders = useMemo(() => {
     return orders.filter(order => {
       const matchesSearch = 
@@ -989,28 +998,28 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                     </button>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="bg-stone-50 p-2 rounded-xl border border-stone-100">
+                <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
+                  <div className="bg-stone-50 p-2 rounded-xl border border-stone-100 min-w-[80px] flex-shrink-0">
                     <span className="text-[8px] font-black text-stone-400 uppercase block">Tuna Pds</span>
                     <span className="text-sm font-bold text-stone-800">{order.tunaPedes}</span>
                   </div>
-                  <div className="bg-stone-50 p-2 rounded-xl border border-stone-100">
+                  <div className="bg-stone-50 p-2 rounded-xl border border-stone-100 min-w-[80px] flex-shrink-0">
                     <span className="text-[8px] font-black text-stone-400 uppercase block">Tuna Myo</span>
                     <span className="text-sm font-bold text-stone-800">{order.tunaMayo}</span>
                   </div>
-                  <div className="bg-stone-50 p-2 rounded-xl border border-stone-100">
+                  <div className="bg-stone-50 p-2 rounded-xl border border-stone-100 min-w-[80px] flex-shrink-0">
                     <span className="text-[8px] font-black text-stone-400 uppercase block">Ayam Myo</span>
                     <span className="text-sm font-bold text-stone-800">{order.ayamMayo}</span>
                   </div>
-                  <div className="bg-stone-50 p-2 rounded-xl border border-stone-100">
+                  <div className="bg-stone-50 p-2 rounded-xl border border-stone-100 min-w-[80px] flex-shrink-0">
                     <span className="text-[8px] font-black text-stone-400 uppercase block">Ayam Pds</span>
                     <span className="text-sm font-bold text-stone-800">{order.ayamPedes}</span>
                   </div>
-                  <div className="bg-stone-50 p-2 rounded-xl border border-stone-100">
+                  <div className="bg-stone-50 p-2 rounded-xl border border-stone-100 min-w-[80px] flex-shrink-0">
                     <span className="text-[8px] font-black text-stone-400 uppercase block">Menu Bln</span>
                     <span className="text-sm font-bold text-stone-800">{order.menuBulanan}</span>
                   </div>
-                  <div className="bg-primary/5 p-2 rounded-xl border border-primary/10">
+                  <div className="bg-primary/5 p-2 rounded-xl border border-primary/10 min-w-[80px] flex-shrink-0">
                     <span className="text-[8px] font-black text-primary uppercase block">Total</span>
                     <span className="text-sm font-black text-primary">{order.jumlahKirim}</span>
                   </div>
@@ -1541,36 +1550,22 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                   </div>
                 )}
 
-                {selectedOrderForModal && (
-                  <div className="p-4 bg-stone-50/50 rounded-3xl border border-stone-100 space-y-3">
+                {selectedStore && (
+                  <div className="p-4 bg-orange-50/50 rounded-3xl border border-orange-100 space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest">Informasi Pembayaran</span>
-                      <span className="text-[10px] font-bold text-stone-400">{formatDate(selectedOrderForModal.tanggal)}</span>
+                      <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Piutang</span>
+                      <span className="text-[10px] font-bold text-orange-400">{getLocalDateString()}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                      <div className="px-3 py-2 bg-green-50 rounded-xl border border-green-100 flex flex-col">
-                        <span className="text-[8px] font-black text-green-600 uppercase">Uang</span>
-                        <span className="text-xs font-bold text-green-700">Rp{selectedOrderForModal.jumlahUang.toLocaleString()}</span>
+                      <div className="px-3 py-2 bg-white rounded-xl border border-orange-100 flex flex-col">
+                        <span className="text-[8px] font-black text-orange-400 uppercase">Total Piutang (QTY)</span>
+                        <span className="text-xs font-bold text-orange-700">{piutangData.qty}</span>
                       </div>
-                      <div className="px-3 py-2 bg-stone-50 rounded-xl border border-stone-100 flex flex-col">
-                        <span className="text-[8px] font-black text-stone-400 uppercase">Sisa</span>
-                        <span className="text-xs font-bold text-stone-600">{selectedOrderForModal.sisa}</span>
-                      </div>
-                      <div className="px-3 py-2 bg-blue-50 rounded-xl border border-blue-100 flex flex-col">
-                        <span className="text-[8px] font-black text-blue-600 uppercase">Bayar</span>
-                        <span className="text-xs font-bold text-blue-700">{selectedOrderForModal.pembayaran || '-'}</span>
-                      </div>
-                      <div className="px-3 py-2 bg-indigo-50 rounded-xl border border-indigo-100 flex flex-col">
-                        <span className="text-[8px] font-black text-indigo-600 uppercase">Nilai Bayar</span>
-                        <span className="text-xs font-bold text-indigo-700">Rp{(selectedOrderForModal.nilaiPembayaran || 0).toLocaleString()}</span>
+                      <div className="px-3 py-2 bg-white rounded-xl border border-orange-100 flex flex-col">
+                        <span className="text-[8px] font-black text-orange-400 uppercase">Jumlah Piutang (Rp)</span>
+                        <span className="text-xs font-bold text-orange-700">Rp{piutangData.rp.toLocaleString()}</span>
                       </div>
                     </div>
-                    {selectedOrderForModal.waste !== undefined && (
-                      <div className="px-3 py-2 bg-red-50 rounded-xl border border-red-100 flex justify-between items-center">
-                        <span className="text-[8px] font-black text-red-600 uppercase">Waste</span>
-                        <span className="text-xs font-bold text-red-700">{selectedOrderForModal.waste.toFixed(0)}%</span>
-                      </div>
-                    )}
                   </div>
                 )}
 

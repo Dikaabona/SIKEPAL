@@ -303,26 +303,50 @@ export default function App() {
         if (storeError) throw storeError;
         if (storeData) setStores(storeData);
 
+        // Helper for fetching all data with pagination
+        const fetchAllData = async (table: string, limit: number = 10000) => {
+          let allData: any[] = [];
+          let from = 0;
+          let to = 999;
+          let hasMore = true;
+
+          while (hasMore && allData.length < limit) {
+            const { data, error } = await supabase
+              .from(table)
+              .select('*')
+              .range(from, to);
+            
+            if (error) throw error;
+            if (data && data.length > 0) {
+              allData = [...allData, ...data];
+              if (data.length < 1000) {
+                hasMore = false;
+              } else {
+                from += 1000;
+                to += 1000;
+              }
+            } else {
+              hasMore = false;
+            }
+          }
+          return allData.slice(0, limit);
+        };
+
         // Orders
-        const { data: orderData, error: orderError } = await supabase.from('orders').select('*').limit(10000);
-        if (orderError) throw orderError;
-        if (orderData) setOrders(orderData);
+        const orderData = await fetchAllData('orders');
+        setOrders(orderData);
 
         // Deliveries
-        const { data: deliveryData, error: deliveryError } = await supabase.from('deliveries').select('*').order('createdAt', { ascending: false }).limit(10000);
-        if (deliveryError) throw deliveryError;
-        if (deliveryData) {
-          setDeliveries(deliveryData);
-        }
+        const deliveryData = await fetchAllData('deliveries');
+        setDeliveries(deliveryData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
 
         // Billing Reports
-        const { data: billingData, error: billingError } = await supabase.from('billing_reports').select('*').order('createdAt', { ascending: false }).limit(10000);
-        if (billingError) {
-          // If table doesn't exist yet, we'll just set an empty array
+        try {
+          const billingData = await fetchAllData('billing_reports');
+          setBillingReports(billingData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+        } catch (billingError: any) {
           console.warn('Billing reports table might not exist yet:', billingError.message);
           setBillingReports([]);
-        } else if (billingData) {
-          setBillingReports(billingData);
         }
 
         // Divisions
