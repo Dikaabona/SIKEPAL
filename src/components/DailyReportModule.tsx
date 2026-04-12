@@ -13,7 +13,10 @@ interface DailyReportModuleProps {
 const ITEMS_PER_PAGE = 10;
 
 const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliveries, billingReports, company }) => {
-  const [startDate, setStartDate] = useState(getLocalDateString());
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  });
   const [endDate, setEndDate] = useState(getLocalDateString());
   const [activeTab, setActiveTab] = useState<'delivery' | 'billing'>('delivery');
   const [currentPage, setCurrentPage] = useState(1);
