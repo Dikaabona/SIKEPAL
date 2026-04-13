@@ -296,27 +296,39 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
     
     try {
       setIsSaving(true);
-      const { selectedOrderId, originalNilai, hargaSikepal, ...restFormData } = formData;
+      const { 
+        selectedOrderId, 
+        originalNilai, 
+        hargaSikepal: _h, 
+        jumlahKirim: _j, 
+        ...restFormData 
+      } = formData;
       
       const currentNilai = Number(formData.qtyPengiriman) || 0;
       const origNilai = Number(formData.originalNilai) || 0;
       const wastePercent = origNilai > 0 ? ((origNilai - currentNilai) / origNilai) * 100 : 0;
 
-      const deliveryData: DeliveryRecord = {
+      const deliveryData: any = {
         id: editingId || Math.random().toString(36).substr(2, 9),
-        ...restFormData,
+        namaKurir: restFormData.namaKurir,
+        tanggal: restFormData.tanggal,
+        namaLokasi: restFormData.namaLokasi,
+        fotoBukti: restFormData.fotoBukti || null,
+        lokasiBukti: restFormData.lokasiBukti || null,
+        jamBukti: restFormData.jamBukti || null,
         qtyPengiriman: currentNilai,
         sisa: Number(formData.sisa) || 0,
         hargaSikepal: Number(formData.hargaSikepal) || 0,
-        metodePembayaran: formData.metodePembayaran || undefined,
+        metodePembayaran: formData.metodePembayaran || null,
         buktiTransfer: formData.buktiTransfer || null,
         waste: wastePercent,
-        tanggalPiutang: formData.tanggalPiutang || undefined,
+        tanggalPiutang: formData.tanggalPiutang || null,
+        keterangan: formData.keterangan || '',
         company,
         status: editingId 
           ? (deliveries.find(d => d.id === editingId)?.status || 'Completed')
           : (title === "Billing Report" ? 'Pending' : 'Completed'),
-        orderId: selectedOrderId || undefined,
+        orderId: selectedOrderId || null,
         createdAt: editingId 
           ? (deliveries.find(d => d.id === editingId)?.createdAt || new Date().toISOString())
           : new Date().toISOString()
@@ -376,7 +388,8 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       buktiTransfer: '',
       keterangan: '',
       selectedOrderId: '',
-      tanggalPiutang: ''
+      tanggalPiutang: '',
+      jumlahKirim: 0
     });
   };
 

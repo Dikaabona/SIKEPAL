@@ -48,7 +48,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
   const [showSyncSettings, setShowSyncSettings] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(30);
 
   const [lokasiSearch, setLokasiSearch] = useState('');
   const [showLokasiDropdown, setShowLokasiDropdown] = useState(false);
@@ -998,30 +998,30 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                     </button>
                 </div>
 
-                <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
-                  <div className="bg-stone-50 p-2 rounded-xl border border-stone-100 min-w-[80px] flex-shrink-0">
-                    <span className="text-[8px] font-black text-stone-400 uppercase block">Tuna Pds</span>
-                    <span className="text-sm font-bold text-stone-800">{order.tunaPedes}</span>
+                <div className="grid grid-cols-6 gap-1">
+                  <div className="bg-stone-50 p-1.5 rounded-lg border border-stone-100 text-center">
+                    <span className="text-[7px] font-black text-stone-400 uppercase block leading-none mb-1">Tuna Pds</span>
+                    <span className="text-xs font-bold text-stone-800">{order.tunaPedes}</span>
                   </div>
-                  <div className="bg-stone-50 p-2 rounded-xl border border-stone-100 min-w-[80px] flex-shrink-0">
-                    <span className="text-[8px] font-black text-stone-400 uppercase block">Tuna Myo</span>
-                    <span className="text-sm font-bold text-stone-800">{order.tunaMayo}</span>
+                  <div className="bg-stone-50 p-1.5 rounded-lg border border-stone-100 text-center">
+                    <span className="text-[7px] font-black text-stone-400 uppercase block leading-none mb-1">Tuna Myo</span>
+                    <span className="text-xs font-bold text-stone-800">{order.tunaMayo}</span>
                   </div>
-                  <div className="bg-stone-50 p-2 rounded-xl border border-stone-100 min-w-[80px] flex-shrink-0">
-                    <span className="text-[8px] font-black text-stone-400 uppercase block">Ayam Myo</span>
-                    <span className="text-sm font-bold text-stone-800">{order.ayamMayo}</span>
+                  <div className="bg-stone-50 p-1.5 rounded-lg border border-stone-100 text-center">
+                    <span className="text-[7px] font-black text-stone-400 uppercase block leading-none mb-1">Ayam Myo</span>
+                    <span className="text-xs font-bold text-stone-800">{order.ayamMayo}</span>
                   </div>
-                  <div className="bg-stone-50 p-2 rounded-xl border border-stone-100 min-w-[80px] flex-shrink-0">
-                    <span className="text-[8px] font-black text-stone-400 uppercase block">Ayam Pds</span>
-                    <span className="text-sm font-bold text-stone-800">{order.ayamPedes}</span>
+                  <div className="bg-stone-50 p-1.5 rounded-lg border border-stone-100 text-center">
+                    <span className="text-[7px] font-black text-stone-400 uppercase block leading-none mb-1">Ayam Pds</span>
+                    <span className="text-xs font-bold text-stone-800">{order.ayamPedes}</span>
                   </div>
-                  <div className="bg-stone-50 p-2 rounded-xl border border-stone-100 min-w-[80px] flex-shrink-0">
-                    <span className="text-[8px] font-black text-stone-400 uppercase block">Menu Bln</span>
-                    <span className="text-sm font-bold text-stone-800">{order.menuBulanan}</span>
+                  <div className="bg-stone-50 p-1.5 rounded-lg border border-stone-100 text-center">
+                    <span className="text-[7px] font-black text-stone-400 uppercase block leading-none mb-1">Menu Bln</span>
+                    <span className="text-xs font-bold text-stone-800">{order.menuBulanan}</span>
                   </div>
-                  <div className="bg-primary/5 p-2 rounded-xl border border-primary/10 min-w-[80px] flex-shrink-0">
-                    <span className="text-[8px] font-black text-primary uppercase block">Total</span>
-                    <span className="text-sm font-black text-primary">{order.jumlahKirim}</span>
+                  <div className="bg-primary/5 p-1.5 rounded-lg border border-primary/10 text-center">
+                    <span className="text-[7px] font-black text-primary uppercase block leading-none mb-1">Total</span>
+                    <span className="text-xs font-black text-primary">{order.jumlahKirim}</span>
                   </div>
                 </div>
               </div>
@@ -1035,10 +1035,26 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
         </div>
 
         {totalPages > 1 && (
-          <div className="p-4 border-t border-stone-100 bg-stone-50/50 flex items-center justify-between">
-            <p className="text-xs text-stone-500 font-medium">
-              Menampilkan {startIndex + 1} sampai {Math.min(startIndex + itemsPerPage, filteredOrders.length)} dari {filteredOrders.length} data
-            </p>
+          <div className="p-4 border-t border-stone-100 bg-stone-50/50 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <p className="text-xs text-stone-500 font-medium">
+                Menampilkan {startIndex + 1} sampai {Math.min(startIndex + itemsPerPage, filteredOrders.length)} dari {filteredOrders.length} data
+              </p>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest">Tampilkan:</span>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="bg-white border border-stone-200 rounded-lg text-[10px] font-bold px-2 py-1 outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                >
+                  <option value={30}>30</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+            </div>
             <div className="flex items-center gap-2">
               <button 
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}

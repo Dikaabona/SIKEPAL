@@ -520,7 +520,10 @@ export default function App() {
   const handleSaveDelivery = async (delivery: DeliveryRecord) => {
     try {
       console.log('Saving delivery to Supabase:', delivery);
-      const { error } = await supabase.from('deliveries').upsert(delivery);
+      // Safeguard: Remove UI-only fields that don't exist in the database
+      const { jumlahKirim, originalNilai, ...deliveryToSave } = delivery as any;
+
+      const { error } = await supabase.from('deliveries').upsert(deliveryToSave);
       if (error) throw error;
       
       // Update local state immediately for better UX
@@ -622,7 +625,10 @@ export default function App() {
         setOrders(prev => prev.map(o => o.id === oldReport.orderId ? { ...o, pembayaran: 'FALSE', tanggalBayar: '', sisa: 0, nilaiPembayaran: 0, waste: 0 } : o));
       }
 
-      const { error } = await supabase.from('billing_reports').upsert(report);
+      // Safeguard: Remove UI-only fields that don't exist in the database
+      const { jumlahKirim, originalNilai, ...reportToSave } = report as any;
+
+      const { error } = await supabase.from('billing_reports').upsert(reportToSave);
       if (error) throw error;
       
       // If this report is linked to an order, update the order's payment status and date
