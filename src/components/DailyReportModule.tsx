@@ -48,15 +48,17 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
 
     const filteredBilling = billingReports.filter(b => {
       if (b.company !== company) return false;
-      const billingDate = parseIndoDate(b.tanggal);
-      if (!billingDate) return false;
-      return (!start || billingDate >= start) && (!end || billingDate <= end);
+      // Use tanggalPiutang if available, otherwise use tanggal
+      const targetDateStr = b.tanggalPiutang || b.tanggal;
+      const targetDate = parseIndoDate(targetDateStr);
+      if (!targetDate) return false;
+      return (!start || targetDate >= start) && (!end || targetDate <= end);
     });
 
     const pairs = new Set<string>();
     filteredOrders.forEach(o => pairs.add(`${normalizeDate(o.tanggal)}|${o.namaKurir}`));
     filteredDeliveries.forEach(d => pairs.add(`${normalizeDate(d.tanggal)}|${d.namaKurir}`));
-    filteredBilling.forEach(b => pairs.add(`${normalizeDate(b.tanggal)}|${b.namaKurir}`));
+    filteredBilling.forEach(b => pairs.add(`${normalizeDate(b.tanggalPiutang || b.tanggal)}|${b.namaKurir}`));
 
     return Array.from(pairs)
       .map(pair => {
@@ -64,7 +66,7 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
         
         const dayOrders = filteredOrders.filter(o => normalizeDate(o.tanggal) === tanggalNormalized && o.namaKurir === namaKurir);
         const dayDeliveries = filteredDeliveries.filter(d => normalizeDate(d.tanggal) === tanggalNormalized && d.namaKurir === namaKurir);
-        const dayBilling = filteredBilling.filter(b => normalizeDate(b.tanggal) === tanggalNormalized && b.namaKurir === namaKurir);
+        const dayBilling = filteredBilling.filter(b => normalizeDate(b.tanggalPiutang || b.tanggal) === tanggalNormalized && b.namaKurir === namaKurir);
 
         const jumlahLokasi = new Set(dayOrders.map(o => o.namaLokasi)).size;
         const jumlahKurirVisit = new Set(dayDeliveries.map(d => d.namaLokasi)).size;

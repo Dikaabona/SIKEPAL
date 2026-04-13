@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { Icons } from '../constants';
 import { DeliveryRecord, Order, Store, UserRole } from '../types';
-import { formatDate, getLocalDateString } from '../lib/utils';
+import { formatDate, getLocalDateString, parseIndoDate } from '../lib/utils';
 
 interface DeliveryModuleProps {
   title?: string;
@@ -59,6 +59,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
     hargaSikepal: 0,
     metodePembayaran: '',
     buktiTransfer: '',
+    buktiSisa: '',
     keterangan: '',
     selectedOrderId: '',
     tanggalPiutang: '',
@@ -68,19 +69,31 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   // Extract unique location names from orders and stores
   const locationOptions = useMemo(() => {
     const selectedCourier = formData.namaKurir;
+    const selectedDate = formData.tanggal;
 
     const orderLocations = orders
-      .filter(order => !selectedCourier || order.namaKurir === selectedCourier)
+      .filter(order => {
+        const matchesCourier = !selectedCourier || order.namaKurir === selectedCourier;
+        const orderDateObj = parseIndoDate(order.tanggal);
+        const orderDateStr = orderDateObj ? getLocalDateString(orderDateObj) : order.tanggal;
+        const matchesDate = orderDateStr === selectedDate;
+        return matchesCourier && matchesDate;
+      })
       .map(order => order.namaLokasi)
       .filter((name): name is string => !!name && name.trim() !== '');
     
+    // For Delivery Report, only show locations from orders of that day
+    if (title === "Delivery Report") {
+      return Array.from(new Set(orderLocations)).sort();
+    }
+
     const storeLocations = stores
       .filter(store => !selectedCourier || store.kurir === selectedCourier)
       .map(store => store.namaToko)
       .filter((name): name is string => !!name && name.trim() !== '');
       
     return Array.from(new Set([...orderLocations, ...storeLocations])).sort();
-  }, [orders, stores, formData.namaKurir]);
+  }, [orders, stores, formData.namaKurir, formData.tanggal, title]);
 
   const [isCameraActive, setIsCameraActive] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -148,23 +161,36 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   React.useEffect(() => {
     if (isPiutangModalOpen) {
       setPiutangFilterKurir(formData.namaKurir || '');
-      setPiutangSearchQuery('');
+      // Only clear search if it's not already set (e.g. by prefill)
+      if (!piutangSearchQuery) {
+        setPiutangSearchQuery('');
+      }
     }
   }, [isPiutangModalOpen, formData.namaKurir]);
 
   const filteredPiutangOrders = useMemo(() => {
+    // Get all orderIds that are already in the billing reports
+    // If we are editing, we exclude the current record's orderId from being blocked
+    const existingOrderIds = new Set(
+      deliveries
+        .filter(d => d.id !== editingId)
+        .map(d => d.orderId)
+        .filter(Boolean)
+    );
+
     return orders
       .filter(o => {
         const isUnpaid = o.pembayaran?.toUpperCase() === 'FALSE';
+        const isAlreadyReported = existingOrderIds.has(o.id);
         const matchesKurir = !piutangFilterKurir || o.namaKurir === piutangFilterKurir;
         const matchesSearch = !piutangSearchQuery || 
           o.namaLokasi.toLowerCase().includes(piutangSearchQuery.toLowerCase()) ||
           o.namaKurir?.toLowerCase().includes(piutangSearchQuery.toLowerCase());
         
-        return isUnpaid && matchesKurir && matchesSearch;
+        return isUnpaid && !isAlreadyReported && matchesKurir && matchesSearch;
       })
       .sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
-  }, [orders, piutangFilterKurir, piutangSearchQuery]);
+  }, [orders, piutangFilterKurir, piutangSearchQuery, deliveries, editingId]);
 
   // Reset to page 1 when deliveries list changes
   React.useEffect(() => {
@@ -216,9 +242,16 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       }));
       setEditingId(null);
       setIsModalOpen(true);
+      
+      // If it's a billing report, automatically open piutang modal and search for this location
+      if (title === "Billing Report") {
+        setIsPiutangModalOpen(true);
+        setPiutangSearchQuery(initialPrefillLocation);
+      }
+      
       onPrefillHandled?.();
     }
-  }, [initialPrefillLocation, initialPrefillCourier, onPrefillHandled]);
+  }, [initialPrefillLocation, initialPrefillCourier, onPrefillHandled, title]);
 
   const capturePhoto = () => {
     if (videoRef.current && canvasRef.current) {
@@ -321,6 +354,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
         hargaSikepal: Number(formData.hargaSikepal) || 0,
         metodePembayaran: formData.metodePembayaran || null,
         buktiTransfer: formData.buktiTransfer || null,
+        buktiSisa: formData.buktiSisa || null,
         waste: wastePercent,
         tanggalPiutang: formData.tanggalPiutang || null,
         keterangan: formData.keterangan || '',
@@ -357,6 +391,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       hargaSikepal: delivery.hargaSikepal || 0,
       metodePembayaran: delivery.metodePembayaran || '',
       buktiTransfer: delivery.buktiTransfer || '',
+      buktiSisa: delivery.buktiSisa || '',
       originalNilai: (delivery.qtyPengiriman || 0) + ((delivery.sisa || 0) * (delivery.hargaSikepal || 0)),
       keterangan: delivery.keterangan || '',
       selectedOrderId: delivery.orderId || '',
@@ -386,6 +421,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       hargaSikepal: 0,
       metodePembayaran: '',
       buktiTransfer: '',
+      buktiSisa: '',
       keterangan: '',
       selectedOrderId: '',
       tanggalPiutang: '',
@@ -488,6 +524,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                 </th>
                 {title === "Billing Report" && (
                   <>
+                    <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">BUKTI SISA</th>
                     <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">SISA</th>
                     <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">WASTE</th>
                     <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">STATUS</th>
@@ -593,6 +630,21 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                     </td>
                     {title === "Billing Report" && (
                       <>
+                        <td className="px-6 py-4">
+                          {delivery.buktiSisa ? (
+                            <img 
+                              src={delivery.buktiSisa} 
+                              alt="Sisa" 
+                              className="w-24 h-24 rounded-xl object-cover border-2 border-white shadow-md cursor-zoom-in hover:scale-105 transition-transform relative z-20"
+                              referrerPolicy="no-referrer"
+                              onClick={() => setPreviewImage(delivery.buktiSisa)}
+                            />
+                          ) : (
+                            <div className="w-24 h-24 rounded-xl bg-stone-50 flex items-center justify-center text-stone-300 border-2 border-white shadow-sm" title="Tidak Ada Sisa / Belum Upload">
+                              <span className="material-symbols-outlined text-xl">inventory_2</span>
+                            </div>
+                          )}
+                        </td>
                         <td className="px-6 py-4 text-center">
                           <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-lg bg-orange-50 text-orange-600 text-xs font-black whitespace-nowrap">
                             {delivery.sisa || 0}
@@ -703,6 +755,15 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                           className="w-14 h-14 rounded-2xl object-cover border-2 border-white shadow-md"
                           referrerPolicy="no-referrer"
                           onClick={() => setPreviewImage(delivery.buktiTransfer)}
+                        />
+                      )}
+                      {delivery.buktiSisa && (
+                        <img 
+                          src={delivery.buktiSisa} 
+                          alt="Sisa" 
+                          className="w-14 h-14 rounded-2xl object-cover border-2 border-white shadow-md"
+                          referrerPolicy="no-referrer"
+                          onClick={() => setPreviewImage(delivery.buktiSisa)}
                         />
                       )}
                     </div>
@@ -1257,6 +1318,50 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                   </div>
                 )}
 
+                {title === "Billing Report" && formData.sisa > 0 && (
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Bukti Sisa</label>
+                    <div className="flex flex-col items-center gap-4">
+                      {formData.buktiSisa ? (
+                        <div className="relative w-full aspect-video rounded-3xl overflow-hidden border-4 border-stone-900 shadow-xl">
+                          <img 
+                            src={formData.buktiSisa} 
+                            alt="Bukti Sisa" 
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setFormData({...formData, buktiSisa: ''})}
+                            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+                          >
+                            <span className="material-symbols-outlined">delete</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="w-full py-12 rounded-3xl border-2 border-dashed border-stone-200 bg-stone-50 flex flex-col items-center justify-center gap-3 text-stone-400 hover:bg-stone-100 hover:border-stone-300 transition-all cursor-pointer">
+                          <span className="material-symbols-outlined text-4xl">cloud_upload</span>
+                          <span className="text-xs font-bold uppercase tracking-widest">Upload Bukti Sisa</span>
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setFormData({ ...formData, buktiSisa: reader.result as string });
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-4">
                   <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">
                     {title === "Billing Report" ? "Bukti Penagihan (Selfie/Foto)" : "Bukti Pengiriman (Selfie/Foto)"}
@@ -1364,6 +1469,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                   disabled={
                     !formData.fotoBukti || 
                     (formData.metodePembayaran === 'Transfer' && !formData.buktiTransfer) || 
+                    (title === "Billing Report" && formData.sisa > 0 && !formData.buktiSisa) ||
                     (isKeteranganRequired && !formData.keterangan.trim()) || 
                     (title === "Billing Report" && formData.sisa === '') ||
                     isSaving
@@ -1371,6 +1477,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                   className={`flex-1 px-4 py-3 md:px-6 md:py-4 rounded-xl md:rounded-2xl text-white text-xs md:text-sm font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${
                     formData.fotoBukti && 
                     (formData.metodePembayaran !== 'Transfer' || formData.buktiTransfer) && 
+                    (title !== "Billing Report" || formData.sisa <= 0 || formData.buktiSisa) &&
                     (!isKeteranganRequired || formData.keterangan.trim()) && 
                     (title !== "Billing Report" || formData.sisa !== '') &&
                     !isSaving
