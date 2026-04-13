@@ -33,6 +33,7 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
     harga: '',
     pembayaran: '',
     operasional: '',
+    kurir: '',
     note: '',
   });
 
@@ -64,6 +65,7 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
       harga: newStore.harga || '',
       pembayaran: newStore.pembayaran || '',
       operasional: newStore.operasional || '',
+      kurir: newStore.kurir || '',
       note: newStore.note || '',
       company,
       updatedAt: new Date().toISOString(),
@@ -82,6 +84,7 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
       harga: '',
       pembayaran: '',
       operasional: '',
+      kurir: '',
       note: '',
     });
   };
@@ -241,7 +244,7 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
         // G (6): Harga Sikepal
         // H (7): Pembayaran
         // I (8): Hari Operasional
-        // J (9): Pengirim (Kurir)
+        // J (9): Wilayah
         // K (10): Note
         const store: Store = {
           id: storeId,
@@ -254,6 +257,7 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
           harga: row[6] || '',
           pembayaran: row[7] || '',
           operasional: row[8] || '',
+          kurir: row[9] || '',
           note: row[10] || '', 
           company,
           updatedAt: new Date().toISOString(),
@@ -634,6 +638,11 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
                 <span className="px-4 py-1.5 bg-stone-100 text-stone-600 rounded-xl text-[10px] font-black uppercase tracking-widest">
                   {selectedStoreForDetail.kategori || '-'}
                 </span>
+                {selectedStoreForDetail.kurir && (
+                  <span className="px-4 py-1.5 bg-orange-100 text-orange-600 rounded-xl text-[10px] font-black uppercase tracking-widest">
+                    Wilayah: {selectedStoreForDetail.kurir}
+                  </span>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4 mb-8">
@@ -773,21 +782,32 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Harga</label>
-                  <input 
-                    type="text" 
-                    value={newStore.harga}
-                    onChange={(e) => setNewStore({...newStore, harga: e.target.value})}
-                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  />
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-stone-400">Rp</span>
+                    <input 
+                      type="text" 
+                      value={newStore.harga?.replace('Rp', '') || ''}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        setNewStore({...newStore, harga: val ? `Rp${parseInt(val).toLocaleString()}` : ''});
+                      }}
+                      className="w-full pl-10 pr-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm font-bold text-stone-800 focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                      placeholder="0"
+                    />
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Pembayaran</label>
-                  <input 
-                    type="text" 
+                  <select 
                     value={newStore.pembayaran}
                     onChange={(e) => setNewStore({...newStore, pembayaran: e.target.value})}
                     className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  />
+                  >
+                    <option value="">Pilih Pembayaran</option>
+                    <option value="Harian">Harian</option>
+                    <option value="Mingguan">Mingguan</option>
+                    <option value="Bulanan">Bulanan</option>
+                  </select>
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Operasional</label>
@@ -795,6 +815,15 @@ const StoreDatabase: React.FC<StoreDatabaseProps> = ({ stores, onSaveStore, onDe
                     type="text" 
                     value={newStore.operasional}
                     onChange={(e) => setNewStore({...newStore, operasional: e.target.value})}
+                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Wilayah</label>
+                  <input 
+                    type="text" 
+                    value={newStore.kurir || ''}
+                    onChange={(e) => setNewStore({...newStore, kurir: e.target.value})}
                     className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                   />
                 </div>

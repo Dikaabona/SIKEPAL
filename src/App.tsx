@@ -1000,19 +1000,29 @@ export default function App() {
     setActiveTab(type === 'delivery' ? 'delivery' : 'billing_report');
   };
 
+  const handleNavigate = (tab: any) => {
+    if (typeof tab === 'object' && tab.tab === 'order_database' && tab.storeId) {
+      setReturnStoreId(tab.storeId);
+      setActiveTab('order_database');
+    } else {
+      setActiveTab(tab as ActiveTab);
+    }
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'home':
         return (
           <Dashboard
             employees={employees}
+            orders={orders}
             submissions={submissions}
             broadcasts={broadcasts}
             userRole={userRole}
             currentUserEmployee={currentUserEmployee}
             attendanceRecords={attendanceRecords}
             shiftAssignments={shiftAssignments}
-            onNavigate={setActiveTab}
+            onNavigate={handleNavigate}
             userCompany={userCompany}
             onOpenBroadcast={() => {}}
             onOpenDrive={() => {}}
@@ -1020,6 +1030,7 @@ export default function App() {
             shifts={shifts}
             onRefreshData={refreshData}
             branchLocations={branchLocations}
+            stores={stores}
           />
         );
       case 'attendance':
@@ -1157,8 +1168,7 @@ export default function App() {
             onPrefillHandled={() => setPrefillData(null)}
             onCancel={() => {
               if (returnStoreId) {
-                setActiveTab('home');
-                setReturnStoreId(null);
+                setActiveTab('order_database');
               }
             }}
           />
@@ -1184,6 +1194,7 @@ export default function App() {
             deliveries={deliveries}
             billingReports={billingReports}
             company={userCompany}
+            searchQuery={searchQuery}
           />
         );
       case 'billing_report':
@@ -1204,8 +1215,7 @@ export default function App() {
             onPrefillHandled={() => setPrefillData(null)}
             onCancel={() => {
               if (returnStoreId) {
-                setActiveTab('home');
-                setReturnStoreId(null);
+                setActiveTab('order_database');
               }
             }}
           />

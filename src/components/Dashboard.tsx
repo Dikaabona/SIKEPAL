@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Employee, Submission, Broadcast, AttendanceRecord, ShiftAssignment, UserRole, Shift, BranchLocation } from '../types';
+import { Employee, Submission, Broadcast, AttendanceRecord, ShiftAssignment, UserRole, Shift, BranchLocation, Order, Store } from '../types';
+import { parseIndoDate } from '../lib/utils';
 
 interface DashboardProps {
   employees: Employee[];
+  orders: Order[];
   submissions: Submission[];
   broadcasts: Broadcast[];
   userRole: UserRole;
@@ -18,19 +20,26 @@ interface DashboardProps {
   shifts: Shift[];
   onRefreshData: () => void;
   branchLocations: BranchLocation[];
+  stores: Store[];
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ 
   employees, 
+  orders,
   attendanceRecords, 
   onNavigate,
   broadcasts,
   currentUserEmployee,
   branchLocations,
-  userRole
+  userRole,
+  stores
 }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentDistance, setCurrentDistance] = useState<number | null>(null);
+
+  const [piutangSearch, setPiutangSearch] = useState('');
+  const [piutangPage, setPiutangPage] = useState(1);
+  const PIUTANG_ITEMS_PER_PAGE = 15;
 
   const assignedLocation = branchLocations.find(loc => loc.id === currentUserEmployee?.branchLocationId);
 
@@ -109,6 +118,58 @@ const Dashboard: React.FC<DashboardProps> = ({
   const today = new Date().toISOString().split('T')[0];
   const locationRadius = assignedLocation?.radius || 10;
   const locationName = assignedLocation?.namaCabang || 'AREA KANTOR';
+
+  // Calculate Piutang Notifications
+  const piutangNotifications = useMemo(() => {
+    if (!orders) return [];
+    
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    const allPiutang = orders
+      .filter(order => order.pembayaran?.toUpperCase() === 'FALSE')
+      .map(order => {
+        const orderDate = parseIndoDate(order.tanggal);
+        if (!orderDate) return null;
+
+        let daysToAdd = 0;
+        const periode = order.periodeBayar?.toUpperCase() || '';
+
+        if (periode === 'HARIAN') {
+          daysToAdd = 1;
+        } else if (periode.includes('MINGGUAN')) {
+          daysToAdd = 7;
+        } else if (periode === 'BULANAN') {
+          daysToAdd = 30;
+        }
+
+        const dueDate = new Date(orderDate);
+        dueDate.setDate(dueDate.getDate() + daysToAdd);
+        dueDate.setHours(0, 0, 0, 0);
+
+        if (now >= dueDate) {
+          return {
+            ...order,
+            dueDate,
+            daysOverdue: Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
+          };
+        }
+        return null;
+      })
+      .filter((n): n is any => n !== null)
+      .sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime());
+
+    if (!piutangSearch) return allPiutang;
+    return allPiutang.filter(p => p.namaLokasi.toLowerCase().includes(piutangSearch.toLowerCase()));
+  }, [orders, piutangSearch]);
+
+  const totalPiutangPages = Math.ceil(piutangNotifications.length / PIUTANG_ITEMS_PER_PAGE);
+  const paginatedPiutang = piutangNotifications.slice((piutangPage - 1) * PIUTANG_ITEMS_PER_PAGE, piutangPage * PIUTANG_ITEMS_PER_PAGE);
+
+  const handleStoreClick = (storeName: string) => {
+    const store = employees.find(e => e.nama === storeName) as any; // This is wrong, should be from stores
+    // Actually, Dashboard doesn't have stores prop. I need to check App.tsx
+  };
 
   return (
     <motion.div 
@@ -270,6 +331,96 @@ const Dashboard: React.FC<DashboardProps> = ({
               ))}
             </div>
           </motion.div>
+
+          {/* Piutang Notifications Section */}
+          {piutangNotifications.length > 0 && (
+            <motion.div 
+              variants={item}
+              className="bg-white p-6 rounded-[32px] border border-stone-100 shadow-sm"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-black text-stone-800 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-red-600">account_balance_wallet</span>
+                  Tagihan Piutang
+                </h3>
+                <span className="px-2 py-1 rounded-full bg-red-100 text-red-600 text-[10px] font-black">
+                  {piutangNotifications.length} PERLU DITAGIH
+                </span>
+              </div>
+
+              {/* Search Bar for Piutang */}
+              <div className="relative mb-4">
+                <span className="material-symbols-outlined absolute left-3 top-2.5 text-stone-400 text-sm">search</span>
+                <input 
+                  type="text" 
+                  placeholder="Cari nama lokasi..."
+                  value={piutangSearch}
+                  onChange={(e) => {
+                    setPiutangSearch(e.target.value);
+                    setPiutangPage(1);
+                  }}
+                  className="w-full pl-10 pr-4 py-2 bg-stone-50 border border-stone-100 rounded-xl text-xs focus:ring-2 focus:ring-red-500/20 outline-none transition-all"
+                />
+              </div>
+
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
+                {paginatedPiutang.map((p, i) => (
+                  <div 
+                    key={i} 
+                    onClick={() => {
+                      const store = stores.find(s => s.namaToko === p.namaLokasi);
+                      if (store) {
+                        // We need a way to open StoreDetailModal from Dashboard.
+                        // For now, let's navigate to Store Database with this store selected if possible,
+                        // or just show a simple alert if we can't trigger the modal directly.
+                        // Actually, the best way is to pass a prop to onNavigate or a new prop.
+                        onNavigate({ tab: 'order_database', storeId: store.id });
+                      } else {
+                        onNavigate('order_database');
+                      }
+                    }}
+                    className="p-4 bg-red-50/30 rounded-2xl border border-red-100/50 flex flex-col gap-1 active:scale-[0.98] transition-all cursor-pointer"
+                  >
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-black text-stone-900 truncate max-w-[150px]">{p.namaLokasi}</p>
+                      <span className="text-[10px] font-bold text-red-600 uppercase">
+                        {p.daysOverdue === 0 ? 'Jatuh Tempo Hari Ini' : `Terlambat ${p.daysOverdue} Hari`}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center mt-1">
+                      <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
+                        Rp{p.jumlahUang.toLocaleString()} • {p.periodeBayar}
+                      </p>
+                      <span className="material-symbols-outlined text-stone-300 text-sm">chevron_right</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Pagination for Piutang */}
+              {totalPiutangPages > 1 && (
+                <div className="mt-4 flex items-center justify-center gap-2">
+                  <button 
+                    onClick={() => setPiutangPage(prev => Math.max(1, prev - 1))}
+                    disabled={piutangPage === 1}
+                    className="p-1 rounded-lg hover:bg-stone-100 disabled:opacity-30"
+                  >
+                    <span className="material-symbols-outlined text-sm">chevron_left</span>
+                  </button>
+                  <span className="text-[10px] font-black text-stone-500">
+                    {piutangPage} / {totalPiutangPages}
+                  </span>
+                  <button 
+                    onClick={() => setPiutangPage(prev => Math.min(totalPiutangPages, prev + 1))}
+                    disabled={piutangPage === totalPiutangPages}
+                    className="p-1 rounded-lg hover:bg-stone-100 disabled:opacity-30"
+                  >
+                    <span className="material-symbols-outlined text-sm">chevron_right</span>
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          )}
         </div>
       </div>
 
@@ -374,6 +525,48 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <p className="text-xs text-stone-500 mt-1">KPI reviews will be held on Friday, Oct 27th.</p>
               </div>
             </div>
+          </motion.div>
+
+          <motion.div 
+            variants={item}
+            className="bg-white p-6 rounded-3xl border border-stone-100 shadow-sm"
+          >
+            <h3 className="font-black text-stone-800 mb-6 flex items-center gap-2">
+              <span className="material-symbols-outlined text-red-600">account_balance_wallet</span>
+              Tagihan Piutang
+            </h3>
+            {piutangNotifications.length > 0 ? (
+              <div className="space-y-3 max-h-[250px] overflow-y-auto pr-1 custom-scrollbar">
+                {piutangNotifications.map((p, i) => (
+                  <div 
+                    key={i} 
+                    onClick={() => onNavigate('order_database')}
+                    className="p-4 bg-red-50/30 rounded-2xl border border-red-100/50 flex items-center justify-between active:scale-[0.98] transition-all cursor-pointer"
+                  >
+                    <div className="flex flex-col gap-0.5">
+                      <p className="text-sm font-black text-stone-900">{p.namaLokasi}</p>
+                      <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
+                        Rp{p.jumlahUang.toLocaleString()} • {p.periodeBayar}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-black text-red-600 uppercase">
+                        {p.daysOverdue === 0 ? 'Jatuh Tempo' : `${p.daysOverdue} Hari`}
+                      </p>
+                      <p className="text-[9px] font-bold text-stone-400 uppercase">Terlambat</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-6 text-stone-300">
+                <div className="w-16 h-16 rounded-full bg-stone-50 flex items-center justify-center mb-3">
+                  <span className="material-symbols-outlined text-3xl opacity-30">check_circle</span>
+                </div>
+                <p className="text-xs font-bold uppercase tracking-wider">Lancar!</p>
+                <p className="text-[10px] mt-1">Tidak ada piutang jatuh tempo.</p>
+              </div>
+            )}
           </motion.div>
 
           <motion.div 

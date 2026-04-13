@@ -1,24 +1,26 @@
 import React, { useState, useMemo } from 'react';
 import { Order, DeliveryRecord, BillingRecord } from '../types';
 import { motion } from 'motion/react';
-import { parseIndoDate, formatDate, getLocalDateString } from '../lib/utils';
+import { parseIndoDate, formatDate, getLocalDateString, getPaginationRange } from '../lib/utils';
 
 interface DailyReportModuleProps {
   orders: Order[];
   deliveries: DeliveryRecord[];
   billingReports: BillingRecord[];
   company: string;
+  searchQuery?: string;
 }
 
 const ITEMS_PER_PAGE = 10;
 
-const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliveries, billingReports, company }) => {
+const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliveries, billingReports, company, searchQuery = '' }) => {
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
   });
   const [endDate, setEndDate] = useState(getLocalDateString());
   const [currentPage, setCurrentPage] = useState(1);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'tanggal', direction: 'desc' });
 
   const normalizeDate = (dateStr: string) => {
     const d = parseIndoDate(dateStr);
@@ -56,39 +58,82 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
     filteredDeliveries.forEach(d => pairs.add(`${normalizeDate(d.tanggal)}|${d.namaKurir}`));
     filteredBilling.forEach(b => pairs.add(`${normalizeDate(b.tanggal)}|${b.namaKurir}`));
 
-    return Array.from(pairs).map(pair => {
-      const [tanggalNormalized, namaKurir] = pair.split('|');
-      
-      const dayOrders = filteredOrders.filter(o => normalizeDate(o.tanggal) === tanggalNormalized && o.namaKurir === namaKurir);
-      const dayDeliveries = filteredDeliveries.filter(d => normalizeDate(d.tanggal) === tanggalNormalized && d.namaKurir === namaKurir);
-      const dayBilling = filteredBilling.filter(b => normalizeDate(b.tanggal) === tanggalNormalized && b.namaKurir === namaKurir);
+    return Array.from(pairs)
+      .map(pair => {
+        const [tanggalNormalized, namaKurir] = pair.split('|');
+        
+        const dayOrders = filteredOrders.filter(o => normalizeDate(o.tanggal) === tanggalNormalized && o.namaKurir === namaKurir);
+        const dayDeliveries = filteredDeliveries.filter(d => normalizeDate(d.tanggal) === tanggalNormalized && d.namaKurir === namaKurir);
+        const dayBilling = filteredBilling.filter(b => normalizeDate(b.tanggal) === tanggalNormalized && b.namaKurir === namaKurir);
 
-      const jumlahLokasi = new Set(dayOrders.map(o => o.namaLokasi)).size;
-      const jumlahKurirVisit = new Set(dayDeliveries.map(d => d.namaLokasi)).size;
-      
-      const totalKiriman = dayOrders.reduce((sum, o) => 
-        sum + (o.tunaPedes || 0) + (o.tunaMayo || 0) + (o.ayamMayo || 0) + (o.ayamPedes || 0) + (o.menuBulanan || 0), 0);
-      const totalKirimanKurir = dayDeliveries.reduce((sum, d) => sum + (d.qtyPengiriman || 0), 0);
-      
-      const totalTagihan = dayOrders.reduce((sum, o) => sum + (o.jumlahUang || 0), 0);
-      const totalSetoran = dayBilling.reduce((sum, b) => sum + (b.qtyPengiriman || 0), 0);
+        const jumlahLokasi = new Set(dayOrders.map(o => o.namaLokasi)).size;
+        const jumlahKurirVisit = new Set(dayDeliveries.map(d => d.namaLokasi)).size;
+        
+        const totalKiriman = dayOrders.reduce((sum, o) => 
+          sum + (o.tunaPedes || 0) + (o.tunaMayo || 0) + (o.ayamMayo || 0) + (o.ayamPedes || 0) + (o.menuBulanan || 0), 0);
+        const totalKirimanKurir = dayDeliveries.reduce((sum, d) => sum + (d.qtyPengiriman || 0), 0);
+        
+        const totalTagihan = dayOrders.reduce((sum, o) => sum + (o.jumlahUang || 0), 0);
+        const totalSetoran = dayBilling.reduce((sum, b) => sum + (b.qtyPengiriman || 0), 0);
 
-      return { 
-        tanggal: tanggalNormalized, 
-        namaKurir, 
-        jumlahLokasi, 
-        jumlahKurirVisit, 
-        totalKiriman, 
-        totalKirimanKurir,
-        totalTagihan,
-        totalSetoran
-      };
-    }).sort((a, b) => {
+        return { 
+          tanggal: tanggalNormalized, 
+          namaKurir, 
+          jumlahLokasi, 
+          jumlahKurirVisit, 
+          selisihLokasi: jumlahKurirVisit - jumlahLokasi,
+          totalKiriman, 
+          totalKirimanKurir,
+          selisihQty: totalKirimanKurir - totalKiriman,
+          totalTagihan,
+          totalSetoran,
+          selisihRp: totalSetoran - totalTagihan
+        };
+      })
+      .filter(row => {
+        if (!searchQuery) return true;
+        return row.namaKurir.toLowerCase().includes(searchQuery.toLowerCase());
+      })
+      .sort((a, b) => {
+      if (sortConfig) {
+        const { key, direction } = sortConfig;
+        let comparison = 0;
+
+        if (key === 'tanggal') {
+          const dateA = parseIndoDate(a.tanggal)?.getTime() || 0;
+          const dateB = parseIndoDate(b.tanggal)?.getTime() || 0;
+          comparison = dateA - dateB;
+        } else if (typeof (a as any)[key] === 'string') {
+          comparison = (a as any)[key].localeCompare((b as any)[key]);
+        } else {
+          comparison = (a as any)[key] - (b as any)[key];
+        }
+
+        return direction === 'asc' ? comparison : -comparison;
+      }
+
       const dateA = parseIndoDate(a.tanggal);
       const dateB = parseIndoDate(b.tanggal);
       return (dateB?.getTime() || 0) - (dateA?.getTime() || 0) || a.namaKurir.localeCompare(b.namaKurir);
     });
-  }, [orders, deliveries, billingReports, company, startDate, endDate]);
+  }, [orders, deliveries, billingReports, company, startDate, endDate, sortConfig, searchQuery]);
+
+  const requestSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const getSortIcon = (key: string) => {
+    if (!sortConfig || sortConfig.key !== key) {
+      return <span className="material-symbols-outlined text-[14px] ml-1 opacity-20">unfold_more</span>;
+    }
+    return sortConfig.direction === 'asc' 
+      ? <span className="material-symbols-outlined text-[14px] ml-1 text-primary">arrow_upward</span>
+      : <span className="material-symbols-outlined text-[14px] ml-1 text-primary">arrow_downward</span>;
+  };
 
   // Reset page when filters change
   React.useEffect(() => {
@@ -134,23 +179,86 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-stone-50 border-b border-stone-100">
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">Tanggal</th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">Nama Kurir</th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">Lokasi (Plan/Visit)</th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">Selisih Lokasi</th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">Qty (Plan/Real)</th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">Selisih Qty</th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">Tagihan</th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">Setoran</th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">Selisih Rp</th>
+                <th 
+                  onClick={() => requestSort('tanggal')}
+                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest cursor-pointer hover:bg-stone-100 transition-colors"
+                >
+                  <div className="flex items-center">
+                    Tanggal {getSortIcon('tanggal')}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => requestSort('namaKurir')}
+                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest cursor-pointer hover:bg-stone-100 transition-colors"
+                >
+                  <div className="flex items-center">
+                    Nama Kurir {getSortIcon('namaKurir')}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => requestSort('jumlahKurirVisit')}
+                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center cursor-pointer hover:bg-stone-100 transition-colors"
+                >
+                  <div className="flex items-center justify-center">
+                    Lokasi (Plan/Visit) {getSortIcon('jumlahKurirVisit')}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => requestSort('selisihLokasi')}
+                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center cursor-pointer hover:bg-stone-100 transition-colors"
+                >
+                  <div className="flex items-center justify-center">
+                    Selisih Lokasi {getSortIcon('selisihLokasi')}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => requestSort('totalKirimanKurir')}
+                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center cursor-pointer hover:bg-stone-100 transition-colors"
+                >
+                  <div className="flex items-center justify-center">
+                    Qty (Plan/Real) {getSortIcon('totalKirimanKurir')}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => requestSort('selisihQty')}
+                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center cursor-pointer hover:bg-stone-100 transition-colors"
+                >
+                  <div className="flex items-center justify-center">
+                    Selisih Qty {getSortIcon('selisihQty')}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => requestSort('totalTagihan')}
+                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center cursor-pointer hover:bg-stone-100 transition-colors"
+                >
+                  <div className="flex items-center justify-center">
+                    Tagihan {getSortIcon('totalTagihan')}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => requestSort('totalSetoran')}
+                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center cursor-pointer hover:bg-stone-100 transition-colors"
+                >
+                  <div className="flex items-center justify-center">
+                    Setoran {getSortIcon('totalSetoran')}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => requestSort('selisihRp')}
+                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center cursor-pointer hover:bg-stone-100 transition-colors"
+                >
+                  <div className="flex items-center justify-center">
+                    Selisih Rp {getSortIcon('selisihRp')}
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-50">
               {paginatedData.length > 0 ? (
                 paginatedData.map((row, idx) => {
-                  const selisihQty = row.totalKirimanKurir - row.totalKiriman;
-                  const selisihRp = row.totalSetoran - row.totalTagihan;
-                  const selisihLokasi = row.jumlahKurirVisit - row.jumlahLokasi;
+                  const selisihQty = row.selisihQty;
+                  const selisihRp = row.selisihRp;
+                  const selisihLokasi = row.selisihLokasi;
                   
                   return (
                     <motion.tr 
@@ -235,18 +343,22 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
               </button>
               
               <div className="flex items-center gap-1">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`w-7 h-7 rounded-lg text-[10px] font-black transition-all ${
-                      currentPage === page 
-                        ? 'bg-stone-900 text-white shadow-lg shadow-stone-900/20' 
-                        : 'text-stone-400 hover:bg-white hover:text-stone-600'
-                    }`}
-                  >
-                    {page}
-                  </button>
+                {getPaginationRange(currentPage, totalPages).map((page, i) => (
+                  page === '...' ? (
+                    <span key={`dots-${i}`} className="px-2 text-stone-400 font-bold">...</span>
+                  ) : (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(Number(page))}
+                      className={`w-7 h-7 rounded-lg text-[10px] font-black transition-all ${
+                        currentPage === page 
+                          ? 'bg-stone-900 text-white shadow-lg shadow-stone-900/20' 
+                          : 'text-stone-400 hover:bg-white hover:text-stone-600'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  )
                 ))}
               </div>
 

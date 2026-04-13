@@ -35,8 +35,8 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const [selectedOrderForModal, setSelectedOrderForModal] = useState<Order | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState(getLocalDateString());
+  const [endDate, setEndDate] = useState(getLocalDateString());
   const [filterKurir, setFilterKurir] = useState('');
   const [filterLokasi, setFilterLokasi] = useState('');
   const [filterPembayaran, setFilterPembayaran] = useState('');
@@ -49,6 +49,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [itemsPerPage, setItemsPerPage] = useState(30);
+  const [showPiutangList, setShowPiutangList] = useState(false);
 
   const [lokasiSearch, setLokasiSearch] = useState('');
   const [showLokasiDropdown, setShowLokasiDropdown] = useState(false);
@@ -94,11 +95,21 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
 
   const piutangData = useMemo(() => {
     if (!selectedStore) return { qty: 0, rp: 0 };
-    const unpaidOrders = orders.filter(o => o.namaLokasi === selectedStore.namaToko && o.pembayaran === 'FALSE');
+    const unpaid = orders.filter(o => o.namaLokasi === selectedStore.namaToko && o.pembayaran === 'FALSE');
     return {
-      qty: unpaidOrders.length,
-      rp: unpaidOrders.reduce((sum, o) => sum + (o.jumlahUang || 0), 0)
+      qty: unpaid.length,
+      rp: unpaid.reduce((sum, o) => sum + (o.jumlahUang || 0), 0)
     };
+  }, [selectedStore, orders]);
+
+  const unpaidOrdersList = useMemo(() => {
+    if (!selectedStore) return [];
+    return orders.filter(o => o.namaLokasi === selectedStore.namaToko && o.pembayaran === 'FALSE')
+      .sort((a, b) => {
+        const dateA = parseIndoDate(a.tanggal);
+        const dateB = parseIndoDate(b.tanggal);
+        return (dateB?.getTime() || 0) - (dateA?.getTime() || 0);
+      });
   }, [selectedStore, orders]);
 
   const filteredOrders = useMemo(() => {
@@ -685,9 +696,35 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                     setEndDate(today);
                     setCurrentPage(1);
                   }}
-                  className="text-xs font-bold text-primary hover:underline"
+                  className={`text-xs font-bold transition-colors ${startDate === getLocalDateString() && endDate === getLocalDateString() ? 'text-primary underline' : 'text-stone-400 hover:text-primary'}`}
                 >
                   Today
+                </button>
+                <button 
+                  onClick={() => {
+                    const yesterday = new Date();
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    const yesterdayStr = getLocalDateString(yesterday);
+                    setStartDate(yesterdayStr);
+                    setEndDate(yesterdayStr);
+                    setCurrentPage(1);
+                  }}
+                  className={`text-xs font-bold transition-colors ${startDate === getLocalDateString(new Date(new Date().setDate(new Date().getDate() - 1))) && endDate === getLocalDateString(new Date(new Date().setDate(new Date().getDate() - 1))) ? 'text-primary underline' : 'text-stone-400 hover:text-primary'}`}
+                >
+                  Yesterday
+                </button>
+                <button 
+                  onClick={() => {
+                    const today = new Date();
+                    const last7 = new Date();
+                    last7.setDate(last7.getDate() - 7);
+                    setStartDate(getLocalDateString(last7));
+                    setEndDate(getLocalDateString(today));
+                    setCurrentPage(1);
+                  }}
+                  className={`text-xs font-bold transition-colors ${startDate === getLocalDateString(new Date(new Date().setDate(new Date().getDate() - 7))) && endDate === getLocalDateString() ? 'text-primary underline' : 'text-stone-400 hover:text-primary'}`}
+                >
+                  Last 7 Days
                 </button>
                 {(startDate || endDate || filterKurir || filterLokasi || filterPembayaran || searchQuery) && (
                   <button 
@@ -1391,12 +1428,16 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Periode Bayar</label>
-                  <input 
-                    type="text" 
+                  <select 
                     value={newOrder.periodeBayar}
                     onChange={(e) => setNewOrder({...newOrder, periodeBayar: e.target.value})}
                     className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  />
+                  >
+                    <option value="">Pilih Periode</option>
+                    <option value="Harian">Harian</option>
+                    <option value="Mingguan">Mingguan</option>
+                    <option value="Bulanan">Bulanan</option>
+                  </select>
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Sisa</label>
@@ -1495,6 +1536,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
               onClick={() => {
                 setSelectedStore(null);
                 setSelectedOrderForModal(null);
+                setShowPiutangList(false);
               }}
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
@@ -1504,7 +1546,48 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               className="relative bg-white rounded-[32px] shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6 scrollbar-hide"
             >
-              <div className="flex justify-between items-start mb-6">
+              {showPiutangList ? (
+                <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="flex items-center gap-4 mb-6">
+                    <button 
+                      onClick={() => setShowPiutangList(false)}
+                      className="w-10 h-10 rounded-full hover:bg-stone-100 flex items-center justify-center text-stone-600 transition-colors border border-stone-100 shadow-sm"
+                    >
+                      <span className="material-symbols-outlined">arrow_back</span>
+                    </button>
+                    <div>
+                      <h3 className="text-xl font-black text-stone-800 uppercase leading-tight">Daftar Piutang</h3>
+                      <p className="text-xs text-stone-500 font-bold uppercase tracking-wider">{selectedStore.namaToko}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    {unpaidOrdersList.length > 0 ? (
+                      unpaidOrdersList.map((order, idx) => (
+                        <div key={idx} className="p-4 bg-stone-50 rounded-2xl border border-stone-100 flex justify-between items-center">
+                          <div className="space-y-1">
+                            <div className="text-[10px] font-black text-stone-400 uppercase tracking-widest">{order.tanggal}</div>
+                            <div className="text-sm font-black text-stone-800">Rp{order.jumlahUang.toLocaleString()}</div>
+                            <div className="text-[10px] font-bold text-stone-500 uppercase">{order.namaKurir}</div>
+                          </div>
+                          <div className="px-3 py-1 bg-orange-100 text-orange-700 rounded-lg text-[10px] font-black uppercase">
+                            Belum Bayar
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="py-12 text-center space-y-3">
+                        <div className="w-16 h-16 bg-stone-50 rounded-full flex items-center justify-center mx-auto text-stone-300">
+                          <span className="material-symbols-outlined text-3xl">check_circle</span>
+                        </div>
+                        <p className="text-sm font-bold text-stone-400 uppercase tracking-widest">Tidak ada piutang</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex justify-between items-start mb-6">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-sm ${
                     selectedStore.grade === 'A' ? 'bg-green-500' :
@@ -1534,6 +1617,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                   onClick={() => {
                     setSelectedStore(null);
                     setSelectedOrderForModal(null);
+                    setShowPiutangList(false);
                   }}
                   className="w-10 h-10 rounded-full hover:bg-stone-100 flex items-center justify-center text-stone-400 transition-colors border border-stone-100 shadow-sm"
                 >
@@ -1567,9 +1651,21 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                 )}
 
                 {selectedStore && (
-                  <div className="p-4 bg-orange-50/50 rounded-3xl border border-orange-100 space-y-3">
+                  <div 
+                    onClick={() => piutangData.qty > 0 && setShowPiutangList(true)}
+                    className={`p-4 rounded-3xl border space-y-3 transition-all ${
+                      piutangData.qty > 0 
+                        ? 'bg-orange-50/50 border-orange-100 cursor-pointer hover:bg-orange-100/50 active:scale-[0.98]' 
+                        : 'bg-stone-50/50 border-stone-100 opacity-60'
+                    }`}
+                  >
                     <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Piutang</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Piutang</span>
+                        {piutangData.qty > 0 && (
+                          <span className="material-symbols-outlined text-orange-400 text-xs animate-pulse">arrow_forward</span>
+                        )}
+                      </div>
                       <span className="text-[10px] font-bold text-orange-400">{getLocalDateString()}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
@@ -1624,10 +1720,12 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                   </a>
                 )}
               </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+            </>
+          )}
+        </motion.div>
+      </div>
+    )}
+  </AnimatePresence>
     </div>
   );
 };

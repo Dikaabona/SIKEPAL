@@ -54,7 +54,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
     lokasiBukti: '',
     jamBukti: '',
     qtyPengiriman: 0,
-    sisa: 0,
+    sisa: '' as any,
     originalNilai: 0,
     hargaSikepal: 0,
     metodePembayaran: '',
@@ -381,7 +381,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       lokasiBukti: '',
       jamBukti: '',
       qtyPengiriman: 0,
-      sisa: 0,
+      sisa: '' as any,
       originalNilai: 0,
       hargaSikepal: 0,
       metodePembayaran: '',
@@ -938,7 +938,10 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                 )}
               </div>
               <button 
-                onClick={closeModal}
+                onClick={() => {
+                  closeModal();
+                  onCancel?.();
+                }}
                 className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white border border-stone-100 flex items-center justify-center text-stone-400 hover:text-stone-900 transition-colors shadow-sm"
               >
                 <span className="material-symbols-outlined text-sm md:text-base">close</span>
@@ -1091,7 +1094,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                               selectedOrderId: '',
                               qtyPengiriman: 0,
                               originalNilai: 0,
-                              sisa: 0,
+                              sisa: '' as any,
                               hargaSikepal: 0,
                               namaKurir: '',
                               namaLokasi: '',
@@ -1150,17 +1153,20 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                       <input
                         type="number"
                         min="0"
-                        value={formData.sisa}
+                        required
+                        value={formData.sisa === '' ? '' : formData.sisa}
                         onChange={(e) => {
-                          const sisaVal = parseInt(e.target.value) || 0;
-                          const reduction = sisaVal * (formData.hargaSikepal || 0);
+                          const val = e.target.value;
+                          const sisaVal = val === '' ? '' : parseInt(val);
+                          const numericSisa = typeof sisaVal === 'number' ? sisaVal : 0;
+                          const reduction = numericSisa * (formData.hargaSikepal || 0);
                           setFormData({
                             ...formData,
-                            sisa: sisaVal,
+                            sisa: sisaVal as any,
                             qtyPengiriman: Math.max(0, formData.originalNilai - reduction)
                           });
                         }}
-                        placeholder="Masukkan sisa..."
+                        placeholder="-"
                         className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium"
                       />
                     </div>
@@ -1201,6 +1207,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                         <option value="" disabled>Pilih Metode</option>
                         <option value="Cash">Cash</option>
                         <option value="Transfer">Transfer</option>
+                        <option value="Piutang">Piutang</option>
                       </select>
                     </div>
                   </div>
@@ -1354,9 +1361,19 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={!formData.fotoBukti || (formData.metodePembayaran === 'Transfer' && !formData.buktiTransfer) || (isKeteranganRequired && !formData.keterangan.trim()) || isSaving}
+                  disabled={
+                    !formData.fotoBukti || 
+                    (formData.metodePembayaran === 'Transfer' && !formData.buktiTransfer) || 
+                    (isKeteranganRequired && !formData.keterangan.trim()) || 
+                    (title === "Billing Report" && formData.sisa === '') ||
+                    isSaving
+                  }
                   className={`flex-1 px-4 py-3 md:px-6 md:py-4 rounded-xl md:rounded-2xl text-white text-xs md:text-sm font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${
-                    formData.fotoBukti && (formData.metodePembayaran !== 'Transfer' || formData.buktiTransfer) && (!isKeteranganRequired || formData.keterangan.trim()) && !isSaving
+                    formData.fotoBukti && 
+                    (formData.metodePembayaran !== 'Transfer' || formData.buktiTransfer) && 
+                    (!isKeteranganRequired || formData.keterangan.trim()) && 
+                    (title !== "Billing Report" || formData.sisa !== '') &&
+                    !isSaving
                       ? 'bg-stone-900 hover:bg-stone-800 shadow-stone-900/20' 
                       : 'bg-stone-300 cursor-not-allowed'
                   }`}
@@ -1452,7 +1469,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                                 qtyPengiriman: order.jumlahUang,
                                 originalNilai: order.jumlahUang,
                                 hargaSikepal: order.hargaSikepal || 0,
-                                sisa: 0,
+                                sisa: '' as any,
                                 selectedOrderId: order.id,
                                 tanggalPiutang: order.tanggal,
                                 jumlahKirim: order.jumlahKirim
@@ -1511,7 +1528,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                             qtyPengiriman: order.jumlahUang,
                             originalNilai: order.jumlahUang,
                             hargaSikepal: order.hargaSikepal || 0,
-                            sisa: 0,
+                            sisa: '' as any,
                             selectedOrderId: order.id,
                             tanggalPiutang: order.tanggal,
                             jumlahKirim: order.jumlahKirim
