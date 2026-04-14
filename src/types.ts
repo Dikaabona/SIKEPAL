@@ -223,6 +223,7 @@ export interface Order {
   diskon: number;
   company: string;
   updatedAt: string;
+  status?: 'Pending' | 'Approved' | 'Rejected';
 }
 
 export interface DeliveryRecord {

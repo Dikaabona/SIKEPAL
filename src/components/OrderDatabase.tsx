@@ -13,6 +13,7 @@ interface OrderDatabaseProps {
   onDeleteAllOrders: () => Promise<void>;
   company: string;
   userRole: UserRole;
+  currentUserEmployee?: Employee | null;
   onPrefillRequest?: (location: string, type: 'delivery' | 'billing', courier?: string, storeId?: string) => void;
   initialSelectedStoreId?: string;
   onStoreOpened?: () => void;
@@ -27,6 +28,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
   onDeleteAllOrders,
   company,
   userRole,
+  currentUserEmployee,
   onPrefillRequest,
   initialSelectedStoreId,
   onStoreOpened
@@ -75,7 +77,8 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
     nilaiPembayaran: 0,
     waste: 0,
     diskon: 0,
-    company: company
+    company: company,
+    status: 'Approved'
   });
 
   const kurirOptions = useMemo(() => {
@@ -201,6 +204,9 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
 
+        const isKurir = currentUserEmployee?.division?.toLowerCase() === 'kurir';
+        const initialStatus = isKurir ? 'Pending' : 'Approved';
+
         const newOrders: Order[] = jsonData.map(row => {
           const tunaPedes = Number(row['Tuna Pedes'] || 0);
           const tunaMayo = Number(row['Tuna Mayo'] || 0);
@@ -229,7 +235,8 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
             jumlahPiutang: 0,
             tanggalBayar: '',
             company: company,
-            updatedAt: new Date().toISOString()
+            updatedAt: new Date().toISOString(),
+            status: initialStatus
           };
         });
 
@@ -300,6 +307,18 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
       return;
     }
 
+    const isKurir = currentUserEmployee?.division?.toLowerCase() === 'kurir';
+    const isAdminOrOwner = userRole === 'admin' || userRole === 'owner';
+    
+    // If it's a new order and user is Kurir, status is Pending.
+    // If it's an edit, we keep the status unless an admin/owner is editing it.
+    let initialStatus: 'Pending' | 'Approved' | 'Rejected' = 'Approved';
+    if (!newOrder.id) {
+      initialStatus = isKurir ? 'Pending' : 'Approved';
+    } else {
+      initialStatus = newOrder.status || 'Approved';
+    }
+
     const orderToSave: Order = {
       id: newOrder.id || `order_${Date.now()}`,
       tanggal: newOrder.tanggal || '',
@@ -321,7 +340,8 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
       tanggalBayar: newOrder.tanggalBayar || '',
       diskon: Number(newOrder.diskon) || 0,
       company: company,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      status: initialStatus
     };
 
     await onSaveOrder(orderToSave);
@@ -344,7 +364,8 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
       pembayaran: '',
       tanggalBayar: '',
       diskon: 0,
-      company: company
+      company: company,
+      status: 'Approved'
     });
   };
 
@@ -514,6 +535,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
           diskon: parseNum(row[idx.diskon]),
           company,
           updatedAt: new Date().toISOString(),
+          status: 'Approved'
         };
 
         ordersToSync.push(order);
@@ -621,6 +643,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
               </button>
               <button 
                 onClick={() => {
+                  const isKurir = currentUserEmployee?.division?.toLowerCase() === 'kurir';
                   setNewOrder({
                     tanggal: getLocalDateString(),
                     namaKurir: '',
@@ -639,7 +662,8 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                     pembayaran: '',
                     tanggalBayar: '',
                     diskon: 0,
-                    company: company
+                    company: company,
+                    status: isKurir ? 'Pending' : 'Approved'
                   });
                   setIsAdding(true);
                 }}
@@ -923,13 +947,14 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                 <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">NILAI PEMBAYARAN</th>
                 <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">WASTE</th>
                 <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">DISKON</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider">STATUS</th>
                 <th className="px-4 py-4 text-[10px] font-bold text-stone-500 uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
               {paginatedOrders.length > 0 ? (
                 paginatedOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-stone-50/50 transition-colors group">
+                  <tr key={order.id} className={`hover:bg-stone-50/50 transition-colors group ${order.status === 'Pending' ? 'bg-yellow-50/30' : ''}`}>
                     <td className="px-4 py-4 text-xs text-stone-600">{formatDate(order.tanggal)}</td>
                     <td className="px-4 py-4 text-xs font-bold text-stone-800">
                       {employees.find(e => e.id === order.employeeId)?.nama || order.namaKurir}
@@ -968,16 +993,45 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                     <td className="px-4 py-4 text-xs text-stone-600">Rp{(order.nilaiPembayaran || 0).toLocaleString()}</td>
                     <td className="px-4 py-4 text-xs text-stone-600">{order.waste ? `${order.waste.toFixed(0)}%` : '0%'}</td>
                     <td className="px-4 py-4 text-xs text-stone-600">Rp{order.diskon.toLocaleString()}</td>
+                    <td className="px-4 py-4 text-xs font-bold">
+                      <span className={`px-2 py-1 rounded-full text-[10px] uppercase tracking-tighter ${
+                        order.status === 'Approved' ? 'bg-green-100 text-green-700' :
+                        order.status === 'Rejected' ? 'bg-red-100 text-red-700' :
+                        'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {order.status || 'Approved'}
+                      </span>
+                    </td>
                     <td className="px-4 py-4 text-right">
-                      <button 
-                          onClick={() => {
-                            setNewOrder(order);
-                            setIsAdding(true);
-                          }}
-                          className="text-stone-400 hover:text-primary transition-colors"
-                        >
-                          <span className="material-symbols-outlined text-lg">edit</span>
-                        </button>
+                      <div className="flex items-center justify-end gap-2">
+                        {(userRole === 'admin' || userRole === 'owner') && order.status === 'Pending' && (
+                          <>
+                            <button 
+                              onClick={() => onSaveOrder({...order, status: 'Approved', updatedAt: new Date().toISOString()})}
+                              className="text-green-500 hover:text-green-700 transition-colors"
+                              title="Approve"
+                            >
+                              <span className="material-symbols-outlined text-lg">check_circle</span>
+                            </button>
+                            <button 
+                              onClick={() => onSaveOrder({...order, status: 'Rejected', updatedAt: new Date().toISOString()})}
+                              className="text-red-500 hover:text-red-700 transition-colors"
+                              title="Reject"
+                            >
+                              <span className="material-symbols-outlined text-lg">cancel</span>
+                            </button>
+                          </>
+                        )}
+                        <button 
+                            onClick={() => {
+                              setNewOrder(order);
+                              setIsAdding(true);
+                            }}
+                            className="text-stone-400 hover:text-primary transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-lg">edit</span>
+                          </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -1024,15 +1078,42 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                       </span>
                     </div>
                   </div>
-                  <button 
-                      onClick={() => {
-                        setNewOrder(order);
-                        setIsAdding(true);
-                      }}
-                      className="w-10 h-10 rounded-xl bg-stone-50 text-stone-400 flex items-center justify-center border border-stone-100"
-                    >
-                      <span className="material-symbols-outlined text-lg">edit</span>
-                    </button>
+                  <div className="flex flex-col items-end gap-2">
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                      order.status === 'Approved' ? 'bg-green-100 text-green-700' :
+                      order.status === 'Rejected' ? 'bg-red-100 text-red-700' :
+                      'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {order.status || 'Approved'}
+                    </span>
+                    <div className="flex gap-2">
+                      {(userRole === 'admin' || userRole === 'owner') && order.status === 'Pending' && (
+                        <div className="flex gap-1">
+                          <button 
+                            onClick={() => onSaveOrder({...order, status: 'Approved', updatedAt: new Date().toISOString()})}
+                            className="w-10 h-10 rounded-xl bg-green-50 text-green-500 flex items-center justify-center border border-green-100"
+                          >
+                            <span className="material-symbols-outlined text-lg">check</span>
+                          </button>
+                          <button 
+                            onClick={() => onSaveOrder({...order, status: 'Rejected', updatedAt: new Date().toISOString()})}
+                            className="w-10 h-10 rounded-xl bg-red-50 text-red-500 flex items-center justify-center border border-red-100"
+                          >
+                            <span className="material-symbols-outlined text-lg">close</span>
+                          </button>
+                        </div>
+                      )}
+                      <button 
+                        onClick={() => {
+                          setNewOrder(order);
+                          setIsAdding(true);
+                        }}
+                        className="w-10 h-10 rounded-xl bg-stone-50 text-stone-400 flex items-center justify-center border border-stone-100"
+                      >
+                        <span className="material-symbols-outlined text-lg">edit</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-6 gap-1">
@@ -1505,6 +1586,20 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                     className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                   />
                 </div>
+                {(userRole === 'admin' || userRole === 'owner') && (
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Status Approval</label>
+                    <select 
+                      value={newOrder.status || 'Approved'}
+                      onChange={(e) => setNewOrder({...newOrder, status: e.target.value as any})}
+                      className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    >
+                      <option value="Pending">Pending</option>
+                      <option value="Approved">Approved</option>
+                      <option value="Rejected">Rejected</option>
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="p-6 border-t border-stone-100 bg-stone-50/50 flex justify-end gap-3">

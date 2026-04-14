@@ -1081,6 +1081,7 @@ export default function App() {
             onDeleteAllOrders={handleDeleteAllOrders}
             company={userCompany}
             userRole={userRole}
+            currentUserEmployee={currentUserEmployee}
             onPrefillRequest={handlePrefillRequest}
             initialSelectedStoreId={returnStoreId || undefined}
             onStoreOpened={() => setReturnStoreId(null)}
