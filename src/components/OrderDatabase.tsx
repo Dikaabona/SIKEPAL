@@ -1357,249 +1357,269 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                 </button>
               </div>
               
-              <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Tanggal *</label>
-                  <input 
-                    type="date" 
-                    value={newOrder.tanggal}
-                    onChange={(e) => setNewOrder({...newOrder, tanggal: e.target.value})}
-                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nama Kurir</label>
-                  <select 
-                    value={newOrder.employeeId || ''}
-                    onChange={(e) => {
-                      const emp = employees.find(emp => emp.id === e.target.value);
-                      setNewOrder({
-                        ...newOrder, 
-                        employeeId: e.target.value,
-                        namaKurir: emp ? emp.nama : ''
-                      });
-                    }}
-                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  >
-                    <option value="">Pilih Kurir</option>
-                    {employees
-                      .filter(emp => emp.division?.toLowerCase() === 'kurir' || emp.jabatan?.toLowerCase() === 'kurir')
-                      .map(emp => (
-                        <option key={emp.id} value={emp.id}>{emp.nama}</option>
-                      ))
-                    }
-                  </select>
-                </div>
-                <div className="space-y-1 relative">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nama Lokasi *</label>
-                  <div className="relative">
-                    <input 
-                      type="text" 
-                      placeholder="Cari lokasi..."
-                      value={lokasiSearch}
-                      onChange={(e) => {
-                        setLokasiSearch(e.target.value);
-                        setShowLokasiDropdown(true);
-                      }}
-                      onFocus={() => setShowLokasiDropdown(true)}
-                      className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                    />
-                    <span className="material-symbols-outlined absolute right-3 top-2 text-stone-400 text-sm pointer-events-none">
-                      search
-                    </span>
+              <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
+                {/* Section 1: Data Utama */}
+                <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4 bg-stone-50/50 p-4 rounded-2xl border border-stone-100">
+                  <div className="md:col-span-3 mb-1">
+                    <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Informasi Utama</h4>
                   </div>
-                  
-                  {showLokasiDropdown && (
-                    <>
-                      <div 
-                        className="fixed inset-0 z-[105]" 
-                        onClick={() => setShowLokasiDropdown(false)} 
-                      />
-                      <div className="absolute z-[110] left-0 right-0 top-full mt-1 bg-white border border-stone-200 rounded-xl shadow-xl max-h-60 overflow-y-auto custom-scrollbar">
-                        {stores
-                          .filter(s => s.namaToko.toLowerCase().includes(lokasiSearch.toLowerCase()))
-                          .map(store => (
-                            <button
-                              key={store.id}
-                              type="button"
-                              onClick={() => {
-                                setNewOrder({...newOrder, namaLokasi: store.namaToko});
-                                setLokasiSearch(store.namaToko);
-                                setShowLokasiDropdown(false);
-                              }}
-                              className="w-full text-left px-4 py-2 text-sm hover:bg-stone-50 transition-colors border-b border-stone-50 last:border-0"
-                            >
-                              {store.namaToko}
-                            </button>
-                          ))
-                        }
-                        {stores.filter(s => s.namaToko.toLowerCase().includes(lokasiSearch.toLowerCase())).length === 0 && (
-                          <div className="px-4 py-3 text-xs text-stone-400 italic text-center">
-                            Lokasi tidak ditemukan
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Tuna Pedes</label>
-                  <input 
-                    type="number" 
-                    value={newOrder.tunaPedes}
-                    onChange={(e) => setNewOrder({...newOrder, tunaPedes: parseInt(e.target.value)})}
-                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Tuna Mayo</label>
-                  <input 
-                    type="number" 
-                    value={newOrder.tunaMayo}
-                    onChange={(e) => setNewOrder({...newOrder, tunaMayo: parseInt(e.target.value)})}
-                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Ayam Mayo</label>
-                  <input 
-                    type="number" 
-                    value={newOrder.ayamMayo}
-                    onChange={(e) => setNewOrder({...newOrder, ayamMayo: parseInt(e.target.value)})}
-                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Ayam Pedes</label>
-                  <input 
-                    type="number" 
-                    value={newOrder.ayamPedes}
-                    onChange={(e) => setNewOrder({...newOrder, ayamPedes: parseInt(e.target.value)})}
-                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Menu Bulanan</label>
-                  <input 
-                    type="number" 
-                    value={newOrder.menuBulanan}
-                    onChange={(e) => setNewOrder({...newOrder, menuBulanan: parseInt(e.target.value)})}
-                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Jumlah Kirim</label>
-                  <input 
-                    type="number" 
-                    value={newOrder.jumlahKirim}
-                    onChange={(e) => setNewOrder({...newOrder, jumlahKirim: parseInt(e.target.value)})}
-                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Harga Sikepal</label>
-                  <input 
-                    type="number" 
-                    value={newOrder.hargaSikepal}
-                    onChange={(e) => setNewOrder({...newOrder, hargaSikepal: parseInt(e.target.value)})}
-                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Periode Bayar</label>
-                  <select 
-                    value={newOrder.periodeBayar}
-                    onChange={(e) => setNewOrder({...newOrder, periodeBayar: e.target.value})}
-                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  >
-                    <option value="">Pilih Periode</option>
-                    <option value="Harian">Harian</option>
-                    <option value="Mingguan">Mingguan</option>
-                    <option value="Bulanan">Bulanan</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Sisa</label>
-                  <input 
-                    type="number" 
-                    value={newOrder.sisa}
-                    onChange={(e) => setNewOrder({...newOrder, sisa: parseInt(e.target.value)})}
-                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Jumlah Uang</label>
-                  <input 
-                    type="number" 
-                    value={newOrder.jumlahUang}
-                    onChange={(e) => setNewOrder({...newOrder, jumlahUang: parseInt(e.target.value)})}
-                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Pembayaran</label>
-                  <select 
-                    value={newOrder.pembayaran}
-                    onChange={(e) => setNewOrder({...newOrder, pembayaran: e.target.value})}
-                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  >
-                    <option value="">Pilih Status</option>
-                    <option value="FALSE">FALSE</option>
-                    <option value="TRUE">TRUE</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Tanggal Bayar</label>
-                  <input 
-                    type="date" 
-                    value={newOrder.tanggalBayar}
-                    onChange={(e) => setNewOrder({...newOrder, tanggalBayar: e.target.value})}
-                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nilai Pembayaran</label>
-                  <input 
-                    type="number" 
-                    value={newOrder.nilaiPembayaran || 0}
-                    onChange={(e) => setNewOrder({...newOrder, nilaiPembayaran: parseInt(e.target.value)})}
-                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Waste (%)</label>
-                  <input 
-                    type="number" 
-                    value={newOrder.waste || 0}
-                    onChange={(e) => setNewOrder({...newOrder, waste: parseFloat(e.target.value)})}
-                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Diskon</label>
-                  <input 
-                    type="number" 
-                    value={newOrder.diskon}
-                    onChange={(e) => setNewOrder({...newOrder, diskon: parseInt(e.target.value)})}
-                    className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  />
-                </div>
-                {(userRole === 'admin' || userRole === 'owner') && (
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Status Approval</label>
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Tanggal *</label>
+                    <input 
+                      type="date" 
+                      value={newOrder.tanggal}
+                      onChange={(e) => setNewOrder({...newOrder, tanggal: e.target.value})}
+                      className="w-full px-4 py-2.5 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nama Kurir</label>
                     <select 
-                      value={newOrder.status || 'Approved'}
-                      onChange={(e) => setNewOrder({...newOrder, status: e.target.value as any})}
-                      className="w-full px-4 py-2 bg-stone-50 border border-outline-variant/20 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                      value={newOrder.employeeId || ''}
+                      onChange={(e) => {
+                        const emp = employees.find(emp => emp.id === e.target.value);
+                        setNewOrder({
+                          ...newOrder, 
+                          employeeId: e.target.value,
+                          namaKurir: emp ? emp.nama : ''
+                        });
+                      }}
+                      className="w-full px-4 py-2.5 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                     >
-                      <option value="Pending">Pending</option>
-                      <option value="Approved">Approved</option>
-                      <option value="Rejected">Rejected</option>
+                      <option value="">Pilih Kurir</option>
+                      {employees
+                        .filter(emp => emp.division?.toLowerCase() === 'kurir' || emp.jabatan?.toLowerCase() === 'kurir')
+                        .map(emp => (
+                          <option key={emp.id} value={emp.id}>{emp.nama}</option>
+                        ))
+                      }
                     </select>
                   </div>
-                )}
+                  <div className="space-y-1 relative">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nama Lokasi *</label>
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        placeholder="Cari lokasi..."
+                        value={lokasiSearch}
+                        onChange={(e) => {
+                          setLokasiSearch(e.target.value);
+                          setShowLokasiDropdown(true);
+                        }}
+                        onFocus={() => setShowLokasiDropdown(true)}
+                        className="w-full px-4 py-2.5 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                      />
+                      <span className="material-symbols-outlined absolute right-3 top-2.5 text-stone-400 text-sm pointer-events-none">
+                        search
+                      </span>
+                    </div>
+                    
+                    {showLokasiDropdown && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-[105]" 
+                          onClick={() => setShowLokasiDropdown(false)} 
+                        />
+                        <div className="absolute z-[110] left-0 right-0 top-full mt-1 bg-white border border-stone-200 rounded-xl shadow-xl max-h-60 overflow-y-auto custom-scrollbar">
+                          {stores
+                            .filter(s => s.namaToko.toLowerCase().includes(lokasiSearch.toLowerCase()))
+                            .map(store => (
+                              <button
+                                key={store.id}
+                                type="button"
+                                onClick={() => {
+                                  setNewOrder({...newOrder, namaLokasi: store.namaToko});
+                                  setLokasiSearch(store.namaToko);
+                                  setShowLokasiDropdown(false);
+                                }}
+                                className="w-full text-left px-4 py-2.5 text-sm hover:bg-stone-50 transition-colors border-b border-stone-50 last:border-0"
+                              >
+                                {store.namaToko}
+                              </button>
+                            ))
+                          }
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Section 2: Varian Produk */}
+                <div className="md:col-span-2 grid grid-cols-2 md:grid-cols-3 gap-3 bg-stone-50/50 p-4 rounded-2xl border border-stone-100">
+                  <div className="col-span-2 md:col-span-3 mb-1">
+                    <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Varian Produk</h4>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Tuna Pedes</label>
+                    <input 
+                      type="number" 
+                      value={newOrder.tunaPedes}
+                      onChange={(e) => setNewOrder({...newOrder, tunaPedes: parseInt(e.target.value) || 0})}
+                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Tuna Mayo</label>
+                    <input 
+                      type="number" 
+                      value={newOrder.tunaMayo}
+                      onChange={(e) => setNewOrder({...newOrder, tunaMayo: parseInt(e.target.value) || 0})}
+                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Ayam Mayo</label>
+                    <input 
+                      type="number" 
+                      value={newOrder.ayamMayo}
+                      onChange={(e) => setNewOrder({...newOrder, ayamMayo: parseInt(e.target.value) || 0})}
+                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Ayam Pedes</label>
+                    <input 
+                      type="number" 
+                      value={newOrder.ayamPedes}
+                      onChange={(e) => setNewOrder({...newOrder, ayamPedes: parseInt(e.target.value) || 0})}
+                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Menu Bulanan</label>
+                    <input 
+                      type="number" 
+                      value={newOrder.menuBulanan}
+                      onChange={(e) => setNewOrder({...newOrder, menuBulanan: parseInt(e.target.value) || 0})}
+                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Jumlah Kirim</label>
+                    <input 
+                      type="number" 
+                      value={newOrder.jumlahKirim}
+                      onChange={(e) => setNewOrder({...newOrder, jumlahKirim: parseInt(e.target.value) || 0})}
+                      className="w-full px-4 py-2 bg-primary/5 border border-primary/20 rounded-xl text-sm font-bold text-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Section 3: Detail Harga & Pembayaran */}
+                <div className="md:col-span-1 grid grid-cols-1 gap-4 bg-stone-50/50 p-4 rounded-2xl border border-stone-100">
+                  <div className="mb-1">
+                    <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Harga & Bayar</h4>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Harga Sikepal</label>
+                    <input 
+                      type="number" 
+                      value={newOrder.hargaSikepal}
+                      onChange={(e) => setNewOrder({...newOrder, hargaSikepal: parseInt(e.target.value) || 0})}
+                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Periode Bayar</label>
+                    <select 
+                      value={newOrder.periodeBayar}
+                      onChange={(e) => setNewOrder({...newOrder, periodeBayar: e.target.value})}
+                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    >
+                      <option value="">Pilih Periode</option>
+                      <option value="Harian">Harian</option>
+                      <option value="Mingguan">Mingguan</option>
+                      <option value="Bulanan">Bulanan</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Pembayaran</label>
+                    <select 
+                      value={newOrder.pembayaran}
+                      onChange={(e) => setNewOrder({...newOrder, pembayaran: e.target.value})}
+                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    >
+                      <option value="">Pilih Status</option>
+                      <option value="FALSE">BELUM LUNAS</option>
+                      <option value="TRUE">LUNAS</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Section 4: Detail Keuangan (Advanced) */}
+                <div className="md:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-3 bg-stone-50/50 p-4 rounded-2xl border border-stone-100">
+                  <div className="col-span-2 md:col-span-4 mb-1">
+                    <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Detail Keuangan</h4>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Sisa</label>
+                    <input 
+                      type="number" 
+                      value={newOrder.sisa}
+                      onChange={(e) => setNewOrder({...newOrder, sisa: parseInt(e.target.value) || 0})}
+                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Jumlah Uang</label>
+                    <input 
+                      type="number" 
+                      value={newOrder.jumlahUang}
+                      onChange={(e) => setNewOrder({...newOrder, jumlahUang: parseInt(e.target.value) || 0})}
+                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Tanggal Bayar</label>
+                    <input 
+                      type="date" 
+                      value={newOrder.tanggalBayar}
+                      onChange={(e) => setNewOrder({...newOrder, tanggalBayar: e.target.value})}
+                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nilai Bayar</label>
+                    <input 
+                      type="number" 
+                      value={newOrder.nilaiPembayaran || 0}
+                      onChange={(e) => setNewOrder({...newOrder, nilaiPembayaran: parseInt(e.target.value) || 0})}
+                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Waste (%)</label>
+                    <input 
+                      type="number" 
+                      value={newOrder.waste || 0}
+                      onChange={(e) => setNewOrder({...newOrder, waste: parseFloat(e.target.value) || 0})}
+                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Diskon</label>
+                    <input 
+                      type="number" 
+                      value={newOrder.diskon}
+                      onChange={(e) => setNewOrder({...newOrder, diskon: parseInt(e.target.value) || 0})}
+                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  {(userRole === 'admin' || userRole === 'owner') && (
+                    <div className="space-y-1 col-span-2 md:col-span-2">
+                      <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Status Approval</label>
+                      <select 
+                        value={newOrder.status || 'Approved'}
+                        onChange={(e) => setNewOrder({...newOrder, status: e.target.value as any})}
+                        className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                      >
+                        <option value="Pending">Pending</option>
+                        <option value="Approved">Approved</option>
+                        <option value="Rejected">Rejected</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="p-6 border-t border-stone-100 bg-stone-50/50 flex justify-end gap-3">
