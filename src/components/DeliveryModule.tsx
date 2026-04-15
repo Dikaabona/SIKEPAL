@@ -153,6 +153,44 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // Filters for Billing Report
+  const [filterCourier, setFilterCourier] = useState('');
+  const [filterDate, setFilterDate] = useState('');
+
+  const filteredDeliveries = useMemo(() => {
+    return deliveries.filter(d => {
+      const matchesCourier = !filterCourier || d.namaKurir === filterCourier;
+      const matchesDate = !filterDate || d.tanggal === filterDate;
+      return matchesCourier && matchesDate;
+    });
+  }, [deliveries, filterCourier, filterDate]);
+
+  const summary = useMemo(() => {
+    if (title !== "Billing Report") return null;
+    
+    const totalNilai = filteredDeliveries.reduce((sum, d) => sum + (Number(d.qtyPengiriman) || 0), 0);
+    const totalSisa = filteredDeliveries.reduce((sum, d) => sum + (Number(d.sisa) || 0), 0);
+    const uniqueLocations = new Set(filteredDeliveries.map(d => d.namaLokasi)).size;
+    const totalPenagihan = filteredDeliveries.length;
+
+    const totalCash = filteredDeliveries
+      .filter(d => !d.metodePembayaran || d.metodePembayaran === 'Cash')
+      .reduce((sum, d) => sum + (Number(d.qtyPengiriman) || 0), 0);
+    
+    const totalTransfer = filteredDeliveries
+      .filter(d => d.metodePembayaran === 'Transfer')
+      .reduce((sum, d) => sum + (Number(d.qtyPengiriman) || 0), 0);
+
+    return {
+      totalNilai,
+      totalSisa,
+      uniqueLocations,
+      totalPenagihan,
+      totalCash,
+      totalTransfer
+    };
+  }, [filteredDeliveries, title]);
+
   // Piutang Modal States
   const [piutangSearchQuery, setPiutangSearchQuery] = useState('');
   const [piutangFilterKurir, setPiutangFilterKurir] = useState('');
@@ -195,14 +233,14 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   // Reset to page 1 when deliveries list changes
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [deliveries.length]);
+  }, [filteredDeliveries.length]);
 
   const paginatedDeliveries = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
-    return deliveries.slice(startIndex, startIndex + itemsPerPage);
-  }, [deliveries, currentPage]);
+    return filteredDeliveries.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredDeliveries, currentPage]);
 
-  const totalPages = Math.ceil(deliveries.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredDeliveries.length / itemsPerPage);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -461,12 +499,92 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
         </div>
       </div>
 
+      {title === "Billing Report" && summary && (
+        <div className="grid grid-cols-6 md:grid-cols-5 gap-2 md:gap-4">
+          {/* Row 1 on Mobile: 2 Cards (3/6 each) */}
+          <div className="col-span-3 md:col-span-1 bg-white p-3 md:p-5 rounded-2xl md:rounded-[24px] border border-stone-100 shadow-sm">
+            <div className="w-7 h-7 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-green-50 text-green-600 flex items-center justify-center mb-2 md:mb-3">
+              <span className="material-symbols-outlined text-sm md:text-base">payments</span>
+            </div>
+            <div className="text-[8px] md:text-[10px] font-black text-stone-400 uppercase tracking-widest mb-0.5 md:mb-1">Jumlah Nilai</div>
+            <div className="text-xs md:text-lg font-black text-stone-900 leading-tight">Rp {summary.totalNilai.toLocaleString('id-ID')}</div>
+          </div>
+          <div className="col-span-3 md:col-span-1 bg-white p-3 md:p-5 rounded-2xl md:rounded-[24px] border border-stone-100 shadow-sm">
+            <div className="w-7 h-7 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-2 md:mb-3">
+              <span className="material-symbols-outlined text-sm md:text-base">account_balance_wallet</span>
+            </div>
+            <div className="text-[8px] md:text-[10px] font-black text-stone-400 uppercase tracking-widest mb-0.5 md:mb-1">Metode Bayar</div>
+            <div className="space-y-0.5 md:space-y-1">
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-[7px] md:text-[10px] font-bold text-stone-500 uppercase">Cash:</span>
+                <span className="text-[9px] md:text-xs font-black text-stone-900">Rp {summary.totalCash.toLocaleString('id-ID')}</span>
+              </div>
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-[7px] md:text-[10px] font-bold text-stone-500 uppercase">Trf:</span>
+                <span className="text-[9px] md:text-xs font-black text-blue-600">Rp {summary.totalTransfer.toLocaleString('id-ID')}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2 on Mobile: 3 Cards (2/6 each) */}
+          <div className="col-span-2 md:col-span-1 bg-white p-3 md:p-5 rounded-2xl md:rounded-[24px] border border-stone-100 shadow-sm">
+            <div className="w-7 h-7 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center mb-2 md:mb-3">
+              <span className="material-symbols-outlined text-sm md:text-base">inventory_2</span>
+            </div>
+            <div className="text-[8px] md:text-[10px] font-black text-stone-400 uppercase tracking-widest mb-0.5 md:mb-1">Jumlah Sisa</div>
+            <div className="text-xs md:text-lg font-black text-stone-900 leading-tight">{summary.totalSisa} <span className="text-[8px] md:text-[10px] text-stone-400 font-bold uppercase">Pcs</span></div>
+          </div>
+          <div className="col-span-2 md:col-span-1 bg-white p-3 md:p-5 rounded-2xl md:rounded-[24px] border border-stone-100 shadow-sm">
+            <div className="w-7 h-7 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-2 md:mb-3">
+              <span className="material-symbols-outlined text-sm md:text-base">store</span>
+            </div>
+            <div className="text-[8px] md:text-[10px] font-black text-stone-400 uppercase tracking-widest mb-0.5 md:mb-1">Jumlah Lokasi</div>
+            <div className="text-xs md:text-lg font-black text-stone-900 leading-tight">{summary.uniqueLocations} <span className="text-[8px] md:text-[10px] text-stone-400 font-bold uppercase">Titik</span></div>
+          </div>
+          <div className="col-span-2 md:col-span-1 bg-white p-3 md:p-5 rounded-2xl md:rounded-[24px] border border-stone-100 shadow-sm">
+            <div className="w-7 h-7 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center mb-2 md:mb-3">
+              <span className="material-symbols-outlined text-sm md:text-base">receipt_long</span>
+            </div>
+            <div className="text-[8px] md:text-[10px] font-black text-stone-400 uppercase tracking-widest mb-0.5 md:mb-1">Jumlah Penagihan</div>
+            <div className="text-xs md:text-lg font-black text-stone-900 leading-tight">{summary.totalPenagihan} <span className="text-[8px] md:text-[10px] text-stone-400 font-bold uppercase">Data</span></div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-[24px] md:rounded-[32px] border border-stone-100 shadow-sm overflow-hidden">
-        <div className="p-4 md:p-6 border-b border-stone-50 flex items-center justify-between">
+        <div className="p-4 md:p-6 border-b border-stone-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <h3 className="font-bold text-stone-900 text-sm md:text-base">
             {title === "Billing Report" ? "Daftar Penagihan" : "Daftar Pengiriman"}
           </h3>
-          <div className="flex items-center gap-3">
+          
+          <div className="flex flex-wrap items-center gap-3">
+            {title === "Billing Report" && (
+              <>
+                <div className="relative min-w-[140px]">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">person</span>
+                  <select
+                    value={filterCourier}
+                    onChange={(e) => setFilterCourier(e.target.value)}
+                    className="w-full pl-9 pr-8 py-2 rounded-xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-[10px] font-bold uppercase appearance-none cursor-pointer"
+                  >
+                    <option value="">Semua Kurir</option>
+                    {courierOptions.map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="relative min-w-[140px]">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">calendar_today</span>
+                  <input
+                    type="date"
+                    value={filterDate}
+                    onChange={(e) => setFilterDate(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 rounded-xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-[10px] font-bold uppercase"
+                  />
+                </div>
+              </>
+            )}
+
             {selectedIds.length > 0 && onBulkDelete && (
               <button 
                 onClick={handleBulkDelete}
@@ -894,7 +1012,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
         {totalPages > 1 && (
           <div className="px-6 py-4 bg-stone-50/30 border-t border-stone-50 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-[10px] md:text-xs font-bold text-stone-400 uppercase tracking-widest">
-              Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, deliveries.length)} of {deliveries.length} entries
+              Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredDeliveries.length)} of {filteredDeliveries.length} entries
             </div>
             <div className="flex items-center gap-1">
               <button

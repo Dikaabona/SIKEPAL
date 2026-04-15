@@ -304,7 +304,7 @@ export default function App() {
         if (storeData) setStores(storeData);
 
         // Helper for fetching all data with pagination
-        const fetchAllData = async (table: string, limit: number = 10000) => {
+        const fetchAllData = async (table: string, limit: number = 20000) => {
           let allData: any[] = [];
           let from = 0;
           let to = 999;

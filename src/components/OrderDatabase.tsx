@@ -1170,6 +1170,10 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                 >
                   <option value={30}>30</option>
                   <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value={500}>500</option>
+                  <option value={1000}>1000</option>
+                  <option value={20000}>Semua</option>
                 </select>
               </div>
             </div>
