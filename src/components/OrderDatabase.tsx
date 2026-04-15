@@ -143,7 +143,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
   const handleDownloadTemplate = () => {
     const templateData = [
       {
-        'Tanggal (YYYY-MM-DD)': getLocalDateString(),
+        'Tanggal (DD/MM/YYYY)': formatDate(getLocalDateString()),
         'Nama Kurir': '',
         'Nama Lokasi': '',
         'Tuna Pedes': 0,
@@ -215,9 +215,19 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
           const menuBulanan = Number(row['Menu Bulanan'] || 0);
           const jumlahKirim = tunaPedes + tunaMayo + ayamMayo + ayamPedes + menuBulanan;
 
+          // Handle date parsing from DD/MM/YYYY
+          let tanggal = getLocalDateString();
+          const rawDate = row['Tanggal (DD/MM/YYYY)'] || row['Tanggal (YYYY-MM-DD)'];
+          if (rawDate) {
+            const parsed = parseIndoDate(String(rawDate));
+            if (parsed) {
+              tanggal = getLocalDateString(parsed);
+            }
+          }
+
           return {
             id: crypto.randomUUID(),
-            tanggal: row['Tanggal (YYYY-MM-DD)'] || getLocalDateString(),
+            tanggal,
             namaKurir: row['Nama Kurir'] || '',
             namaLokasi: row['Nama Lokasi'] || '',
             tunaPedes,
@@ -665,6 +675,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                     company: company,
                     status: isKurir ? 'Pending' : 'Approved'
                   });
+                  setLokasiSearch('');
                   setIsAdding(true);
                 }}
                 className="flex items-center gap-2 px-4 md:px-6 py-2 bg-primary text-on-primary rounded-xl font-bold text-[10px] md:text-sm hover:bg-primary/90 transition-all shadow-md shadow-primary/20"
@@ -713,6 +724,19 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                 />
               </div>
               <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                <button 
+                  onClick={() => {
+                    const tomorrow = new Date();
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    const tomorrowStr = getLocalDateString(tomorrow);
+                    setStartDate(tomorrowStr);
+                    setEndDate(tomorrowStr);
+                    setCurrentPage(1);
+                  }}
+                  className={`text-xs font-bold transition-colors ${startDate === getLocalDateString(new Date(new Date().getTime() + 86400000)) && endDate === getLocalDateString(new Date(new Date().getTime() + 86400000)) ? 'text-primary underline' : 'text-stone-400 hover:text-primary'}`}
+                >
+                  Tomorrow
+                </button>
                 <button 
                   onClick={() => {
                     const today = getLocalDateString();
@@ -1025,6 +1049,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                         <button 
                             onClick={() => {
                               setNewOrder(order);
+                              setLokasiSearch(order.namaLokasi);
                               setIsAdding(true);
                             }}
                             className="text-stone-400 hover:text-primary transition-colors"
@@ -1106,6 +1131,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                       <button 
                         onClick={() => {
                           setNewOrder(order);
+                          setLokasiSearch(order.namaLokasi);
                           setIsAdding(true);
                         }}
                         className="w-10 h-10 rounded-xl bg-stone-50 text-stone-400 flex items-center justify-center border border-stone-100"
@@ -1432,7 +1458,15 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                                 key={store.id}
                                 type="button"
                                 onClick={() => {
-                                  setNewOrder({...newOrder, namaLokasi: store.namaToko});
+                                  // Parse price from store data (e.g., "Rp8,000" or "8000")
+                                  const rawPrice = store.harga || '0';
+                                  const numericPrice = parseInt(rawPrice.replace(/[^0-9]/g, '')) || 0;
+                                  
+                                  setNewOrder({
+                                    ...newOrder, 
+                                    namaLokasi: store.namaToko,
+                                    hargaSikepal: numericPrice
+                                  });
                                   setLokasiSearch(store.namaToko);
                                   setShowLokasiDropdown(false);
                                 }}
@@ -1550,80 +1584,82 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                   </div>
                 </div>
 
-                {/* Section 4: Detail Keuangan (Advanced) */}
-                <div className="md:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-3 bg-stone-50/50 p-4 rounded-2xl border border-stone-100">
-                  <div className="col-span-2 md:col-span-4 mb-1">
-                    <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Detail Keuangan</h4>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Sisa</label>
-                    <input 
-                      type="number" 
-                      value={newOrder.sisa}
-                      onChange={(e) => setNewOrder({...newOrder, sisa: parseInt(e.target.value) || 0})}
-                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Jumlah Uang</label>
-                    <input 
-                      type="number" 
-                      value={newOrder.jumlahUang}
-                      onChange={(e) => setNewOrder({...newOrder, jumlahUang: parseInt(e.target.value) || 0})}
-                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Tanggal Bayar</label>
-                    <input 
-                      type="date" 
-                      value={newOrder.tanggalBayar}
-                      onChange={(e) => setNewOrder({...newOrder, tanggalBayar: e.target.value})}
-                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nilai Bayar</label>
-                    <input 
-                      type="number" 
-                      value={newOrder.nilaiPembayaran || 0}
-                      onChange={(e) => setNewOrder({...newOrder, nilaiPembayaran: parseInt(e.target.value) || 0})}
-                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Waste (%)</label>
-                    <input 
-                      type="number" 
-                      value={newOrder.waste || 0}
-                      onChange={(e) => setNewOrder({...newOrder, waste: parseFloat(e.target.value) || 0})}
-                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Diskon</label>
-                    <input 
-                      type="number" 
-                      value={newOrder.diskon}
-                      onChange={(e) => setNewOrder({...newOrder, diskon: parseInt(e.target.value) || 0})}
-                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                    />
-                  </div>
-                  {(userRole === 'admin' || userRole === 'owner') && (
-                    <div className="space-y-1 col-span-2 md:col-span-2">
-                      <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Status Approval</label>
-                      <select 
-                        value={newOrder.status || 'Approved'}
-                        onChange={(e) => setNewOrder({...newOrder, status: e.target.value as any})}
-                        className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                      >
-                        <option value="Pending">Pending</option>
-                        <option value="Approved">Approved</option>
-                        <option value="Rejected">Rejected</option>
-                      </select>
+                {/* Section 4: Detail Keuangan (Advanced) - Hidden for Kurir */}
+                {currentUserEmployee?.division?.toLowerCase() !== 'kurir' && (
+                  <div className="md:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-3 bg-stone-50/50 p-4 rounded-2xl border border-stone-100">
+                    <div className="col-span-2 md:col-span-4 mb-1">
+                      <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Detail Keuangan</h4>
                     </div>
-                  )}
-                </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Sisa</label>
+                      <input 
+                        type="number" 
+                        value={newOrder.sisa}
+                        onChange={(e) => setNewOrder({...newOrder, sisa: parseInt(e.target.value) || 0})}
+                        className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Jumlah Uang</label>
+                      <input 
+                        type="number" 
+                        value={newOrder.jumlahUang}
+                        onChange={(e) => setNewOrder({...newOrder, jumlahUang: parseInt(e.target.value) || 0})}
+                        className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Tanggal Bayar</label>
+                      <input 
+                        type="date" 
+                        value={newOrder.tanggalBayar}
+                        onChange={(e) => setNewOrder({...newOrder, tanggalBayar: e.target.value})}
+                        className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nilai Bayar</label>
+                      <input 
+                        type="number" 
+                        value={newOrder.nilaiPembayaran || 0}
+                        onChange={(e) => setNewOrder({...newOrder, nilaiPembayaran: parseInt(e.target.value) || 0})}
+                        className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Waste (%)</label>
+                      <input 
+                        type="number" 
+                        value={newOrder.waste || 0}
+                        onChange={(e) => setNewOrder({...newOrder, waste: parseFloat(e.target.value) || 0})}
+                        className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Diskon</label>
+                      <input 
+                        type="number" 
+                        value={newOrder.diskon}
+                        onChange={(e) => setNewOrder({...newOrder, diskon: parseInt(e.target.value) || 0})}
+                        className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                      />
+                    </div>
+                    {(userRole === 'admin' || userRole === 'owner') && (
+                      <div className="space-y-1 col-span-2 md:col-span-2">
+                        <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Status Approval</label>
+                        <select 
+                          value={newOrder.status || 'Approved'}
+                          onChange={(e) => setNewOrder({...newOrder, status: e.target.value as any})}
+                          className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                        >
+                          <option value="Pending">Pending</option>
+                          <option value="Approved">Approved</option>
+                          <option value="Rejected">Rejected</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="p-6 border-t border-stone-100 bg-stone-50/50 flex justify-end gap-3">
