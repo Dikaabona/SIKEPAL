@@ -1483,8 +1483,8 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                 </div>
 
                 {/* Section 2: Varian Produk */}
-                <div className="md:col-span-2 grid grid-cols-2 md:grid-cols-3 gap-3 bg-stone-50/50 p-4 rounded-2xl border border-stone-100">
-                  <div className="col-span-2 md:col-span-3 mb-1">
+                <div className="md:col-span-3 grid grid-cols-2 md:grid-cols-6 gap-3 bg-stone-50/50 p-4 rounded-2xl border border-stone-100">
+                  <div className="col-span-2 md:col-span-6 mb-1">
                     <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Varian Produk</h4>
                   </div>
                   <div className="space-y-1">
@@ -1544,8 +1544,8 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                 </div>
 
                 {/* Section 3: Detail Harga & Pembayaran */}
-                <div className="md:col-span-1 grid grid-cols-1 gap-4 bg-stone-50/50 p-4 rounded-2xl border border-stone-100">
-                  <div className="mb-1">
+                <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4 bg-stone-50/50 p-4 rounded-2xl border border-stone-100">
+                  <div className="md:col-span-3 mb-1">
                     <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Harga & Bayar</h4>
                   </div>
                   <div className="space-y-1">
