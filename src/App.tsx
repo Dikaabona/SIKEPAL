@@ -492,11 +492,16 @@ export default function App() {
 
   const handleSaveOrder = async (order: Order) => {
     try {
-      const { error } = await supabase.from('orders').upsert(order);
+      // Ensure status is present and valid for the database
+      const orderToSave = {
+        ...order,
+        status: order.status || 'Approved'
+      };
+      const { error } = await supabase.from('orders').upsert(orderToSave);
       if (error) throw error;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving order:', error);
-      alert('Gagal menyimpan data orderan. Pastikan Supabase sudah dikonfigurasi.');
+      alert('Gagal menyimpan data orderan: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -506,7 +511,10 @@ export default function App() {
       // Use chunks of 50 to avoid payload size limits
       const chunkSize = 50;
       for (let i = 0; i < ordersToSave.length; i += chunkSize) {
-        const chunk = ordersToSave.slice(i, i + chunkSize);
+        const chunk = ordersToSave.slice(i, i + chunkSize).map(order => ({
+          ...order,
+          status: order.status || 'Approved'
+        }));
         const { error } = await supabase.from('orders').upsert(chunk);
         if (error) throw error;
       }
