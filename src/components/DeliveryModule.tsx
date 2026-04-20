@@ -158,7 +158,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   const [locationSearchQuery, setLocationSearchQuery] = useState('');
   const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState<number | 'all'>(30);
 
   // States for Editing Order from Delivery Report
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
@@ -264,11 +264,15 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   }, [filteredDeliveries.length]);
 
   const paginatedDeliveries = useMemo(() => {
+    if (itemsPerPage === 'all') return filteredDeliveries;
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredDeliveries.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredDeliveries, currentPage]);
+  }, [filteredDeliveries, currentPage, itemsPerPage]);
 
-  const totalPages = Math.ceil(filteredDeliveries.length / itemsPerPage);
+  const totalPages = useMemo(() => {
+    if (itemsPerPage === 'all') return 1;
+    return Math.ceil(filteredDeliveries.length / itemsPerPage);
+  }, [filteredDeliveries, itemsPerPage]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -666,12 +670,12 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
         </div>
         
         {/* Desktop Table View */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+        <div className="hidden md:block overflow-x-auto print:overflow-visible">
+          <table className="w-full text-left border-collapse table-auto">
             <thead>
               <tr className="bg-stone-50/50">
                 {onBulkDelete && (
-                  <th className="px-6 py-4 w-10">
+                  <th className="px-3 py-4 w-10">
                     <input 
                       type="checkbox" 
                       className="w-4 h-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900 cursor-pointer"
@@ -680,45 +684,45 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                     />
                   </th>
                 )}
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">NAMA KURIR</th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">TANGGAL</th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest min-w-[200px]">NAMA LOKASI</th>
+                <th className="px-3 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">NAMA KURIR</th>
+                <th className="px-3 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">TANGGAL</th>
+                <th className="px-3 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">NAMA LOKASI</th>
                 {title === "Billing Report" && (
-                  <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">TANGGAL PIUTANG</th>
+                  <th className="px-3 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">TANGGAL PIUTANG</th>
                 )}
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest min-w-[280px]">
+                <th className="px-3 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">
                   {title === "Billing Report" ? "BUKTI PENAGIHAN" : "BUKTI PENGIRIMAN"}
                 </th>
                 {title === "Billing Report" && (
                   <>
-                    <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">METODE</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">BUKTI TRANSFER</th>
+                    <th className="px-3 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">METODE</th>
+                    <th className="px-3 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">BUKTI TRANSFER</th>
                   </>
                 )}
                 {title === "Delivery Report" && (
                   <>
-                    <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">TUNAS PEDES</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">TUNA MAYO</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">AYAM MAYO</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">AYAM PEDES</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">MENU BULANAN</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center text-blue-600">JML KIRIM</th>
+                    <th className="px-2 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">T. PEDES</th>
+                    <th className="px-2 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">T. MAYO</th>
+                    <th className="px-2 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">A. MAYO</th>
+                    <th className="px-2 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">A. PEDES</th>
+                    <th className="px-2 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">M. BULAN</th>
+                    <th className="px-2 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center text-blue-600">JML KIRIM</th>
                   </>
                 )}
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">
+                <th className="px-3 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">
                   {title === "Billing Report" ? "NILAI" : "QTY"}
                 </th>
                 {title === "Billing Report" && (
                   <>
-                    <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">BUKTI SISA</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">SISA</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">WASTE</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">STATUS</th>
+                    <th className="px-3 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">BUKTI SISA</th>
+                    <th className="px-3 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">SISA</th>
+                    <th className="px-3 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">WASTE</th>
+                    <th className="px-3 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">STATUS</th>
                   </>
                 )}
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">KET</th>
+                <th className="px-3 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">KET</th>
                 {(userRole === 'owner' || userRole === 'admin') && (
-                  <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">AKSI</th>
+                  <th className="px-3 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">AKSI</th>
                 )}
               </tr>
             </thead>
@@ -735,7 +739,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                   return (
                     <tr key={delivery.id} className={`hover:bg-stone-50/30 transition-colors ${selectedIds.includes(delivery.id) ? 'bg-stone-50' : ''}`}>
                       {onBulkDelete && (
-                        <td className="px-6 py-4">
+                        <td className="px-3 py-4">
                           <input 
                             type="checkbox" 
                             className="w-4 h-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900 cursor-pointer"
@@ -744,41 +748,41 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                           />
                         </td>
                       )}
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-4">
                         <div className="font-bold text-stone-900 text-sm">{delivery.namaKurir}</div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-4">
                         <div className="text-stone-600 text-sm">{formatDate(delivery.tanggal)}</div>
                       </td>
-                      <td className="px-6 py-4 min-w-[200px]">
-                        <div className="font-medium text-stone-900 text-sm whitespace-nowrap">{delivery.namaLokasi}</div>
+                      <td className="px-3 py-4 max-w-[150px]">
+                        <div className="font-medium text-stone-900 text-sm leading-tight">{delivery.namaLokasi}</div>
                       </td>
                       {title === "Billing Report" && (
-                        <td className="px-6 py-4">
+                        <td className="px-3 py-4">
                           <div className="text-stone-600 text-sm">{delivery.tanggalPiutang ? formatDate(delivery.tanggalPiutang) : '-'}</div>
                         </td>
                       )}
-                      <td className="px-6 py-4 min-w-[280px]">
-                        <div className="flex items-center gap-4">
+                      <td className="px-3 py-4 min-w-[200px]">
+                        <div className="flex items-center gap-3">
                           {delivery.fotoBukti ? (
                             <img 
                               src={delivery.fotoBukti} 
                               alt="Bukti" 
-                              className="w-24 h-24 rounded-xl object-cover border-2 border-white shadow-md cursor-zoom-in hover:scale-105 transition-transform relative z-20"
+                              className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-md cursor-zoom-in hover:scale-105 transition-transform relative z-20"
                               referrerPolicy="no-referrer"
                               onClick={() => setPreviewImage(delivery.fotoBukti)}
                             />
                           ) : (
-                            <div className="w-24 h-24 rounded-xl bg-stone-50 flex items-center justify-center text-stone-300 border-2 border-white shadow-sm" title="Belum Upload Bukti">
-                              <span className="material-symbols-outlined text-xl">image_not_supported</span>
+                            <div className="w-16 h-16 rounded-full bg-stone-50 flex items-center justify-center text-stone-300 border-2 border-white shadow-sm" title="Belum Upload Bukti">
+                              <span className="material-symbols-outlined text-base">image_not_supported</span>
                             </div>
                           )}
-                          <div className="flex flex-col gap-1.5 py-1">
-                            <div className="text-stone-400 flex items-center gap-1">
+                          <div className="flex flex-col gap-0.5 py-0.5">
+                            <div className="text-stone-400 flex items-center gap-1 text-[10px]">
                               <span className="material-symbols-outlined text-[10px]">location_on</span>
-                              {delivery.lokasiBukti || '-'}
+                              <span className="truncate max-w-[100px]">{delivery.lokasiBukti || '-'}</span>
                             </div>
-                            <div className="text-stone-400 flex items-center gap-1">
+                            <div className="text-stone-400 flex items-center gap-1 text-[10px]">
                               <span className="material-symbols-outlined text-[10px]">schedule</span>
                               {delivery.jamBukti || '-'}
                             </div>
@@ -787,8 +791,8 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                       </td>
                       {title === "Billing Report" && (
                         <>
-                          <td className="px-6 py-4">
-                            <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                          <td className="px-3 py-4">
+                            <span className={`inline-flex items-center justify-center px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${
                               delivery.metodePembayaran === 'Transfer' 
                                 ? 'bg-blue-50 text-blue-600 border border-blue-100' 
                                 : 'bg-stone-50 text-stone-600 border border-stone-100'
@@ -796,18 +800,18 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                               {delivery.metodePembayaran || 'Cash'}
                             </span>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-3 py-4">
                             {delivery.buktiTransfer ? (
                               <img 
                                 src={delivery.buktiTransfer} 
                                 alt="Transfer" 
-                                className="w-24 h-24 rounded-xl object-cover border-2 border-white shadow-md cursor-zoom-in hover:scale-105 transition-transform relative z-20"
+                                className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-md cursor-zoom-in hover:scale-105 transition-transform relative z-20"
                                 referrerPolicy="no-referrer"
                                 onClick={() => setPreviewImage(delivery.buktiTransfer)}
                               />
                             ) : (
-                              <div className="w-24 h-24 rounded-xl bg-stone-50 flex items-center justify-center text-stone-300 border-2 border-white shadow-sm" title="Bukan Transfer / Belum Upload">
-                                <span className="material-symbols-outlined text-xl">payments</span>
+                              <div className="w-16 h-16 rounded-full bg-stone-50 flex items-center justify-center text-stone-300 border-2 border-white shadow-sm" title="Bukan Transfer / Belum Upload">
+                                <span className="material-symbols-outlined text-base">payments</span>
                               </div>
                             )}
                           </td>
@@ -815,28 +819,28 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                       )}
                       {title === "Delivery Report" && (
                         <>
-                          <td className="px-6 py-4 text-center">
-                            <span className="text-sm font-black text-stone-900">{associatedOrder?.tunaPedes || 0}</span>
+                          <td className="px-2 py-4 text-center">
+                            <span className="text-xs font-black text-stone-900">{associatedOrder?.tunaPedes || 0}</span>
                           </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className="text-sm font-black text-stone-900">{associatedOrder?.tunaMayo || 0}</span>
+                          <td className="px-2 py-4 text-center">
+                            <span className="text-xs font-black text-stone-900">{associatedOrder?.tunaMayo || 0}</span>
                           </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className="text-sm font-black text-stone-900">{associatedOrder?.ayamMayo || 0}</span>
+                          <td className="px-2 py-4 text-center">
+                            <span className="text-xs font-black text-stone-900">{associatedOrder?.ayamMayo || 0}</span>
                           </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className="text-sm font-black text-stone-900">{associatedOrder?.ayamPedes || 0}</span>
+                          <td className="px-2 py-4 text-center">
+                            <span className="text-xs font-black text-stone-900">{associatedOrder?.ayamPedes || 0}</span>
                           </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className="text-sm font-black text-stone-900">{associatedOrder?.menuBulanan || 0}</span>
+                          <td className="px-2 py-4 text-center">
+                            <span className="text-xs font-black text-stone-900">{associatedOrder?.menuBulanan || 0}</span>
                           </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className="text-sm font-black text-blue-600 underline decoration-blue-200 underline-offset-4">{associatedOrder?.jumlahKirim || 0}</span>
+                          <td className="px-2 py-4 text-center">
+                            <span className="text-xs font-black text-blue-600 underline decoration-blue-200 underline-offset-4">{associatedOrder?.jumlahKirim || 0}</span>
                           </td>
                         </>
                       )}
-                      <td className="px-6 py-4 text-center">
-                        <span className="inline-flex items-center justify-center px-3 py-1.5 rounded-xl bg-stone-50 text-stone-900 border border-stone-100 text-xs font-black min-w-[40px] whitespace-nowrap">
+                      <td className="px-3 py-4 text-center">
+                        <span className="inline-flex items-center justify-center px-2 py-1 rounded-xl bg-stone-50 text-stone-900 border border-stone-100 text-[10px] font-black min-w-[32px] whitespace-nowrap">
                           {title === "Billing Report" 
                             ? `Rp ${delivery.qtyPengiriman.toLocaleString('id-ID')}` 
                             : delivery.qtyPengiriman}
@@ -844,57 +848,57 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                       </td>
                       {title === "Billing Report" && (
                         <>
-                          <td className="px-6 py-4">
+                          <td className="px-3 py-4">
                             {delivery.buktiSisa ? (
                               <img 
                                 src={delivery.buktiSisa} 
                                 alt="Sisa" 
-                                className="w-24 h-24 rounded-xl object-cover border-2 border-white shadow-md cursor-zoom-in hover:scale-105 transition-transform relative z-20"
+                                className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-md cursor-zoom-in hover:scale-105 transition-transform relative z-20"
                                 referrerPolicy="no-referrer"
                                 onClick={() => setPreviewImage(delivery.buktiSisa)}
                               />
                             ) : (
-                              <div className="w-24 h-24 rounded-xl bg-stone-50 flex items-center justify-center text-stone-300 border-2 border-white shadow-sm" title="Tidak Ada Sisa / Belum Upload">
-                                <span className="material-symbols-outlined text-xl">inventory_2</span>
+                              <div className="w-16 h-16 rounded-full bg-stone-50 flex items-center justify-center text-stone-300 border-2 border-white shadow-sm" title="Tidak Ada Sisa / Belum Upload">
+                                <span className="material-symbols-outlined text-base">inventory_2</span>
                               </div>
                             )}
                           </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-lg bg-orange-50 text-orange-600 text-xs font-black whitespace-nowrap">
+                          <td className="px-3 py-4 text-center">
+                            <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-lg bg-orange-50 text-orange-600 text-[10px] font-black whitespace-nowrap">
                               {delivery.sisa || 0}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-lg bg-red-50 text-red-600 text-xs font-black whitespace-nowrap">
+                          <td className="px-3 py-4 text-center">
+                            <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-lg bg-red-50 text-red-600 text-[10px] font-black whitespace-nowrap">
                               {delivery.waste ? `${delivery.waste.toFixed(0)}%` : '0%'}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-[10px] font-black whitespace-nowrap uppercase ${
+                          <td className="px-3 py-4 text-center">
+                            <span className={`inline-flex items-center justify-center px-1.5 py-0.5 rounded-lg text-[9px] font-black whitespace-nowrap uppercase ${
                               delivery.status === 'Completed' 
                                 ? 'bg-green-50 text-green-600' 
                                 : 'bg-orange-50 text-orange-600'
                             }`}>
-                              {delivery.status === 'Completed' ? 'Approved' : 'Pending'}
+                              {delivery.status === 'Completed' ? 'Appr' : 'Pend'}
                             </span>
                           </td>
                         </>
                       )}
-                      <td className="px-6 py-4">
-                        <p className="text-stone-500 text-xs line-clamp-2 max-w-[200px]">
+                      <td className="px-3 py-4">
+                        <p className="text-stone-500 text-[10px] line-clamp-2 max-w-[120px]">
                           {delivery.keterangan || '-'}
                         </p>
                       </td>
                       {(userRole === 'owner' || userRole === 'admin') && (
-                        <td className="px-6 py-4">
-                          <div className="flex items-center justify-center gap-2">
+                        <td className="px-3 py-4">
+                          <div className="flex items-center justify-center gap-1.5">
                             {title === "Billing Report" && delivery.status !== 'Completed' && (
                               <button
                                 onClick={() => onSaveDelivery({ ...delivery, status: 'Completed' })}
-                                className="w-9 h-9 rounded-xl bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-100 transition-all border border-green-100 shadow-sm"
+                                className="w-8 h-8 rounded-lg bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-100 transition-all border border-green-100 shadow-sm"
                                 title="Approve"
                               >
-                                <span className="material-symbols-outlined text-sm">check_circle</span>
+                                <span className="material-symbols-outlined text-xs">check_circle</span>
                               </button>
                             )}
                             {title === "Delivery Report" && associatedOrder && (userRole === 'admin' || userRole === 'owner') && (
@@ -906,26 +910,26 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                                   setOrderLokasiSearch(associatedOrder.namaLokasi);
                                   setIsOrderEditModalOpen(true);
                                 }}
-                                className="w-9 h-9 rounded-xl bg-purple-50 text-purple-500 flex items-center justify-center hover:bg-purple-100 transition-all border border-purple-100 shadow-sm"
+                                className="w-8 h-8 rounded-lg bg-purple-50 text-purple-500 flex items-center justify-center hover:bg-purple-100 transition-all border border-purple-100 shadow-sm"
                                 title="Edit di Data Orderan"
                               >
-                                <span className="material-symbols-outlined text-sm">receipt_long</span>
+                                <span className="material-symbols-outlined text-xs">receipt_long</span>
                               </button>
                             )}
                             <button
-                              onClick={() => handleEdit(delivery)}
-                              className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-all border border-blue-100 shadow-sm"
-                              title="Edit"
-                            >
-                              <span className="material-symbols-outlined text-sm">edit</span>
-                            </button>
-                            <button
-                              onClick={() => onDeleteDelivery(delivery.id)}
-                              className="w-9 h-9 rounded-xl bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 transition-all border border-red-100 shadow-sm"
-                              title="Hapus"
-                            >
-                              <span className="material-symbols-outlined text-sm">delete</span>
-                            </button>
+                                onClick={() => handleEdit(delivery)}
+                                className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-all border border-blue-100 shadow-sm"
+                                title="Edit"
+                              >
+                                <span className="material-symbols-outlined text-xs">edit</span>
+                              </button>
+                              <button
+                                onClick={() => onDeleteDelivery(delivery.id)}
+                                className="w-8 h-8 rounded-lg bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 transition-all border border-red-100 shadow-sm"
+                                title="Hapus"
+                              >
+                                <span className="material-symbols-outlined text-xs">delete</span>
+                              </button>
                           </div>
                         </td>
                       )}
@@ -976,12 +980,12 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                         <img 
                           src={delivery.fotoBukti} 
                           alt="Bukti" 
-                          className="w-14 h-14 rounded-2xl object-cover border-2 border-white shadow-md"
+                          className="w-14 h-14 rounded-full object-cover border-2 border-white shadow-md"
                           referrerPolicy="no-referrer"
                           onClick={() => setPreviewImage(delivery.fotoBukti)}
                         />
                       ) : (
-                        <div className="w-14 h-14 rounded-2xl bg-stone-50 flex items-center justify-center text-stone-300 border-2 border-white shadow-sm">
+                        <div className="w-14 h-14 rounded-full bg-stone-50 flex items-center justify-center text-stone-300 border-2 border-white shadow-sm">
                           <span className="material-symbols-outlined text-xl">image</span>
                         </div>
                       )}
@@ -989,7 +993,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                         <img 
                           src={delivery.buktiTransfer} 
                           alt="Transfer" 
-                          className="w-14 h-14 rounded-2xl object-cover border-2 border-white shadow-md"
+                          className="w-14 h-14 rounded-full object-cover border-2 border-white shadow-md"
                           referrerPolicy="no-referrer"
                           onClick={() => setPreviewImage(delivery.buktiTransfer)}
                         />
@@ -998,7 +1002,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                         <img 
                           src={delivery.buktiSisa} 
                           alt="Sisa" 
-                          className="w-14 h-14 rounded-2xl object-cover border-2 border-white shadow-md"
+                          className="w-14 h-14 rounded-full object-cover border-2 border-white shadow-md"
                           referrerPolicy="no-referrer"
                           onClick={() => setPreviewImage(delivery.buktiSisa)}
                         />
@@ -1171,75 +1175,82 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
           )}
         </div>
 
-        {/* Pagination Controls */}
-        {totalPages > 1 && (
-          <div className="px-6 py-4 bg-stone-50/30 border-t border-stone-50 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="text-[10px] md:text-xs font-bold text-stone-400 uppercase tracking-widest">
-              Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredDeliveries.length)} of {filteredDeliveries.length} entries
+        {/* Pagination Footer */}
+        <div className="px-6 py-4 bg-white border-t border-stone-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex flex-col md:flex-row md:items-center gap-4">
+            <span className="text-[11px] font-black text-stone-400 uppercase tracking-widest leading-none">
+              MENAMPILKAN {itemsPerPage === 'all' 
+                ? `SEMUA ${filteredDeliveries.length}` 
+                : `${((currentPage - 1) * (itemsPerPage as number)) + 1} SAMPAI ${Math.min(currentPage * (itemsPerPage as number), filteredDeliveries.length)}`} DARI {filteredDeliveries.length} DATA
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-black text-stone-400 uppercase tracking-widest leading-none">TAMPILKAN:</span>
+              <select 
+                value={itemsPerPage}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setItemsPerPage(val === 'all' ? 'all' : Number(val));
+                  setCurrentPage(1);
+                }}
+                className="text-[11px] font-black text-stone-900 border border-stone-200 rounded-lg px-2 py-1 outline-none bg-stone-50/50 hover:bg-stone-50 transition-all cursor-pointer shadow-sm"
+              >
+                <option value={30}>30</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={500}>500</option>
+                <option value={1000}>1000</option>
+                <option value="all">Semua</option>
+              </select>
             </div>
-            <div className="flex items-center gap-1">
+          </div>
+
+          {totalPages > 1 && itemsPerPage !== 'all' && (
+            <div className="flex items-center gap-2">
               <button
-                type="button"
-                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-                  currentPage === 1 
-                    ? 'text-stone-300 cursor-not-allowed' 
-                    : 'text-stone-600 hover:bg-stone-100 active:scale-90'
-                }`}
+                className="w-8 h-8 rounded-full border border-stone-100 flex items-center justify-center text-stone-400 hover:bg-stone-50 hover:text-stone-900 transition-all disabled:opacity-30 shadow-sm"
               >
                 <span className="material-symbols-outlined text-sm">chevron_left</span>
               </button>
               
-              {/* Page Numbers */}
               <div className="flex items-center gap-1">
-                {[...Array(totalPages)].map((_, i) => {
-                  const pageNum = i + 1;
-                  // Simple pagination: show current, first, last, and neighbors
-                  if (
-                    pageNum === 1 || 
-                    pageNum === totalPages || 
-                    (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
-                  ) {
-                    return (
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => {
+                    if (totalPages <= 7) return true;
+                    if (p === 1 || p === totalPages) return true;
+                    if (Math.abs(p - currentPage) <= 1) return true;
+                    return false;
+                  })
+                  .map((p, idx, arr) => (
+                    <React.Fragment key={p}>
+                      {idx > 0 && arr[idx-1] !== p - 1 && (
+                        <span className="text-stone-300 text-[10px] items-center justify-center w-6 text-center">...</span>
+                      )}
                       <button
-                        key={pageNum}
-                        type="button"
-                        onClick={() => handlePageChange(pageNum)}
-                        className={`w-8 h-8 rounded-lg text-[10px] font-black transition-all ${
-                          currentPage === pageNum
-                            ? 'bg-stone-900 text-white shadow-lg shadow-stone-900/20'
-                            : 'text-stone-400 hover:bg-stone-100'
+                        onClick={() => handlePageChange(p)}
+                        className={`w-8 h-8 rounded-full text-[10px] font-black transition-all border shadow-sm ${
+                          currentPage === p
+                            ? 'bg-stone-900 text-white border-stone-900 shadow-md'
+                            : 'bg-white text-stone-400 border-stone-100 hover:bg-stone-50 hover:text-stone-900'
                         }`}
                       >
-                        {pageNum}
+                        {p}
                       </button>
-                    );
-                  } else if (
-                    (pageNum === 2 && currentPage > 3) || 
-                    (pageNum === totalPages - 1 && currentPage < totalPages - 2)
-                  ) {
-                    return <span key={pageNum} className="text-stone-300 text-[10px]">...</span>;
-                  }
-                  return null;
-                })}
+                    </React.Fragment>
+                  ))}
               </div>
 
               <button
-                type="button"
-                onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-                  currentPage === totalPages 
-                    ? 'text-stone-300 cursor-not-allowed' 
-                    : 'text-stone-600 hover:bg-stone-100 active:scale-90'
-                }`}
+                className="w-8 h-8 rounded-full border border-stone-100 flex items-center justify-center text-stone-400 hover:bg-stone-50 hover:text-stone-900 transition-all disabled:opacity-30 shadow-sm"
               >
                 <span className="material-symbols-outlined text-sm">chevron_right</span>
               </button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Image Preview Modal */}

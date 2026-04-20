@@ -281,10 +281,10 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
           <tr className="text-[7px] font-bold bg-[#fafaf9]">
             <th className="border-[1px] border-black p-1 text-left w-[40%]">Varian</th>
             <th className="border-[1px] border-black p-0.5 text-center w-[12%]">Jumlah</th>
-            <th className="border-[1px] border-black p-0.5 text-center w-[12%]">Retur</th>
-            <th className="border-[1px] border-black p-0.5 text-center w-[12%]">Sisa</th>
-            <th className="border-[1px] border-black p-0.5 text-center w-[12%]">Harga</th>
-            <th className="border-[1px] border-black p-0.5 text-center w-[12%]">Total</th>
+            <th className="p-0.5 text-center w-[12%]">Real</th>
+            <th className="p-0.5 text-center w-[12%]">Sisa</th>
+            <th className="p-0.5 text-center w-[12%]">Harga</th>
+            <th className="p-0.5 text-center w-[12%]">Total</th>
           </tr>
         </thead>
         <tbody className="text-[7px]">
@@ -298,19 +298,19 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
             <tr key={item.label}>
               <td className="border-[1px] border-black p-0.5 font-medium">{item.label}</td>
               <td className="border-[1px] border-black p-0.5 text-center font-bold">{item.val || ''}</td>
-              <td className="border-[1px] border-black p-0.5"></td>
-              <td className="border-[1px] border-black p-0.5"></td>
-              <td className="border-[1px] border-black p-0.5"></td>
-              <td className="border-[1px] border-black p-0.5"></td>
+              <td className="p-0.5"></td>
+              <td className="p-0.5"></td>
+              <td className="p-0.5"></td>
+              <td className="p-0.5"></td>
             </tr>
           ))}
           <tr className="font-bold bg-[#fafaf9]">
             <td className="border-[1px] border-black p-1">Jumlah</td>
             <td className="border-[1px] border-black p-1 text-center">{order.jumlahKirim}</td>
-            <td className="border-[1px] border-black p-1"></td>
-            <td className="border-[1px] border-black p-1"></td>
-            <td className="border-[1px] border-black p-1"></td>
-            <td className="border-[1px] border-black p-1"></td>
+            <td className="p-1"></td>
+            <td className="p-1"></td>
+            <td className="p-1"></td>
+            <td className="p-1"></td>
           </tr>
         </tbody>
       </table>
@@ -356,10 +356,10 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
             <tr className="text-[7px] font-bold bg-[#fafaf9]">
               <th className="border-[1px] border-black p-1 text-left w-[40%]">Varian</th>
               <th className="border-[1px] border-black p-0.5 text-center w-[12%]">Jumlah</th>
-              <th className="border-[1px] border-black p-0.5 text-center w-[12%]">Retur</th>
-              <th className="border-[1px] border-black p-0.5 text-center w-[12%]">Sisa</th>
-              <th className="border-[1px] border-black p-0.5 text-center w-[12%]">Harga</th>
-              <th className="border-[1px] border-black p-0.5 text-center w-[12%]">Total</th>
+              <th className="p-0.5 text-center w-[12%]">Real</th>
+              <th className="p-0.5 text-center w-[12%]">Sisa</th>
+              <th className="p-0.5 text-center w-[12%]">Harga</th>
+              <th className="p-0.5 text-center w-[12%]">Total</th>
             </tr>
           </thead>
           <tbody className="text-[7px]">
@@ -373,19 +373,19 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
               <tr key={item.label}>
                 <td className="border-[1px] border-black p-0.5 font-medium">{item.label}</td>
                 <td className="border-[1px] border-black p-0.5 text-center font-bold">{item.val || ''}</td>
-                <td className="border-[1px] border-black p-0.5"></td>
-                <td className="border-[1px] border-black p-0.5"></td>
-                <td className="border-[1px] border-black p-0.5"></td>
-                <td className="border-[1px] border-black p-0.5"></td>
+                <td className="p-0.5"></td>
+                <td className="p-0.5"></td>
+                <td className="p-0.5"></td>
+                <td className="p-0.5"></td>
               </tr>
             ))}
             <tr className="font-bold bg-[#fafaf9]">
               <td className="border-[1px] border-black p-1">Jumlah</td>
               <td className="border-[1px] border-black p-1 text-center">{totals.total}</td>
-              <td className="border-[1px] border-black p-1"></td>
-              <td className="border-[1px] border-black p-1"></td>
-              <td className="border-[1px] border-black p-1"></td>
-              <td className="border-[1px] border-black p-1"></td>
+              <td className="p-1"></td>
+              <td className="p-1"></td>
+              <td className="p-1"></td>
+              <td className="p-1"></td>
             </tr>
           </tbody>
         </table>

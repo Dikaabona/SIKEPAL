@@ -96,7 +96,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
       jumlahUang: order.jumlahKirim * order.hargaSikepal,
       jumlahPiutang: 0,
       updatedAt: new Date().toISOString(),
-      status: 'Approved'
+      status: 'Pending'
     });
     setLokasiSearch(order.namaLokasi);
     setIsAdding(true);
@@ -339,13 +339,18 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
     }
 
     const isKurir = currentUserEmployee?.division?.toLowerCase() === 'kurir';
-    const isAdminOrOwner = userRole === 'admin' || userRole === 'owner';
     
     // If it's a new order and user is Kurir, status is Pending.
-    // If it's an edit, we keep the status unless an admin/owner is editing it.
+    // If it's a duplicated order (status set to Pending by handleDuplicate), it stays Pending.
+    // Admin/Owner can still create Approved orders by default unless it's a duplicate.
     let initialStatus: 'Pending' | 'Approved' | 'Rejected' = 'Approved';
     if (!newOrder.id) {
-      initialStatus = isKurir ? 'Pending' : 'Approved';
+      if (isKurir) {
+        initialStatus = 'Pending';
+      } else {
+        // Respect the status set during duplication or initial state
+        initialStatus = (newOrder.status as any) || 'Approved';
+      }
     } else {
       initialStatus = newOrder.status || 'Approved';
     }
@@ -1067,15 +1072,13 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                             </button>
                           </>
                         )}
-                        {(userRole === 'admin' || userRole === 'owner') && (
-                          <button 
-                            onClick={() => handleDuplicate(order)}
-                            className="text-stone-400 hover:text-blue-500 transition-colors"
-                            title="Duplikat"
-                          >
-                            <span className="material-symbols-outlined text-lg">content_copy</span>
-                          </button>
-                        )}
+                        <button 
+                          onClick={() => handleDuplicate(order)}
+                          className="text-stone-400 hover:text-blue-500 transition-colors"
+                          title="Duplikat"
+                        >
+                          <span className="material-symbols-outlined text-lg">content_copy</span>
+                        </button>
                         <button 
                             onClick={() => {
                               setNewOrder(order);
@@ -1158,15 +1161,13 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                           </button>
                         </div>
                       )}
-                      {(userRole === 'admin' || userRole === 'owner') && (
-                        <button 
-                          onClick={() => handleDuplicate(order)}
-                          className="w-10 h-10 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center border border-blue-100"
-                          title="Duplikat"
-                        >
-                          <span className="material-symbols-outlined text-lg">content_copy</span>
-                        </button>
-                      )}
+                      <button 
+                        onClick={() => handleDuplicate(order)}
+                        className="w-10 h-10 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center border border-blue-100"
+                        title="Duplikat"
+                      >
+                        <span className="material-symbols-outlined text-lg">content_copy</span>
+                      </button>
                       <button 
                         onClick={() => {
                           setNewOrder(order);
