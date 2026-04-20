@@ -81,6 +81,27 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
     status: 'Approved'
   });
 
+  const handleDuplicate = (order: Order) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, ...duplicatedFields } = order;
+    setNewOrder({
+      ...duplicatedFields,
+      tanggal: '', // Wajib merubah tanggal (forced by empty value + validation)
+      sisa: 0,
+      pembayaran: 'FALSE',
+      tanggalBayar: '',
+      nilaiPembayaran: 0,
+      waste: 0,
+      diskon: 0,
+      jumlahUang: order.jumlahKirim * order.hargaSikepal,
+      jumlahPiutang: 0,
+      updatedAt: new Date().toISOString(),
+      status: 'Approved'
+    });
+    setLokasiSearch(order.namaLokasi);
+    setIsAdding(true);
+  };
+
   const kurirOptions = useMemo(() => {
     const kurirs = new Set(orders.map(o => o.namaKurir).filter(Boolean));
     return Array.from(kurirs).sort();
@@ -1046,6 +1067,15 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                             </button>
                           </>
                         )}
+                        {(userRole === 'admin' || userRole === 'owner') && (
+                          <button 
+                            onClick={() => handleDuplicate(order)}
+                            className="text-stone-400 hover:text-blue-500 transition-colors"
+                            title="Duplikat"
+                          >
+                            <span className="material-symbols-outlined text-lg">content_copy</span>
+                          </button>
+                        )}
                         <button 
                             onClick={() => {
                               setNewOrder(order);
@@ -1127,6 +1157,15 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                             <span className="material-symbols-outlined text-lg">close</span>
                           </button>
                         </div>
+                      )}
+                      {(userRole === 'admin' || userRole === 'owner') && (
+                        <button 
+                          onClick={() => handleDuplicate(order)}
+                          className="w-10 h-10 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center border border-blue-100"
+                          title="Duplikat"
+                        >
+                          <span className="material-symbols-outlined text-lg">content_copy</span>
+                        </button>
                       )}
                       <button 
                         onClick={() => {

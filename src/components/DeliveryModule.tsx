@@ -1,6 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Icons } from '../constants';
-import { DeliveryRecord, Order, Store, UserRole } from '../types';
+import { DeliveryRecord, Order, Store, UserRole, Employee } from '../types';
 import { formatDate, getLocalDateString, parseIndoDate } from '../lib/utils';
 
 interface DeliveryModuleProps {
@@ -12,9 +13,11 @@ interface DeliveryModuleProps {
   stores: Store[];
   deliveries: DeliveryRecord[];
   userRole: UserRole;
+  employees: Employee[]; // Add employees to props
   onSaveDelivery: (delivery: DeliveryRecord) => Promise<void>;
   onDeleteDelivery: (id: string) => Promise<void>;
   onBulkDelete?: (ids: string[]) => Promise<void>;
+  onSaveOrder?: (order: Order) => Promise<void>; // Add onSaveOrder
   initialPrefillLocation?: string;
   initialPrefillCourier?: string;
   onPrefillHandled?: () => void;
@@ -30,9 +33,11 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   stores, 
   deliveries, 
   userRole,
+  employees = [], // Default to empty array
   onSaveDelivery,
   onDeleteDelivery,
   onBulkDelete,
+  onSaveOrder,
   initialPrefillLocation,
   initialPrefillCourier,
   onPrefillHandled,
@@ -96,6 +101,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   }, [orders, stores, formData.namaKurir, formData.tanggal, title]);
 
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraTarget, setCameraTarget] = useState<'fotoBukti' | 'buktiTransfer' | 'buktiSisa'>('fotoBukti');
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -130,7 +136,8 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
     };
   }, [isCameraActive]);
 
-  const startCamera = () => {
+  const startCamera = (target: 'fotoBukti' | 'buktiTransfer' | 'buktiSisa' = 'fotoBukti') => {
+    setCameraTarget(target);
     setIsCameraActive(true);
   };
 
@@ -153,6 +160,12 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // States for Editing Order from Delivery Report
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [isOrderEditModalOpen, setIsOrderEditModalOpen] = useState(false);
+  const [orderLokasiSearch, setOrderLokasiSearch] = useState('');
+  const [showOrderLokasiDropdown, setShowOrderLokasiDropdown] = useState(false);
+
   // Filters for Billing Report
   const [filterCourier, setFilterCourier] = useState('');
   const [filterDate, setFilterDate] = useState('');
@@ -166,30 +179,45 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   }, [deliveries, filterCourier, filterDate]);
 
   const summary = useMemo(() => {
-    if (title !== "Billing Report") return null;
-    
-    const totalNilai = filteredDeliveries.reduce((sum, d) => sum + (Number(d.qtyPengiriman) || 0), 0);
-    const totalSisa = filteredDeliveries.reduce((sum, d) => sum + (Number(d.sisa) || 0), 0);
-    const uniqueLocations = new Set(filteredDeliveries.map(d => d.namaLokasi)).size;
-    const totalPenagihan = filteredDeliveries.length;
+    if (title === "Billing Report") {
+      const totalNilai = filteredDeliveries.reduce((sum, d) => sum + (Number(d.qtyPengiriman) || 0), 0);
+      const totalSisa = filteredDeliveries.reduce((sum, d) => sum + (Number(d.sisa) || 0), 0);
+      const uniqueLocations = new Set(filteredDeliveries.map(d => d.namaLokasi)).size;
+      const totalPenagihan = filteredDeliveries.length;
 
-    const totalCash = filteredDeliveries
-      .filter(d => !d.metodePembayaran || d.metodePembayaran === 'Cash')
-      .reduce((sum, d) => sum + (Number(d.qtyPengiriman) || 0), 0);
-    
-    const totalTransfer = filteredDeliveries
-      .filter(d => d.metodePembayaran === 'Transfer')
-      .reduce((sum, d) => sum + (Number(d.qtyPengiriman) || 0), 0);
+      const totalCash = filteredDeliveries
+        .filter(d => !d.metodePembayaran || d.metodePembayaran === 'Cash')
+        .reduce((sum, d) => sum + (Number(d.qtyPengiriman) || 0), 0);
+      
+      const totalTransfer = filteredDeliveries
+        .filter(d => d.metodePembayaran === 'Transfer')
+        .reduce((sum, d) => sum + (Number(d.qtyPengiriman) || 0), 0);
 
-    return {
-      totalNilai,
-      totalSisa,
-      uniqueLocations,
-      totalPenagihan,
-      totalCash,
-      totalTransfer
-    };
-  }, [filteredDeliveries, title]);
+      const totalPiutang = filteredDeliveries
+        .filter(d => d.metodePembayaran === 'Piutang')
+        .reduce((sum, d) => sum + (Number(d.qtyPengiriman) || 0), 0);
+
+      return {
+        totalNilai,
+        totalSisa,
+        uniqueLocations,
+        totalPenagihan,
+        totalCash,
+        totalTransfer,
+        totalPiutang
+      };
+    } else if (title === "Delivery Report") {
+      const uniqueLocations = new Set(filteredDeliveries.map(d => d.namaLokasi)).size;
+      const totalQty = filteredDeliveries.reduce((sum, d) => sum + (Number(d.qtyPengiriman) || 0), 0);
+      
+      return {
+        uniqueLocations,
+        totalQty
+      };
+    }
+    
+    return null;
+  }, [filteredDeliveries, deliveries, title]);
 
   // Piutang Modal States
   const [piutangSearchQuery, setPiutangSearchQuery] = useState('');
@@ -327,13 +355,13 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
         const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
         
         // Get current location
-        if (navigator.geolocation) {
+        if (navigator.geolocation && cameraTarget === 'fotoBukti') {
           navigator.geolocation.getCurrentPosition(
             (position) => {
               const { latitude, longitude } = position.coords;
               setFormData(prev => ({
                 ...prev,
-                fotoBukti: photoData,
+                [cameraTarget]: photoData,
                 lokasiBukti: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
                 jamBukti: timeStr
               }));
@@ -343,7 +371,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
               console.error("Error getting location:", error);
               setFormData(prev => ({
                 ...prev,
-                fotoBukti: photoData,
+                [cameraTarget]: photoData,
                 jamBukti: timeStr
               }));
               stopCamera();
@@ -352,8 +380,8 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
         } else {
           setFormData(prev => ({
             ...prev,
-            fotoBukti: photoData,
-            jamBukti: timeStr
+            [cameraTarget]: photoData,
+            ...(cameraTarget === 'fotoBukti' ? { jamBukti: timeStr } : {})
           }));
           stopCamera();
         }
@@ -500,53 +528,82 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       </div>
 
       {title === "Billing Report" && summary && (
-        <div className="grid grid-cols-6 md:grid-cols-5 gap-2 md:gap-4">
-          {/* Row 1 on Mobile: 2 Cards (3/6 each) */}
-          <div className="col-span-3 md:col-span-1 bg-white p-3 md:p-5 rounded-2xl md:rounded-[24px] border border-stone-100 shadow-sm">
-            <div className="w-7 h-7 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-green-50 text-green-600 flex items-center justify-center mb-2 md:mb-3">
-              <span className="material-symbols-outlined text-sm md:text-base">payments</span>
+        <div className="grid grid-cols-3 gap-2 md:gap-6">
+          <div className="bg-white p-2 md:p-6 rounded-2xl md:rounded-[32px] border border-stone-100 shadow-sm hover:shadow-md transition-shadow">
+            <div className="w-7 h-7 md:w-10 md:h-10 rounded-lg md:rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-2 md:mb-4">
+              <span className="material-symbols-outlined text-base md:text-xl">account_balance_wallet</span>
             </div>
-            <div className="text-[8px] md:text-[10px] font-black text-stone-400 uppercase tracking-widest mb-0.5 md:mb-1">Jumlah Nilai</div>
-            <div className="text-xs md:text-lg font-black text-stone-900 leading-tight">Rp {summary.totalNilai.toLocaleString('id-ID')}</div>
-          </div>
-          <div className="col-span-3 md:col-span-1 bg-white p-3 md:p-5 rounded-2xl md:rounded-[24px] border border-stone-100 shadow-sm">
-            <div className="w-7 h-7 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-2 md:mb-3">
-              <span className="material-symbols-outlined text-sm md:text-base">account_balance_wallet</span>
-            </div>
-            <div className="text-[8px] md:text-[10px] font-black text-stone-400 uppercase tracking-widest mb-0.5 md:mb-1">Metode Bayar</div>
-            <div className="space-y-0.5 md:space-y-1">
+            <div className="text-[7px] md:text-[10px] font-black text-stone-400 uppercase tracking-tight md:tracking-[0.2em] mb-1.5">Metode Bayar</div>
+            <div className="space-y-1 md:space-y-1.5">
               <div className="flex items-center justify-between gap-1">
                 <span className="text-[7px] md:text-[10px] font-bold text-stone-500 uppercase">Cash:</span>
-                <span className="text-[9px] md:text-xs font-black text-stone-900">Rp {summary.totalCash.toLocaleString('id-ID')}</span>
+                <span className="text-[9px] md:text-sm font-black text-stone-900 whitespace-nowrap">Rp {summary.totalCash?.toLocaleString('id-ID')}</span>
               </div>
               <div className="flex items-center justify-between gap-1">
-                <span className="text-[7px] md:text-[10px] font-bold text-stone-500 uppercase">Trf:</span>
-                <span className="text-[9px] md:text-xs font-black text-blue-600">Rp {summary.totalTransfer.toLocaleString('id-ID')}</span>
+                <span className="text-[7px] md:text-[10px] font-bold text-stone-500 uppercase">Transfer:</span>
+                <span className="text-[9px] md:text-sm font-black text-blue-600 whitespace-nowrap">Rp {summary.totalTransfer?.toLocaleString('id-ID')}</span>
+              </div>
+              <div className="border-t border-stone-100 my-1 pt-1 opacity-50"></div>
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-[7px] md:text-[10px] font-bold text-stone-500 uppercase">Jumlah:</span>
+                <span className="text-[9px] md:text-sm font-black text-stone-900 whitespace-nowrap">Rp {((summary.totalCash || 0) + (summary.totalTransfer || 0)).toLocaleString('id-ID')}</span>
+              </div>
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-[7px] md:text-[10px] font-bold text-stone-500 uppercase">Piutang:</span>
+                <span className="text-[9px] md:text-sm font-black text-orange-600 whitespace-nowrap">Rp {summary.totalPiutang?.toLocaleString('id-ID')}</span>
               </div>
             </div>
           </div>
 
-          {/* Row 2 on Mobile: 3 Cards (2/6 each) */}
-          <div className="col-span-2 md:col-span-1 bg-white p-3 md:p-5 rounded-2xl md:rounded-[24px] border border-stone-100 shadow-sm">
-            <div className="w-7 h-7 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center mb-2 md:mb-3">
-              <span className="material-symbols-outlined text-sm md:text-base">inventory_2</span>
+          <div className="bg-white p-2 md:p-6 rounded-2xl md:rounded-[32px] border border-stone-100 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+            <div>
+              <div className="w-7 h-7 md:w-10 md:h-10 rounded-lg md:rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-2 md:mb-4">
+                <span className="material-symbols-outlined text-base md:text-xl">store</span>
+              </div>
+              <div className="text-[7px] md:text-[10px] font-black text-stone-400 uppercase tracking-tight md:tracking-[0.2em] mb-1">Jumlah Lokasi</div>
+              <div className="flex items-baseline gap-1 md:gap-2">
+                <span className="text-base md:text-2xl font-black text-stone-900 leading-none">{summary.uniqueLocations}</span>
+                <span className="text-[7px] md:text-[10px] text-stone-400 font-bold uppercase tracking-widest">Titik</span>
+              </div>
             </div>
-            <div className="text-[8px] md:text-[10px] font-black text-stone-400 uppercase tracking-widest mb-0.5 md:mb-1">Jumlah Sisa</div>
-            <div className="text-xs md:text-lg font-black text-stone-900 leading-tight">{summary.totalSisa} <span className="text-[8px] md:text-[10px] text-stone-400 font-bold uppercase">Pcs</span></div>
           </div>
-          <div className="col-span-2 md:col-span-1 bg-white p-3 md:p-5 rounded-2xl md:rounded-[24px] border border-stone-100 shadow-sm">
-            <div className="w-7 h-7 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-2 md:mb-3">
-              <span className="material-symbols-outlined text-sm md:text-base">store</span>
+          
+          <div className="bg-white p-2 md:p-6 rounded-2xl md:rounded-[32px] border border-stone-100 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+            <div>
+              <div className="w-7 h-7 md:w-10 md:h-10 rounded-lg md:rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mb-2 md:mb-4">
+                <span className="material-symbols-outlined text-base md:text-xl">receipt_long</span>
+              </div>
+              <div className="text-[7px] md:text-[10px] font-black text-stone-400 uppercase tracking-tight md:tracking-[0.2em] mb-1">Jumlah Penagihan</div>
+              <div className="flex items-baseline gap-1 md:gap-2">
+                <span className="text-base md:text-2xl font-black text-stone-900 leading-none">{summary.totalPenagihan}</span>
+                <span className="text-[7px] md:text-[10px] text-stone-400 font-bold uppercase tracking-widest">Data</span>
+              </div>
             </div>
-            <div className="text-[8px] md:text-[10px] font-black text-stone-400 uppercase tracking-widest mb-0.5 md:mb-1">Jumlah Lokasi</div>
-            <div className="text-xs md:text-lg font-black text-stone-900 leading-tight">{summary.uniqueLocations} <span className="text-[8px] md:text-[10px] text-stone-400 font-bold uppercase">Titik</span></div>
           </div>
-          <div className="col-span-2 md:col-span-1 bg-white p-3 md:p-5 rounded-2xl md:rounded-[24px] border border-stone-100 shadow-sm">
-            <div className="w-7 h-7 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center mb-2 md:mb-3">
-              <span className="material-symbols-outlined text-sm md:text-base">receipt_long</span>
+        </div>
+      )}
+
+      {title === "Delivery Report" && summary && (
+        <div className="grid grid-cols-2 gap-3 md:gap-6">
+          <div className="bg-white p-4 md:p-6 rounded-[24px] md:rounded-[32px] border border-stone-100 shadow-sm hover:shadow-md transition-shadow">
+            <div className="w-9 h-9 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3 md:mb-4 shadow-inner">
+              <span className="material-symbols-outlined text-xl md:text-2xl">storefront</span>
             </div>
-            <div className="text-[8px] md:text-[10px] font-black text-stone-400 uppercase tracking-widest mb-0.5 md:mb-1">Jumlah Penagihan</div>
-            <div className="text-xs md:text-lg font-black text-stone-900 leading-tight">{summary.totalPenagihan} <span className="text-[8px] md:text-[10px] text-stone-400 font-bold uppercase">Data</span></div>
+            <div className="text-[8px] md:text-[10px] font-black text-stone-400 uppercase tracking-[0.1em] md:tracking-[0.2em] mb-1">Jumlah Lokasi</div>
+            <div className="flex items-baseline gap-1 md:gap-2">
+              <span className="text-xl md:text-3xl font-black text-stone-900 leading-none">{summary.uniqueLocations}</span>
+              <span className="text-[8px] md:text-xs text-stone-400 font-bold uppercase tracking-widest">Titik</span>
+            </div>
+          </div>
+          <div className="bg-white p-4 md:p-6 rounded-[24px] md:rounded-[32px] border border-stone-100 shadow-sm hover:shadow-md transition-shadow">
+            <div className="w-9 h-9 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3 md:mb-4 shadow-inner">
+              <span className="material-symbols-outlined text-xl md:text-2xl">inventory_2</span>
+            </div>
+            <div className="text-[8px] md:text-[10px] font-black text-stone-400 uppercase tracking-[0.1em] md:tracking-[0.2em] mb-1">Total Qty</div>
+            <div className="flex items-baseline gap-1 md:gap-2">
+              <span className="text-xl md:text-3xl font-black text-stone-900 leading-none">{summary.totalQty?.toLocaleString('id-ID')}</span>
+              <span className="text-[8px] md:text-xs text-stone-400 font-bold uppercase tracking-widest">Pcs</span>
+            </div>
           </div>
         </div>
       )}
@@ -558,14 +615,14 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
           </h3>
           
           <div className="flex flex-wrap items-center gap-3">
-            {title === "Billing Report" && (
+            {(title === "Billing Report" || title === "Delivery Report") && (
               <>
-                <div className="relative min-w-[140px]">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">person</span>
+                <div className="relative min-w-[160px]">
+                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 text-lg">person</span>
                   <select
                     value={filterCourier}
                     onChange={(e) => setFilterCourier(e.target.value)}
-                    className="w-full pl-9 pr-8 py-2 rounded-xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-[10px] font-bold uppercase appearance-none cursor-pointer"
+                    className="w-full pl-11 pr-8 py-2.5 rounded-full bg-stone-50 border border-stone-100 focus:ring-2 focus:ring-stone-200 focus:bg-white outline-none transition-all text-[11px] font-black text-stone-800 uppercase appearance-none cursor-pointer tracking-wider shadow-sm"
                   >
                     <option value="">Semua Kurir</option>
                     {courierOptions.map(name => (
@@ -573,13 +630,14 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                     ))}
                   </select>
                 </div>
-                <div className="relative min-w-[140px]">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">calendar_today</span>
+                <div className="relative min-w-[180px]">
+                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 text-lg">calendar_today</span>
                   <input
                     type="date"
                     value={filterDate}
                     onChange={(e) => setFilterDate(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 rounded-xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-[10px] font-bold uppercase"
+                    placeholder="DD/MM/YYYY"
+                    className="w-full pl-11 pr-4 py-2.5 rounded-full bg-stone-50 border border-stone-100 focus:ring-2 focus:ring-stone-200 focus:bg-white outline-none transition-all text-[11px] font-black text-stone-800 uppercase tracking-wider shadow-sm cursor-pointer"
                   />
                 </div>
               </>
@@ -637,6 +695,16 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                     <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">BUKTI TRANSFER</th>
                   </>
                 )}
+                {title === "Delivery Report" && (
+                  <>
+                    <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">TUNAS PEDES</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">TUNA MAYO</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">AYAM MAYO</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">AYAM PEDES</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">MENU BULANAN</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center text-blue-600">JML KIRIM</th>
+                  </>
+                )}
                 <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">
                   {title === "Billing Report" ? "NILAI" : "QTY"}
                 </th>
@@ -656,173 +724,217 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
             </thead>
             <tbody className="divide-y divide-stone-50">
               {paginatedDeliveries.length > 0 ? (
-                paginatedDeliveries.map((delivery) => (
-                  <tr key={delivery.id} className={`hover:bg-stone-50/30 transition-colors ${selectedIds.includes(delivery.id) ? 'bg-stone-50' : ''}`}>
-                    {onBulkDelete && (
+                paginatedDeliveries.map((delivery) => {
+                  const associatedOrder = orders.find(o => {
+                    const orderDateObj = parseIndoDate(o.tanggal);
+                    const orderDateStr = orderDateObj ? getLocalDateString(orderDateObj) : o.tanggal;
+                    return (delivery.orderId && o.id === delivery.orderId) ||
+                           (o.namaLokasi === delivery.namaLokasi && orderDateStr === delivery.tanggal);
+                  });
+
+                  return (
+                    <tr key={delivery.id} className={`hover:bg-stone-50/30 transition-colors ${selectedIds.includes(delivery.id) ? 'bg-stone-50' : ''}`}>
+                      {onBulkDelete && (
+                        <td className="px-6 py-4">
+                          <input 
+                            type="checkbox" 
+                            className="w-4 h-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900 cursor-pointer"
+                            checked={selectedIds.includes(delivery.id)}
+                            onChange={() => handleSelectOne(delivery.id)}
+                          />
+                        </td>
+                      )}
                       <td className="px-6 py-4">
-                        <input 
-                          type="checkbox" 
-                          className="w-4 h-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900 cursor-pointer"
-                          checked={selectedIds.includes(delivery.id)}
-                          onChange={() => handleSelectOne(delivery.id)}
-                        />
+                        <div className="font-bold text-stone-900 text-sm">{delivery.namaKurir}</div>
                       </td>
-                    )}
-                    <td className="px-6 py-4">
-                      <div className="font-bold text-stone-900 text-sm">{delivery.namaKurir}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-stone-600 text-sm">{formatDate(delivery.tanggal)}</div>
-                    </td>
-                    <td className="px-6 py-4 min-w-[200px]">
-                      <div className="font-medium text-stone-900 text-sm whitespace-nowrap">{delivery.namaLokasi}</div>
-                    </td>
-                    {title === "Billing Report" && (
                       <td className="px-6 py-4">
-                        <div className="text-stone-600 text-sm">{delivery.tanggalPiutang ? formatDate(delivery.tanggalPiutang) : '-'}</div>
+                        <div className="text-stone-600 text-sm">{formatDate(delivery.tanggal)}</div>
                       </td>
-                    )}
-                    <td className="px-6 py-4 min-w-[280px]">
-                      <div className="flex items-center gap-4">
-                        <div className="flex -space-x-2">
+                      <td className="px-6 py-4 min-w-[200px]">
+                        <div className="font-medium text-stone-900 text-sm whitespace-nowrap">{delivery.namaLokasi}</div>
+                      </td>
+                      {title === "Billing Report" && (
+                        <td className="px-6 py-4">
+                          <div className="text-stone-600 text-sm">{delivery.tanggalPiutang ? formatDate(delivery.tanggalPiutang) : '-'}</div>
+                        </td>
+                      )}
+                      <td className="px-6 py-4 min-w-[280px]">
+                        <div className="flex items-center gap-4">
                           {delivery.fotoBukti ? (
                             <img 
                               src={delivery.fotoBukti} 
                               alt="Bukti" 
-                              className="w-24 h-24 rounded-xl object-cover border-2 border-white shadow-md cursor-zoom-in hover:scale-105 transition-transform relative z-10"
+                              className="w-24 h-24 rounded-xl object-cover border-2 border-white shadow-md cursor-zoom-in hover:scale-105 transition-transform relative z-20"
                               referrerPolicy="no-referrer"
                               onClick={() => setPreviewImage(delivery.fotoBukti)}
                             />
                           ) : (
-                            <div className="w-24 h-24 rounded-xl bg-stone-50 flex items-center justify-center text-stone-300 border-2 border-white shadow-sm">
-                              <span className="material-symbols-outlined text-xl">image</span>
+                            <div className="w-24 h-24 rounded-xl bg-stone-50 flex items-center justify-center text-stone-300 border-2 border-white shadow-sm" title="Belum Upload Bukti">
+                              <span className="material-symbols-outlined text-xl">image_not_supported</span>
                             </div>
                           )}
-                        </div>
-                        <div className="text-[10px] leading-tight">
-                          <div className="text-stone-400 flex items-center gap-1">
-                            <span className="material-symbols-outlined text-[10px]">location_on</span>
-                            {delivery.lokasiBukti || '-'}
+                          <div className="flex flex-col gap-1.5 py-1">
+                            <div className="text-stone-400 flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[10px]">location_on</span>
+                              {delivery.lokasiBukti || '-'}
+                            </div>
+                            <div className="text-stone-400 flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[10px]">schedule</span>
+                              {delivery.jamBukti || '-'}
+                            </div>
                           </div>
-                          <div className="text-stone-400 flex items-center gap-1">
-                            <span className="material-symbols-outlined text-[10px]">schedule</span>
-                            {delivery.jamBukti || '-'}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    {title === "Billing Report" && (
-                      <>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
-                            delivery.metodePembayaran === 'Transfer' 
-                              ? 'bg-blue-50 text-blue-600 border border-blue-100' 
-                              : 'bg-stone-50 text-stone-600 border border-stone-100'
-                          }`}>
-                            {delivery.metodePembayaran || 'Cash'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          {delivery.buktiTransfer ? (
-                            <img 
-                              src={delivery.buktiTransfer} 
-                              alt="Transfer" 
-                              className="w-24 h-24 rounded-xl object-cover border-2 border-white shadow-md cursor-zoom-in hover:scale-105 transition-transform relative z-20"
-                              referrerPolicy="no-referrer"
-                              onClick={() => setPreviewImage(delivery.buktiTransfer)}
-                            />
-                          ) : (
-                            <div className="w-24 h-24 rounded-xl bg-stone-50 flex items-center justify-center text-stone-300 border-2 border-white shadow-sm" title="Bukan Transfer / Belum Upload">
-                              <span className="material-symbols-outlined text-xl">payments</span>
-                            </div>
-                          )}
-                        </td>
-                      </>
-                    )}
-                    <td className="px-6 py-4 text-center">
-                      <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-lg bg-stone-100 text-stone-900 text-xs font-black whitespace-nowrap">
-                        {title === "Billing Report" 
-                          ? `Rp ${delivery.qtyPengiriman.toLocaleString('id-ID')}` 
-                          : delivery.qtyPengiriman}
-                      </span>
-                    </td>
-                    {title === "Billing Report" && (
-                      <>
-                        <td className="px-6 py-4">
-                          {delivery.buktiSisa ? (
-                            <img 
-                              src={delivery.buktiSisa} 
-                              alt="Sisa" 
-                              className="w-24 h-24 rounded-xl object-cover border-2 border-white shadow-md cursor-zoom-in hover:scale-105 transition-transform relative z-20"
-                              referrerPolicy="no-referrer"
-                              onClick={() => setPreviewImage(delivery.buktiSisa)}
-                            />
-                          ) : (
-                            <div className="w-24 h-24 rounded-xl bg-stone-50 flex items-center justify-center text-stone-300 border-2 border-white shadow-sm" title="Tidak Ada Sisa / Belum Upload">
-                              <span className="material-symbols-outlined text-xl">inventory_2</span>
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-lg bg-orange-50 text-orange-600 text-xs font-black whitespace-nowrap">
-                            {delivery.sisa || 0}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-lg bg-red-50 text-red-600 text-xs font-black whitespace-nowrap">
-                            {delivery.waste ? `${delivery.waste.toFixed(0)}%` : '0%'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-[10px] font-black whitespace-nowrap uppercase ${
-                            delivery.status === 'Completed' 
-                              ? 'bg-green-50 text-green-600' 
-                              : 'bg-orange-50 text-orange-600'
-                          }`}>
-                            {delivery.status === 'Completed' ? 'Approved' : 'Pending'}
-                          </span>
-                        </td>
-                      </>
-                    )}
-                    <td className="px-6 py-4">
-                      <p className="text-stone-500 text-xs line-clamp-2 max-w-[200px]">
-                        {delivery.keterangan || '-'}
-                      </p>
-                    </td>
-                    {(userRole === 'owner' || userRole === 'admin') && (
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-center gap-2">
-                          {title === "Billing Report" && delivery.status !== 'Completed' && (
-                            <button
-                              onClick={() => onSaveDelivery({ ...delivery, status: 'Completed' })}
-                              className="w-8 h-8 rounded-lg bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-100 transition-colors"
-                              title="Approve"
-                            >
-                              <span className="material-symbols-outlined text-sm">check_circle</span>
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleEdit(delivery)}
-                            className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-colors"
-                            title="Edit"
-                          >
-                            <span className="material-symbols-outlined text-sm">edit</span>
-                          </button>
-                          <button
-                            onClick={() => onDeleteDelivery(delivery.id)}
-                            className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-100 transition-colors"
-                            title="Hapus"
-                          >
-                            <span className="material-symbols-outlined text-sm">delete</span>
-                          </button>
                         </div>
                       </td>
-                    )}
-                  </tr>
-                ))
-              ) : (
+                      {title === "Billing Report" && (
+                        <>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                              delivery.metodePembayaran === 'Transfer' 
+                                ? 'bg-blue-50 text-blue-600 border border-blue-100' 
+                                : 'bg-stone-50 text-stone-600 border border-stone-100'
+                            }`}>
+                              {delivery.metodePembayaran || 'Cash'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            {delivery.buktiTransfer ? (
+                              <img 
+                                src={delivery.buktiTransfer} 
+                                alt="Transfer" 
+                                className="w-24 h-24 rounded-xl object-cover border-2 border-white shadow-md cursor-zoom-in hover:scale-105 transition-transform relative z-20"
+                                referrerPolicy="no-referrer"
+                                onClick={() => setPreviewImage(delivery.buktiTransfer)}
+                              />
+                            ) : (
+                              <div className="w-24 h-24 rounded-xl bg-stone-50 flex items-center justify-center text-stone-300 border-2 border-white shadow-sm" title="Bukan Transfer / Belum Upload">
+                                <span className="material-symbols-outlined text-xl">payments</span>
+                              </div>
+                            )}
+                          </td>
+                        </>
+                      )}
+                      {title === "Delivery Report" && (
+                        <>
+                          <td className="px-6 py-4 text-center">
+                            <span className="text-sm font-black text-stone-900">{associatedOrder?.tunaPedes || 0}</span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="text-sm font-black text-stone-900">{associatedOrder?.tunaMayo || 0}</span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="text-sm font-black text-stone-900">{associatedOrder?.ayamMayo || 0}</span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="text-sm font-black text-stone-900">{associatedOrder?.ayamPedes || 0}</span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="text-sm font-black text-stone-900">{associatedOrder?.menuBulanan || 0}</span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="text-sm font-black text-blue-600 underline decoration-blue-200 underline-offset-4">{associatedOrder?.jumlahKirim || 0}</span>
+                          </td>
+                        </>
+                      )}
+                      <td className="px-6 py-4 text-center">
+                        <span className="inline-flex items-center justify-center px-3 py-1.5 rounded-xl bg-stone-50 text-stone-900 border border-stone-100 text-xs font-black min-w-[40px] whitespace-nowrap">
+                          {title === "Billing Report" 
+                            ? `Rp ${delivery.qtyPengiriman.toLocaleString('id-ID')}` 
+                            : delivery.qtyPengiriman}
+                        </span>
+                      </td>
+                      {title === "Billing Report" && (
+                        <>
+                          <td className="px-6 py-4">
+                            {delivery.buktiSisa ? (
+                              <img 
+                                src={delivery.buktiSisa} 
+                                alt="Sisa" 
+                                className="w-24 h-24 rounded-xl object-cover border-2 border-white shadow-md cursor-zoom-in hover:scale-105 transition-transform relative z-20"
+                                referrerPolicy="no-referrer"
+                                onClick={() => setPreviewImage(delivery.buktiSisa)}
+                              />
+                            ) : (
+                              <div className="w-24 h-24 rounded-xl bg-stone-50 flex items-center justify-center text-stone-300 border-2 border-white shadow-sm" title="Tidak Ada Sisa / Belum Upload">
+                                <span className="material-symbols-outlined text-xl">inventory_2</span>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-lg bg-orange-50 text-orange-600 text-xs font-black whitespace-nowrap">
+                              {delivery.sisa || 0}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-lg bg-red-50 text-red-600 text-xs font-black whitespace-nowrap">
+                              {delivery.waste ? `${delivery.waste.toFixed(0)}%` : '0%'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-[10px] font-black whitespace-nowrap uppercase ${
+                              delivery.status === 'Completed' 
+                                ? 'bg-green-50 text-green-600' 
+                                : 'bg-orange-50 text-orange-600'
+                            }`}>
+                              {delivery.status === 'Completed' ? 'Approved' : 'Pending'}
+                            </span>
+                          </td>
+                        </>
+                      )}
+                      <td className="px-6 py-4">
+                        <p className="text-stone-500 text-xs line-clamp-2 max-w-[200px]">
+                          {delivery.keterangan || '-'}
+                        </p>
+                      </td>
+                      {(userRole === 'owner' || userRole === 'admin') && (
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-center gap-2">
+                            {title === "Billing Report" && delivery.status !== 'Completed' && (
+                              <button
+                                onClick={() => onSaveDelivery({ ...delivery, status: 'Completed' })}
+                                className="w-9 h-9 rounded-xl bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-100 transition-all border border-green-100 shadow-sm"
+                                title="Approve"
+                              >
+                                <span className="material-symbols-outlined text-sm">check_circle</span>
+                              </button>
+                            )}
+                            {title === "Delivery Report" && associatedOrder && (userRole === 'admin' || userRole === 'owner') && (
+                              <button
+                                onClick={() => {
+                                  const orderDateObj = parseIndoDate(associatedOrder.tanggal);
+                                  const formattedDate = orderDateObj ? getLocalDateString(orderDateObj) : associatedOrder.tanggal;
+                                  setEditingOrder({ ...associatedOrder, tanggal: formattedDate });
+                                  setOrderLokasiSearch(associatedOrder.namaLokasi);
+                                  setIsOrderEditModalOpen(true);
+                                }}
+                                className="w-9 h-9 rounded-xl bg-purple-50 text-purple-500 flex items-center justify-center hover:bg-purple-100 transition-all border border-purple-100 shadow-sm"
+                                title="Edit di Data Orderan"
+                              >
+                                <span className="material-symbols-outlined text-sm">receipt_long</span>
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleEdit(delivery)}
+                              className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-all border border-blue-100 shadow-sm"
+                              title="Edit"
+                            >
+                              <span className="material-symbols-outlined text-sm">edit</span>
+                            </button>
+                            <button
+                              onClick={() => onDeleteDelivery(delivery.id)}
+                              className="w-9 h-9 rounded-xl bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 transition-all border border-red-100 shadow-sm"
+                              title="Hapus"
+                            >
+                              <span className="material-symbols-outlined text-sm">delete</span>
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })
+            ) : (
                 <tr>
-                  <td colSpan={7} className="p-12 text-center">
+                  <td colSpan={15} className="p-12 text-center">
                     <div className="w-16 h-16 bg-stone-50 rounded-full flex items-center justify-center mx-auto mb-4">
                       <span className="material-symbols-outlined text-stone-300 text-3xl">local_shipping</span>
                     </div>
@@ -839,8 +951,15 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
         {/* Mobile Card View */}
         <div className="md:hidden divide-y divide-stone-50">
           {paginatedDeliveries.length > 0 ? (
-            paginatedDeliveries.map((delivery) => (
-              <div key={delivery.id} className={`p-5 space-y-4 transition-colors ${selectedIds.includes(delivery.id) ? 'bg-stone-50' : ''}`}>
+            paginatedDeliveries.map((delivery) => {
+              const associatedOrder = orders.find(o => {
+                const orderDateObj = parseIndoDate(o.tanggal);
+                const orderDateStr = orderDateObj ? getLocalDateString(orderDateObj) : o.tanggal;
+                return (delivery.orderId && o.id === delivery.orderId) ||
+                       (o.namaLokasi === delivery.namaLokasi && orderDateStr === delivery.tanggal);
+              });
+              return (
+                <div key={delivery.id} className={`p-5 space-y-4 transition-colors ${selectedIds.includes(delivery.id) ? 'bg-stone-50' : ''}`}>
                 {/* Header: Images & Actions */}
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
@@ -896,6 +1015,21 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                           title="Approve"
                         >
                           <span className="material-symbols-outlined text-lg">check_circle</span>
+                        </button>
+                      )}
+                      {title === "Delivery Report" && associatedOrder && (userRole === 'admin' || userRole === 'owner') && (
+                        <button
+                          onClick={() => {
+                            const orderDateObj = parseIndoDate(associatedOrder.tanggal);
+                            const formattedDate = orderDateObj ? getLocalDateString(orderDateObj) : associatedOrder.tanggal;
+                            setEditingOrder({ ...associatedOrder, tanggal: formattedDate });
+                            setOrderLokasiSearch(associatedOrder.namaLokasi);
+                            setIsOrderEditModalOpen(true);
+                          }}
+                          className="w-9 h-9 rounded-xl bg-purple-50 text-purple-500 flex items-center justify-center shadow-sm border border-purple-100 active:scale-90 transition-transform"
+                          title="Edit di Data Orderan"
+                        >
+                          <span className="material-symbols-outlined text-lg">receipt_long</span>
                         </button>
                       )}
                       <button
@@ -954,6 +1088,34 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                 
                 {/* Details Section */}
                 <div className="bg-stone-50 rounded-2xl p-4 space-y-3 border border-stone-100/50">
+                  {title === "Delivery Report" && associatedOrder && (
+                    <div className="grid grid-cols-2 gap-3 pb-3 mb-3 border-b border-stone-200/50">
+                      <div className="bg-white p-2 rounded-xl border border-stone-100">
+                        <div className="text-[8px] font-black text-stone-400 uppercase mb-1">TUNAS PEDES</div>
+                        <div className="text-xs font-black text-stone-900">{associatedOrder.tunaPedes}</div>
+                      </div>
+                      <div className="bg-white p-2 rounded-xl border border-stone-100">
+                        <div className="text-[8px] font-black text-stone-400 uppercase mb-1">TUNA MAYO</div>
+                        <div className="text-xs font-black text-stone-900">{associatedOrder.tunaMayo}</div>
+                      </div>
+                      <div className="bg-white p-2 rounded-xl border border-stone-100">
+                        <div className="text-[8px] font-black text-stone-400 uppercase mb-1">AYAM MAYO</div>
+                        <div className="text-xs font-black text-stone-900">{associatedOrder.ayamMayo}</div>
+                      </div>
+                      <div className="bg-white p-2 rounded-xl border border-stone-100">
+                        <div className="text-[8px] font-black text-stone-400 uppercase mb-1">AYAM PEDES</div>
+                        <div className="text-xs font-black text-stone-900">{associatedOrder.ayamPedes}</div>
+                      </div>
+                      <div className="bg-white p-2 rounded-xl border border-stone-100">
+                        <div className="text-[8px] font-black text-stone-400 uppercase mb-1">MENU BULANAN</div>
+                        <div className="text-xs font-black text-stone-900">{associatedOrder.menuBulanan}</div>
+                      </div>
+                      <div className="bg-blue-50 p-2 rounded-xl border border-blue-100">
+                        <div className="text-[8px] font-black text-blue-400 uppercase mb-1 underline">JML KIRIM</div>
+                        <div className="text-xs font-black text-blue-600">{associatedOrder.jumlahKirim}</div>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-start gap-3">
                     <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-stone-400 shadow-sm flex-shrink-0">
                       <span className="material-symbols-outlined text-lg">store</span>
@@ -995,8 +1157,9 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                   )}
                 </div>
               </div>
-            ))
-          ) : (
+            );
+          })
+        ) : (
             <div className="p-12 text-center">
               <div className="w-12 h-12 bg-stone-50 rounded-full flex items-center justify-center mx-auto mb-3">
                 <span className="material-symbols-outlined text-stone-300 text-2xl">local_shipping</span>
@@ -1099,8 +1262,358 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
         </div>
       )}
 
-      {/* Add New Delivery Modal */}
-      {isModalOpen && (
+      {/* Order Edit Modal (triggered from Delivery Report) */}
+      <AnimatePresence>
+        {isOrderEditModalOpen && editingOrder && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsOrderEditModalOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden"
+            >
+              <div className="p-6 border-b border-stone-100 flex justify-between items-center bg-stone-50/50">
+                <h3 className="text-lg font-black text-stone-800 uppercase tracking-tight">Edit di Data Orderan</h3>
+                <button 
+                  onClick={() => setIsOrderEditModalOpen(false)}
+                  className="w-8 h-8 rounded-full hover:bg-stone-200 flex items-center justify-center text-stone-400 transition-colors"
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+              
+              <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
+                {/* Section 1: Data Utama */}
+                <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4 bg-stone-50/50 p-4 rounded-2xl border border-stone-100">
+                  <div className="md:col-span-3 mb-1">
+                    <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Informasi Utama</h4>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Tanggal *</label>
+                    <input 
+                      type="date" 
+                      value={editingOrder.tanggal}
+                      onChange={(e) => setEditingOrder({...editingOrder, tanggal: e.target.value})}
+                      className="w-full px-4 py-2.5 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nama Kurir</label>
+                    <select 
+                      value={editingOrder.employeeId || ''}
+                      onChange={(e) => {
+                        const emp = employees.find(emp => emp.id === e.target.value);
+                        setEditingOrder({
+                          ...editingOrder, 
+                          employeeId: e.target.value,
+                          namaKurir: emp ? emp.nama : ''
+                        });
+                      }}
+                      className="w-full px-4 py-2.5 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    >
+                      <option value="">Pilih Kurir</option>
+                      {employees
+                        .filter(emp => emp.division?.toLowerCase() === 'kurir' || emp.jabatan?.toLowerCase() === 'kurir')
+                        .map(emp => (
+                          <option key={emp.id} value={emp.id}>{emp.nama}</option>
+                        ))
+                      }
+                    </select>
+                  </div>
+                  <div className="space-y-1 relative">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nama Lokasi *</label>
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        placeholder="Cari lokasi..."
+                        value={orderLokasiSearch}
+                        onChange={(e) => {
+                          setOrderLokasiSearch(e.target.value);
+                          setShowOrderLokasiDropdown(true);
+                        }}
+                        onFocus={() => setShowOrderLokasiDropdown(true)}
+                        className="w-full px-4 py-2.5 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                      />
+                      <span className="material-symbols-outlined absolute right-3 top-2.5 text-stone-400 text-sm pointer-events-none">
+                        search
+                      </span>
+                    </div>
+                    
+                    {showOrderLokasiDropdown && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-[125]" 
+                          onClick={() => setShowOrderLokasiDropdown(false)} 
+                        />
+                        <div className="absolute z-[130] left-0 right-0 top-full mt-1 bg-white border border-stone-200 rounded-xl shadow-xl max-h-60 overflow-y-auto custom-scrollbar">
+                          {stores
+                            .filter(s => s.namaToko.toLowerCase().includes(orderLokasiSearch.toLowerCase()))
+                            .map(store => (
+                              <button
+                                key={store.id}
+                                type="button"
+                                onClick={() => {
+                                  const rawPrice = store.harga || '0';
+                                  const numericPrice = parseInt(rawPrice.replace(/[^0-9]/g, '')) || 0;
+                                  
+                                  setEditingOrder({
+                                    ...editingOrder, 
+                                    namaLokasi: store.namaToko,
+                                    hargaSikepal: numericPrice
+                                  });
+                                  setOrderLokasiSearch(store.namaToko);
+                                  setShowOrderLokasiDropdown(false);
+                                }}
+                                className="w-full text-left px-4 py-2.5 text-sm hover:bg-stone-50 transition-colors border-b border-stone-50 last:border-0"
+                              >
+                                {store.namaToko}
+                              </button>
+                            ))
+                          }
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Section 2: Varian Produk */}
+                <div className="md:col-span-3 grid grid-cols-2 md:grid-cols-6 gap-3 bg-stone-50/50 p-4 rounded-2xl border border-stone-100">
+                  <div className="col-span-2 md:col-span-6 mb-1">
+                    <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Varian Produk</h4>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Tuna Pedes</label>
+                    <input 
+                      type="number" 
+                      value={editingOrder.tunaPedes}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        const others = (editingOrder.tunaMayo || 0) + (editingOrder.ayamMayo || 0) + (editingOrder.ayamPedes || 0) + (editingOrder.menuBulanan || 0);
+                        setEditingOrder({...editingOrder, tunaPedes: val, jumlahKirim: val + others});
+                      }}
+                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Tuna Mayo</label>
+                    <input 
+                      type="number" 
+                      value={editingOrder.tunaMayo}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        const others = (editingOrder.tunaPedes || 0) + (editingOrder.ayamMayo || 0) + (editingOrder.ayamPedes || 0) + (editingOrder.menuBulanan || 0);
+                        setEditingOrder({...editingOrder, tunaMayo: val, jumlahKirim: val + others});
+                      }}
+                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Ayam Mayo</label>
+                    <input 
+                      type="number" 
+                      value={editingOrder.ayamMayo}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        const others = (editingOrder.tunaPedes || 0) + (editingOrder.tunaMayo || 0) + (editingOrder.ayamPedes || 0) + (editingOrder.menuBulanan || 0);
+                        setEditingOrder({...editingOrder, ayamMayo: val, jumlahKirim: val + others});
+                      }}
+                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Ayam Pedes</label>
+                    <input 
+                      type="number" 
+                      value={editingOrder.ayamPedes}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        const others = (editingOrder.tunaPedes || 0) + (editingOrder.tunaMayo || 0) + (editingOrder.ayamMayo || 0) + (editingOrder.menuBulanan || 0);
+                        setEditingOrder({...editingOrder, ayamPedes: val, jumlahKirim: val + others});
+                      }}
+                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Menu Bulanan</label>
+                    <input 
+                      type="number" 
+                      value={editingOrder.menuBulanan}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        const others = (editingOrder.tunaPedes || 0) + (editingOrder.tunaMayo || 0) + (editingOrder.ayamMayo || 0) + (editingOrder.ayamPedes || 0);
+                        setEditingOrder({...editingOrder, menuBulanan: val, jumlahKirim: val + others});
+                      }}
+                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Jumlah Kirim</label>
+                    <input 
+                      type="number" 
+                      value={editingOrder.jumlahKirim}
+                      readOnly
+                      className="w-full px-4 py-2 bg-primary/5 border border-primary/20 rounded-xl text-sm font-bold text-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Section 3: Detail Harga & Pembayaran */}
+                <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4 bg-stone-50/50 p-4 rounded-2xl border border-stone-100">
+                  <div className="md:col-span-3 mb-1">
+                    <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Harga & Bayar</h4>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Harga Sikepal</label>
+                    <input 
+                      type="number" 
+                      value={editingOrder.hargaSikepal}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        setEditingOrder({...editingOrder, hargaSikepal: val, jumlahUang: val * editingOrder.jumlahKirim});
+                      }}
+                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Periode Bayar</label>
+                    <select 
+                      value={editingOrder.periodeBayar}
+                      onChange={(e) => setEditingOrder({...editingOrder, periodeBayar: e.target.value})}
+                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    >
+                      <option value="">Pilih Periode</option>
+                      <option value="Harian">Harian</option>
+                      <option value="Mingguan">Mingguan</option>
+                      <option value="Bulanan">Bulanan</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Pembayaran</label>
+                    <select 
+                      value={editingOrder.pembayaran}
+                      onChange={(e) => setEditingOrder({...editingOrder, pembayaran: e.target.value})}
+                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    >
+                      <option value="">Pilih Status</option>
+                      <option value="FALSE">BELUM LUNAS</option>
+                      <option value="TRUE">LUNAS</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Section 4: Detail Keuangan (Advanced) */}
+                {(userRole === 'admin' || userRole === 'owner') && (
+                  <div className="md:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-3 bg-stone-50/50 p-4 rounded-2xl border border-stone-100">
+                    <div className="col-span-2 md:col-span-4 mb-1">
+                      <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Detail Keuangan</h4>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Sisa</label>
+                      <input 
+                        type="number" 
+                        value={editingOrder.sisa}
+                        onChange={(e) => setEditingOrder({...editingOrder, sisa: parseInt(e.target.value) || 0})}
+                        className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Jumlah Uang</label>
+                      <input 
+                        type="number" 
+                        value={editingOrder.jumlahUang}
+                        onChange={(e) => setEditingOrder({...editingOrder, jumlahUang: parseInt(e.target.value) || 0})}
+                        className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Tanggal Bayar</label>
+                      <input 
+                        type="date" 
+                        value={editingOrder.tanggalBayar}
+                        onChange={(e) => setEditingOrder({...editingOrder, tanggalBayar: e.target.value})}
+                        className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nilai Bayar</label>
+                      <input 
+                        type="number" 
+                        value={editingOrder.nilaiPembayaran || 0}
+                        onChange={(e) => setEditingOrder({...editingOrder, nilaiPembayaran: parseInt(e.target.value) || 0})}
+                        className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Waste (%)</label>
+                      <input 
+                        type="number" 
+                        value={editingOrder.waste || 0}
+                        onChange={(e) => setEditingOrder({...editingOrder, waste: parseFloat(e.target.value) || 0})}
+                        className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Diskon</label>
+                      <input 
+                        type="number" 
+                        value={editingOrder.diskon}
+                        onChange={(e) => setEditingOrder({...editingOrder, diskon: parseInt(e.target.value) || 0})}
+                        className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1 col-span-2 md:col-span-2">
+                        <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Status Approval</label>
+                        <select 
+                          value={editingOrder.status || 'Approved'}
+                          onChange={(e) => setEditingOrder({...editingOrder, status: e.target.value as any})}
+                          className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                        >
+                          <option value="Pending">Pending</option>
+                          <option value="Approved">Approved</option>
+                          <option value="Rejected">Rejected</option>
+                        </select>
+                      </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-6 border-t border-stone-100 bg-stone-50/50 flex justify-end gap-3">
+                <button 
+                  onClick={() => setIsOrderEditModalOpen(false)}
+                  className="px-6 py-2 text-stone-500 font-bold text-sm hover:bg-stone-100 rounded-xl transition-all"
+                >
+                  Batal
+                </button>
+                <button 
+                  onClick={async () => {
+                    if (onSaveOrder) {
+                      await onSaveOrder({
+                        ...editingOrder,
+                        updatedAt: new Date().toISOString()
+                      });
+                      setIsOrderEditModalOpen(false);
+                      setEditingOrder(null);
+                    }
+                  }}
+                  className="px-8 py-2 bg-primary text-on-primary font-bold text-sm rounded-xl hover:bg-primary/90 transition-all shadow-md shadow-primary/20"
+                >
+                  Simpan Data
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isModalOpen && (
         <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4 pb-24 md:p-4">
           <div className="bg-white rounded-[32px] w-full max-w-lg overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200 flex flex-col max-h-[75vh] md:max-h-[85vh]">
             <div className="p-6 md:p-8 border-b border-stone-50 flex items-center justify-between bg-stone-50/30 flex-shrink-0">
@@ -1440,41 +1953,85 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                   <div className="space-y-4">
                     <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Bukti Sisa</label>
                     <div className="flex flex-col items-center gap-4">
-                      {formData.buktiSisa ? (
+                      {isCameraActive && cameraTarget === 'buktiSisa' ? (
+                        <div className="relative rounded-3xl overflow-hidden bg-black aspect-video border-4 border-stone-900 shadow-xl w-full">
+                          <video 
+                            ref={videoRef} 
+                            autoPlay 
+                            playsInline 
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4">
+                            <button
+                              type="button"
+                              onClick={capturePhoto}
+                              className="w-14 h-14 rounded-full bg-white flex items-center justify-center text-stone-900 shadow-lg hover:scale-110 transition-transform"
+                            >
+                              <span className="material-symbols-outlined text-3xl">photo_camera</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={stopCamera}
+                              className="w-14 h-14 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg hover:scale-110 transition-transform"
+                            >
+                              <span className="material-symbols-outlined text-3xl">close</span>
+                            </button>
+                          </div>
+                        </div>
+                      ) : formData.buktiSisa ? (
                         <div className="relative w-full aspect-video rounded-3xl overflow-hidden border-4 border-stone-900 shadow-xl">
                           <img 
                             src={formData.buktiSisa} 
                             alt="Bukti Sisa" 
                             className="w-full h-full object-cover"
                           />
-                          <button
-                            type="button"
-                            onClick={() => setFormData({...formData, buktiSisa: ''})}
-                            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
-                          >
-                            <span className="material-symbols-outlined">delete</span>
-                          </button>
+                          <div className="absolute top-4 right-4 flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => startCamera('buktiSisa')}
+                              className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-stone-900 shadow-lg"
+                            >
+                              <span className="material-symbols-outlined">refresh</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setFormData({...formData, buktiSisa: ''})}
+                              className="w-10 h-10 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+                            >
+                              <span className="material-symbols-outlined">delete</span>
+                            </button>
+                          </div>
                         </div>
                       ) : (
-                        <label className="w-full py-12 rounded-3xl border-2 border-dashed border-stone-200 bg-stone-50 flex flex-col items-center justify-center gap-3 text-stone-400 hover:bg-stone-100 hover:border-stone-300 transition-all cursor-pointer">
-                          <span className="material-symbols-outlined text-4xl">cloud_upload</span>
-                          <span className="text-xs font-bold uppercase tracking-widest">Upload Bukti Sisa</span>
-                          <input 
-                            type="file" 
-                            accept="image/*" 
-                            className="hidden" 
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                  setFormData({ ...formData, buktiSisa: reader.result as string });
-                                };
-                                reader.readAsDataURL(file);
-                              }
-                            }}
-                          />
-                        </label>
+                        <div className="w-full space-y-3">
+                          <label className="w-full py-12 rounded-3xl border-2 border-dashed border-stone-200 bg-stone-50 flex flex-col items-center justify-center gap-3 text-stone-400 hover:bg-stone-100 hover:border-stone-300 transition-all cursor-pointer">
+                            <span className="material-symbols-outlined text-4xl">cloud_upload</span>
+                            <span className="text-xs font-bold uppercase tracking-widest">Upload Bukti Sisa</span>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              className="hidden" 
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => {
+                                    setFormData({ ...formData, buktiSisa: reader.result as string });
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => startCamera('buktiSisa')}
+                            className="w-full py-4 rounded-2xl border-2 border-dashed border-stone-100 bg-stone-50/50 flex items-center justify-center gap-2 text-stone-400 hover:bg-stone-100 transition-all"
+                          >
+                            <span className="material-symbols-outlined text-xl">add_a_photo</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest">Atau Ambil Foto Sisa</span>
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1485,7 +2042,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                     {title === "Billing Report" ? "Bukti Penagihan (Selfie/Foto)" : "Bukti Pengiriman (Selfie/Foto)"}
                   </label>
                   
-                  {isCameraActive ? (
+                  {isCameraActive && cameraTarget === 'fotoBukti' ? (
                     <div className="relative rounded-3xl overflow-hidden bg-black aspect-video border-4 border-stone-900 shadow-xl">
                       <video 
                         ref={videoRef} 
@@ -1521,21 +2078,42 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                           />
                           <button
                             type="button"
-                            onClick={startCamera}
+                            onClick={() => startCamera('fotoBukti')}
                             className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-stone-900 shadow-lg"
                           >
                             <span className="material-symbols-outlined">refresh</span>
                           </button>
                         </div>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={startCamera}
-                          className="w-full py-12 rounded-3xl border-2 border-dashed border-stone-200 bg-stone-50 flex flex-col items-center justify-center gap-3 text-stone-400 hover:bg-stone-100 hover:border-stone-300 transition-all"
-                        >
-                          <span className="material-symbols-outlined text-4xl">add_a_photo</span>
-                          <span className="text-xs font-bold uppercase tracking-widest">Ambil Foto Bukti</span>
-                        </button>
+                        <div className="w-full space-y-3">
+                          <label className="w-full py-10 rounded-3xl border-2 border-dashed border-stone-200 bg-stone-50 flex flex-col items-center justify-center gap-2 text-stone-400 hover:bg-stone-100 transition-all cursor-pointer">
+                            <span className="material-symbols-outlined text-3xl">cloud_upload</span>
+                            <span className="text-[10px] font-bold uppercase tracking-widest">Upload Bukti</span>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              className="hidden" 
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => {
+                                    setFormData({ ...formData, fotoBukti: reader.result as string });
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => startCamera('fotoBukti')}
+                            className="w-full py-10 rounded-3xl border-2 border-dashed border-stone-200 bg-stone-50 flex flex-col items-center justify-center gap-3 text-stone-400 hover:bg-stone-100 hover:border-stone-300 transition-all"
+                          >
+                            <span className="material-symbols-outlined text-4xl">add_a_photo</span>
+                            <span className="text-xs font-bold uppercase tracking-widest">Ambil Foto Bukti</span>
+                          </button>
+                        </div>
                       )}
                     </div>
                   )}
@@ -1617,6 +2195,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
           </div>
         </div>
       )}
+      </AnimatePresence>
       {/* Piutang Modal */}
       {isPiutangModalOpen && (
         <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4">

@@ -32,6 +32,10 @@ export type ActiveTab =
   | 'report_order'
   | 'daily_report'
   | 'billing_report'
+  | 'penagihan_kurir'
+  | 'courier_cash'
+  | 'accounting'
+  | 'coa'
   | 'production';
 
 export interface Employee {
@@ -270,6 +274,44 @@ export interface BillingRecord {
   buktiSisa?: string;
   waste?: number;
   tanggalPiutang?: string;
+}
+
+export interface CourierCashRecord {
+  id: string;
+  tanggal: string;
+  namaKurir: string;
+  tipe: 'Masuk' | 'Keluar';
+  jumlah: number;
+  keterangan: string;
+  company: string;
+  createdAt: string;
+}
+
+export interface COAAccount {
+  id: string;
+  code: string;
+  name: string;
+  category: 'Asset' | 'Liability' | 'Equity' | 'Revenue' | 'Expense';
+  type: 'Header' | 'Detail';
+  parentId?: string;
+  company: string;
+  createdAt: string;
+}
+
+export interface JournalEntry {
+  accountId: string;
+  debit: number;
+  credit: number;
+}
+
+export interface AccountingJournal {
+  id: string;
+  date: string;
+  description: string;
+  reference: string;
+  entries: JournalEntry[];
+  company: string;
+  createdAt: string;
 }
 
 export interface Division {

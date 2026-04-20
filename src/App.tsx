@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from './lib/supabase';
 import StoreDatabase from './components/StoreDatabase';
 import OrderDatabase from './components/OrderDatabase';
-import { ActiveTab, Employee, AttendanceRecord, Submission, Broadcast, LiveSchedule, Shift, ShiftAssignment, Store, Order, UserRole, DeliveryRecord, BillingRecord, Division, Position, BranchLocation } from './types';
+import { ActiveTab, Employee, AttendanceRecord, Submission, Broadcast, LiveSchedule, Shift, ShiftAssignment, Store, Order, UserRole, DeliveryRecord, BillingRecord, CourierCashRecord, COAAccount, AccountingJournal, Division, Position, BranchLocation } from './types';
 import { Icons, DEFAULT_SHIFTS } from './constants';
 import Dashboard from './components/Dashboard';
 import AttendanceModule from './components/AttendanceModule';
@@ -24,8 +24,12 @@ import { AdvertisingModule } from './components/AdvertisingModule';
 import SalesReport from './components/SalesReport';
 import PrintAdmin from './components/PrintAdmin';
 import OrderReport from './components/OrderReport';
+import CourierBilling from './components/CourierBilling';
 import DeliveryModule from './components/DeliveryModule';
 import DailyReportModule from './components/DailyReportModule';
+import CourierCashModule from './components/CourierCashModule';
+import COAModule from './components/COAModule';
+import AccountingModule from './components/AccountingModule';
 import ClientMonitor from './components/ClientMonitor';
 import Login from './components/Login';
 import { Session } from '@supabase/supabase-js';
@@ -176,6 +180,9 @@ export default function App() {
   const [shiftAssignments, setShiftAssignments] = useState<ShiftAssignment[]>([]);
   const [deliveries, setDeliveries] = useState<DeliveryRecord[]>([]);
   const [billingReports, setBillingReports] = useState<BillingRecord[]>([]);
+  const [courierCashRecords, setCourierCashRecords] = useState<CourierCashRecord[]>([]);
+  const [coaAccounts, setCoaAccounts] = useState<COAAccount[]>([]);
+  const [accountingJournals, setAccountingJournals] = useState<AccountingJournal[]>([]);
   const [divisions, setDivisions] = useState<Division[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
   const [branchLocations, setBranchLocations] = useState<BranchLocation[]>([]);
@@ -349,6 +356,33 @@ export default function App() {
           setBillingReports([]);
         }
 
+        // Courier Cash Reports
+        try {
+          const cashData = await fetchAllData('courier_cash');
+          setCourierCashRecords(cashData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+        } catch (cashError: any) {
+          console.warn('Courier cash table might not exist yet:', cashError.message);
+          setCourierCashRecords([]);
+        }
+
+        // COA Accounts
+        try {
+          const coaData = await fetchAllData('coa_accounts');
+          setCoaAccounts(coaData.sort((a, b) => a.code.localeCompare(b.code)));
+        } catch (coaError: any) {
+          console.warn('COA table might not exist yet:', coaError.message);
+          setCoaAccounts([]);
+        }
+
+        // Accounting Journals
+        try {
+          const journalData = await fetchAllData('accounting_journals');
+          setAccountingJournals(journalData.sort((a, b) => b.date.localeCompare(a.date)));
+        } catch (journalError: any) {
+          console.warn('Journal table might not exist yet:', journalError.message);
+          setAccountingJournals([]);
+        }
+
         // Divisions
         const { data: divData, error: divError } = await supabase.from('divisions').select('*');
         if (!divError && divData) setDivisions(divData);
@@ -381,6 +415,9 @@ export default function App() {
       supabase.channel('orders').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchData).subscribe(),
       supabase.channel('deliveries').on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries' }, fetchData).subscribe(),
       supabase.channel('billing_reports').on('postgres_changes', { event: '*', schema: 'public', table: 'billing_reports' }, fetchData).subscribe(),
+      supabase.channel('courier_cash').on('postgres_changes', { event: '*', schema: 'public', table: 'courier_cash' }, fetchData).subscribe(),
+      supabase.channel('coa_accounts').on('postgres_changes', { event: '*', schema: 'public', table: 'coa_accounts' }, fetchData).subscribe(),
+      supabase.channel('accounting_journals').on('postgres_changes', { event: '*', schema: 'public', table: 'accounting_journals' }, fetchData).subscribe(),
       supabase.channel('divisions').on('postgres_changes', { event: '*', schema: 'public', table: 'divisions' }, fetchData).subscribe(),
       supabase.channel('positions').on('postgres_changes', { event: '*', schema: 'public', table: 'positions' }, fetchData).subscribe(),
       supabase.channel('branch_locations').on('postgres_changes', { event: '*', schema: 'public', table: 'branch_locations' }, fetchData).subscribe(),
@@ -790,6 +827,135 @@ export default function App() {
     }
   };
 
+  const handleSaveCourierCash = async (record: CourierCashRecord) => {
+    try {
+      const { error } = await supabase.from('courier_cash').upsert(record);
+      if (error) throw error;
+      
+      setCourierCashRecords(prev => {
+        const index = prev.findIndex(r => r.id === record.id);
+        if (index >= 0) {
+          const newRecords = [...prev];
+          newRecords[index] = record;
+          return newRecords;
+        }
+        return [record, ...prev];
+      });
+
+      // Automatically create/update accounting journal entry
+      const kasKurirAcc = coaAccounts.find(a => a.name.toLowerCase().includes('kas kurir'));
+      const balancingAcc = coaAccounts.find(a => 
+        record.tipe === 'Masuk' 
+          ? a.category === 'Revenue' || a.name.toLowerCase().includes('pendapatan')
+          : a.category === 'Expense' || a.name.toLowerCase().includes('biaya') || a.name.toLowerCase().includes('beban')
+      );
+
+      if (kasKurirAcc && balancingAcc) {
+        const journal: AccountingJournal = {
+          id: `journal_cc_${record.id}`,
+          date: record.tanggal,
+          description: `Kas Kurir (${record.tipe}) - ${record.namaKurir}: ${record.keterangan}`,
+          reference: `CC-${record.id.substring(0, 4)}`,
+          company: record.company,
+          createdAt: new Date().toISOString(),
+          entries: [
+            {
+              accountId: kasKurirAcc.id,
+              debit: record.tipe === 'Masuk' ? record.jumlah : 0,
+              credit: record.tipe === 'Keluar' ? record.jumlah : 0
+            },
+            {
+              accountId: balancingAcc.id,
+              debit: record.tipe === 'Keluar' ? record.jumlah : 0,
+              credit: record.tipe === 'Masuk' ? record.jumlah : 0
+            }
+          ]
+        };
+        await handleSaveAccountingJournal(journal);
+      }
+    } catch (error: any) {
+      console.error('Error saving courier cash:', error);
+      alert('Gagal menyimpan kas kurir: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const handleDeleteCourierCash = async (id: string) => {
+    try {
+      // Delete from courier_cash
+      const { error } = await supabase.from('courier_cash').delete().eq('id', id);
+      if (error) throw error;
+      
+      setCourierCashRecords(prev => prev.filter(r => r.id !== id));
+
+      // Also delete linked journal entry if exists
+      const journalId = `journal_cc_${id}`;
+      await handleDeleteAccountingJournal(journalId);
+    } catch (error: any) {
+      console.error('Error deleting courier cash:', error);
+      alert('Gagal menghapus kas kurir: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const handleSaveCOA = async (account: COAAccount) => {
+    try {
+      const { error } = await supabase.from('coa_accounts').upsert(account);
+      if (error) throw error;
+      setCoaAccounts(prev => {
+        const index = prev.findIndex(a => a.id === account.id);
+        if (index >= 0) {
+          const newAccounts = [...prev];
+          newAccounts[index] = account;
+          return newAccounts.sort((a, b) => a.code.localeCompare(b.code));
+        }
+        return [account, ...prev].sort((a, b) => a.code.localeCompare(b.code));
+      });
+    } catch (error: any) {
+      console.error('Error saving COA:', error);
+      alert('Gagal menyimpan akun CoA: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const handleDeleteCOA = async (id: string) => {
+    try {
+      const { error } = await supabase.from('coa_accounts').delete().eq('id', id);
+      if (error) throw error;
+      setCoaAccounts(prev => prev.filter(a => a.id !== id));
+    } catch (error: any) {
+      console.error('Error deleting COA:', error);
+      alert('Gagal menghapus akun CoA: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const handleSaveAccountingJournal = async (journal: AccountingJournal) => {
+    try {
+      const { error } = await supabase.from('accounting_journals').upsert(journal);
+      if (error) throw error;
+      setAccountingJournals(prev => {
+        const index = prev.findIndex(j => j.id === journal.id);
+        if (index >= 0) {
+          const newJournals = [...prev];
+          newJournals[index] = journal;
+          return newJournals.sort((a, b) => b.date.localeCompare(a.date));
+        }
+        return [journal, ...prev].sort((a, b) => b.date.localeCompare(a.date));
+      });
+    } catch (error: any) {
+      console.error('Error saving journal:', error);
+      alert('Gagal menyimpan jurnal: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const handleDeleteAccountingJournal = async (id: string) => {
+    try {
+      const { error } = await supabase.from('accounting_journals').delete().eq('id', id);
+      if (error) throw error;
+      setAccountingJournals(prev => prev.filter(j => j.id !== id));
+    } catch (error: any) {
+      console.error('Error deleting journal:', error);
+      alert('Gagal menghapus jurnal: ' + (error.message || 'Unknown error'));
+    }
+  };
+
   const handleSaveDivision = async (division: Division) => {
     try {
       const { error } = await supabase.from('divisions').upsert(division);
@@ -972,7 +1138,17 @@ export default function App() {
     { id: 'employee_database', label: 'Employee DB', icon: 'badge', hidden: userRole === 'admin' },
     { id: 'inbox', label: 'Inbox', icon: 'mail', hidden: userRole === 'admin' },
     { id: 'schedule', label: 'Schedule', icon: 'calendar_month', hidden: userRole === 'admin' },
-    { id: 'finance', label: 'Finance', icon: 'payments', hidden: userRole === 'admin' },
+    { 
+      id: 'finance', 
+      label: 'Finance', 
+      icon: 'payments', 
+      hidden: userRole === 'admin',
+      subItems: [
+        { id: 'finance', label: 'Summary', icon: 'dashboard' },
+        { id: 'coa', label: 'Chart of Account', icon: 'account_tree' },
+        { id: 'accounting', label: 'Accounting', icon: 'menu_book' },
+      ]
+    },
     { id: 'inventory', label: 'Inventory', icon: 'inventory_2', hidden: userRole === 'admin' },
     { id: 'production', label: 'Produksi', icon: 'https://lh3.googleusercontent.com/d/1xnGnOOO6RvjqUW4MTVx9-u7yDTE-qBxl', hidden: userRole === 'admin' },
     { id: 'client_monitor', label: 'Client Monitor', icon: 'monitor_heart', hidden: userRole === 'admin' },
@@ -986,6 +1162,8 @@ export default function App() {
         { id: 'order_database', label: 'Data Orderan', icon: 'receipt_long' },
         { id: 'print_admin', label: 'Print Admin', icon: 'print' },
         { id: 'billing_report', label: 'Billing report', icon: 'payments' },
+        { id: 'penagihan_kurir', label: 'Penagihan Kurir', icon: 'account_balance_wallet' },
+        { id: 'courier_cash', label: 'Kas Kurir', icon: 'payments' },
         { id: 'daily_report', label: 'Daily Report', icon: 'summarize' },
       ]
     },
@@ -1159,6 +1337,39 @@ export default function App() {
         return <OrderReport company={userCompany} />;
       case 'client_monitor':
         return <ClientMonitor stores={stores} orders={orders} company={userCompany} />;
+      case 'finance':
+        return (
+          <FinancialModule
+            company={userCompany}
+            employees={employees}
+            attendanceRecords={attendanceRecords}
+            onClose={() => setActiveTab('home')}
+            onRefresh={refreshData}
+            weeklyHolidays={[]}
+            positionRates={{}}
+          />
+        );
+      case 'coa':
+        return (
+          <COAModule
+            accounts={coaAccounts}
+            company={userCompany}
+            userRole={userRole}
+            onSave={handleSaveCOA}
+            onDelete={handleDeleteCOA}
+          />
+        );
+      case 'accounting':
+        return (
+          <AccountingModule
+            journals={accountingJournals}
+            accounts={coaAccounts}
+            company={userCompany}
+            userRole={userRole}
+            onSave={handleSaveAccountingJournal}
+            onDelete={handleDeleteAccountingJournal}
+          />
+        );
       case 'delivery':
         return (
           <DeliveryModule 
@@ -1168,10 +1379,12 @@ export default function App() {
             orders={orders} 
             stores={stores} 
             deliveries={deliveries}
+            employees={employees}
             userRole={userRole}
             onSaveDelivery={handleSaveDelivery}
             onDeleteDelivery={handleDeleteDelivery}
             onBulkDelete={handleBulkDeleteDelivery}
+            onSaveOrder={handleSaveOrder}
             initialPrefillLocation={prefillData?.type === 'delivery' ? prefillData.location : undefined}
             initialPrefillCourier={prefillData?.type === 'delivery' ? prefillData.courier : undefined}
             onPrefillHandled={() => setPrefillData(null)}
@@ -1227,6 +1440,26 @@ export default function App() {
                 setActiveTab('order_database');
               }
             }}
+          />
+        );
+      case 'penagihan_kurir':
+        return (
+          <CourierBilling 
+            orders={orders}
+            employees={employees}
+            billingReports={billingReports}
+            company={userCompany}
+          />
+        );
+      case 'courier_cash':
+        return (
+          <CourierCashModule
+            records={courierCashRecords}
+            employees={employees}
+            company={userCompany}
+            userRole={userRole}
+            onSave={handleSaveCourierCash}
+            onDelete={handleDeleteCourierCash}
           />
         );
       case 'production':

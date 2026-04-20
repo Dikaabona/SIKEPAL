@@ -279,12 +279,12 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
       <table className="w-full border-collapse border-[1px] border-black">
         <thead>
           <tr className="text-[7px] font-bold bg-[#fafaf9]">
-            <th className="border-[1px] border-black p-1 text-left">Varian</th>
-            <th className="border-[1px] border-black p-1 text-center">Jml</th>
-            <th className="border-[1px] border-black p-1 text-center">R</th>
-            <th className="border-[1px] border-black p-1 text-center">S</th>
-            <th className="border-[1px] border-black p-1 text-center">H</th>
-            <th className="border-[1px] border-black p-1 text-center">T</th>
+            <th className="border-[1px] border-black p-1 text-left w-[40%]">Varian</th>
+            <th className="border-[1px] border-black p-0.5 text-center w-[12%]">Jumlah</th>
+            <th className="border-[1px] border-black p-0.5 text-center w-[12%]">Retur</th>
+            <th className="border-[1px] border-black p-0.5 text-center w-[12%]">Sisa</th>
+            <th className="border-[1px] border-black p-0.5 text-center w-[12%]">Harga</th>
+            <th className="border-[1px] border-black p-0.5 text-center w-[12%]">Total</th>
           </tr>
         </thead>
         <tbody className="text-[7px]">
@@ -296,12 +296,12 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
             { label: 'Menu Bulanan', val: order.menuBulanan },
           ].map((item) => (
             <tr key={item.label}>
-              <td className="border-[1px] border-black p-1 font-medium">{item.label}</td>
-              <td className="border-[1px] border-black p-1 text-center font-bold">{item.val || ''}</td>
-              <td className="border-[1px] border-black p-1"></td>
-              <td className="border-[1px] border-black p-1"></td>
-              <td className="border-[1px] border-black p-1"></td>
-              <td className="border-[1px] border-black p-1"></td>
+              <td className="border-[1px] border-black p-0.5 font-medium">{item.label}</td>
+              <td className="border-[1px] border-black p-0.5 text-center font-bold">{item.val || ''}</td>
+              <td className="border-[1px] border-black p-0.5"></td>
+              <td className="border-[1px] border-black p-0.5"></td>
+              <td className="border-[1px] border-black p-0.5"></td>
+              <td className="border-[1px] border-black p-0.5"></td>
             </tr>
           ))}
           <tr className="font-bold bg-[#fafaf9]">
@@ -354,12 +354,12 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
         <table className="w-full border-collapse border-[1px] border-black">
           <thead>
             <tr className="text-[7px] font-bold bg-[#fafaf9]">
-              <th className="border-[1px] border-black p-1 text-left">Varian</th>
-              <th className="border-[1px] border-black p-1 text-center">Jml</th>
-              <th className="border-[1px] border-black p-1 text-center">R</th>
-              <th className="border-[1px] border-black p-1 text-center">S</th>
-              <th className="border-[1px] border-black p-1 text-center">H</th>
-              <th className="border-[1px] border-black p-1 text-center">T</th>
+              <th className="border-[1px] border-black p-1 text-left w-[40%]">Varian</th>
+              <th className="border-[1px] border-black p-0.5 text-center w-[12%]">Jumlah</th>
+              <th className="border-[1px] border-black p-0.5 text-center w-[12%]">Retur</th>
+              <th className="border-[1px] border-black p-0.5 text-center w-[12%]">Sisa</th>
+              <th className="border-[1px] border-black p-0.5 text-center w-[12%]">Harga</th>
+              <th className="border-[1px] border-black p-0.5 text-center w-[12%]">Total</th>
             </tr>
           </thead>
           <tbody className="text-[7px]">
@@ -371,12 +371,12 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
               { label: 'Menu Bulanan', val: totals.menuBulanan },
             ].map((item) => (
               <tr key={item.label}>
-                <td className="border-[1px] border-black p-1 font-medium">{item.label}</td>
-                <td className="border-[1px] border-black p-1 text-center font-bold">{item.val || ''}</td>
-                <td className="border-[1px] border-black p-1"></td>
-                <td className="border-[1px] border-black p-1"></td>
-                <td className="border-[1px] border-black p-1"></td>
-                <td className="border-[1px] border-black p-1"></td>
+                <td className="border-[1px] border-black p-0.5 font-medium">{item.label}</td>
+                <td className="border-[1px] border-black p-0.5 text-center font-bold">{item.val || ''}</td>
+                <td className="border-[1px] border-black p-0.5"></td>
+                <td className="border-[1px] border-black p-0.5"></td>
+                <td className="border-[1px] border-black p-0.5"></td>
+                <td className="border-[1px] border-black p-0.5"></td>
               </tr>
             ))}
             <tr className="font-bold bg-[#fafaf9]">

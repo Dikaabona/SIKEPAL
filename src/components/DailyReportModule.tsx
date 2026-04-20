@@ -48,9 +48,7 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
 
     const filteredBilling = billingReports.filter(b => {
       if (b.company !== company) return false;
-      // Use tanggalPiutang if available, otherwise use tanggal
-      const targetDateStr = b.tanggalPiutang || b.tanggal;
-      const targetDate = parseIndoDate(targetDateStr);
+      const targetDate = parseIndoDate(b.tanggal);
       if (!targetDate) return false;
       return (!start || targetDate >= start) && (!end || targetDate <= end);
     });
@@ -58,7 +56,7 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
     const pairs = new Set<string>();
     filteredOrders.forEach(o => pairs.add(`${normalizeDate(o.tanggal)}|${o.namaKurir}`));
     filteredDeliveries.forEach(d => pairs.add(`${normalizeDate(d.tanggal)}|${d.namaKurir}`));
-    filteredBilling.forEach(b => pairs.add(`${normalizeDate(b.tanggalPiutang || b.tanggal)}|${b.namaKurir}`));
+    filteredBilling.forEach(b => pairs.add(`${normalizeDate(b.tanggal)}|${b.namaKurir}`));
 
     return Array.from(pairs)
       .map(pair => {
@@ -66,7 +64,7 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
         
         const dayOrders = filteredOrders.filter(o => normalizeDate(o.tanggal) === tanggalNormalized && o.namaKurir === namaKurir);
         const dayDeliveries = filteredDeliveries.filter(d => normalizeDate(d.tanggal) === tanggalNormalized && d.namaKurir === namaKurir);
-        const dayBilling = filteredBilling.filter(b => normalizeDate(b.tanggalPiutang || b.tanggal) === tanggalNormalized && b.namaKurir === namaKurir);
+        const dayBilling = filteredBilling.filter(b => normalizeDate(b.tanggal) === tanggalNormalized && b.namaKurir === namaKurir);
 
         const jumlahLokasi = new Set(dayOrders.map(o => o.namaLokasi)).size;
         const jumlahKurirVisit = new Set(dayDeliveries.map(d => d.namaLokasi)).size;
@@ -230,14 +228,6 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
                   </div>
                 </th>
                 <th 
-                  onClick={() => requestSort('totalTagihan')}
-                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center cursor-pointer hover:bg-stone-100 transition-colors"
-                >
-                  <div className="flex items-center justify-center">
-                    Tagihan {getSortIcon('totalTagihan')}
-                  </div>
-                </th>
-                <th 
                   onClick={() => requestSort('totalSetoran')}
                   className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center cursor-pointer hover:bg-stone-100 transition-colors"
                 >
@@ -300,9 +290,6 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
                         }`}>
                           {selisihQty > 0 ? `+${selisihQty}` : selisihQty}
                         </span>
-                      </td>
-                      <td className="px-6 py-4 text-center text-xs font-black text-stone-600">
-                        Rp {row.totalTagihan.toLocaleString('id-ID')}
                       </td>
                       <td className="px-6 py-4 text-center text-xs font-black text-stone-600">
                         Rp {row.totalSetoran.toLocaleString('id-ID')}
