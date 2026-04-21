@@ -249,152 +249,178 @@ export default function App() {
       console.error('Supabase Error:', JSON.stringify(errInfo));
     };
 
-    const fetchData = async () => {
+    const fetchEmployees = async () => {
+      const { data, error } = await supabase.from('employees').select('*');
+      if (error) throw error;
+      if (data && data.length === 0) {
+        await supabase.from('employees').upsert(MOCK_EMPLOYEES);
+        setEmployees(MOCK_EMPLOYEES);
+      } else if (data) {
+        setEmployees(data);
+      }
+    };
+
+    const fetchAttendance = async () => {
+      const { data, error } = await supabase.from('attendance').select('*');
+      if (error) throw error;
+      if (data) setAttendanceRecords(data);
+    };
+
+    const fetchSubmissions = async () => {
+      const { data, error } = await supabase.from('submissions').select('*');
+      if (error) throw error;
+      if (data) setSubmissions(data);
+    };
+
+    const fetchShifts = async () => {
+      const { data, error } = await supabase.from('shifts').select('*');
+      if (error) throw error;
+      if (data) setShifts(data);
+    };
+
+    const fetchShiftAssignments = async () => {
+      const { data, error } = await supabase.from('shift_assignments').select('*');
+      if (error) throw error;
+      if (data) setShiftAssignments(data);
+    };
+
+    const fetchStores = async () => {
+      const { data, error } = await supabase.from('stores').select('*');
+      if (error) throw error;
+      if (data) setStores(data);
+    };
+
+    // Helper for fetching all data with pagination
+    const fetchAllData = async (table: string, limit: number = 20000) => {
+      let allData: any[] = [];
+      let from = 0;
+      let to = 999;
+      let hasMore = true;
+
+      while (hasMore && allData.length < limit) {
+        const { data, error } = await supabase
+          .from(table)
+          .select('*')
+          .range(from, to);
+        
+        if (error) throw error;
+        if (data && data.length > 0) {
+          allData = [...allData, ...data];
+          if (data.length < 1000) {
+            hasMore = false;
+          } else {
+            from += 1000;
+            to += 1000;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+      return allData.slice(0, limit);
+    };
+
+    const fetchOrders = async () => {
+      const data = await fetchAllData('orders');
+      setOrders(data);
+    };
+
+    const fetchDeliveries = async () => {
+      const data = await fetchAllData('deliveries');
+      setDeliveries(data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    };
+
+    const fetchBillingReports = async () => {
+      try {
+        const data = await fetchAllData('billing_reports');
+        setBillingReports(data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      } catch (e) {
+        console.warn('Billing reports table might not exist yet');
+        setBillingReports([]);
+      }
+    };
+
+    const fetchCourierCash = async () => {
+      try {
+        const data = await fetchAllData('courier_cash');
+        setCourierCashRecords(data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      } catch (e) {
+        console.warn('Courier cash table might not exist yet');
+        setCourierCashRecords([]);
+      }
+    };
+
+    const fetchCOA = async () => {
+      try {
+        const data = await fetchAllData('coa_accounts');
+        setCoaAccounts(data.sort((a, b) => a.code.localeCompare(b.code)));
+      } catch (e) {
+        setCoaAccounts([]);
+      }
+    };
+
+    const fetchJournals = async () => {
+      try {
+        const data = await fetchAllData('accounting_journals');
+        setAccountingJournals(data.sort((a, b) => b.date.localeCompare(a.date)));
+      } catch (e) {
+        setAccountingJournals([]);
+      }
+    };
+
+    const fetchStaticData = async () => {
+      const { data: divData } = await supabase.from('divisions').select('*');
+      if (divData) setDivisions(divData);
+      const { data: posData } = await supabase.from('positions').select('*');
+      if (posData) setPositions(posData);
+      const { data: branchData } = await supabase.from('branch_locations').select('*');
+      if (branchData) setBranchLocations(branchData);
+    };
+
+    const tableFetchers: Record<string, () => Promise<void>> = {
+      employees: fetchEmployees,
+      attendance: fetchAttendance,
+      submissions: fetchSubmissions,
+      shifts: fetchShifts,
+      shift_assignments: fetchShiftAssignments,
+      stores: fetchStores,
+      orders: fetchOrders,
+      deliveries: fetchDeliveries,
+      billing_reports: fetchBillingReports,
+      courier_cash: fetchCourierCash,
+      coa_accounts: fetchCOA,
+      accounting_journals: fetchJournals,
+      divisions: fetchStaticData,
+      positions: fetchStaticData,
+      branch_locations: fetchStaticData
+    };
+
+    const fetchData = async (tableName?: string) => {
+      if (tableName && tableFetchers[tableName]) {
+        try {
+          await tableFetchers[tableName]();
+        } catch (err) {
+          console.error(`Error fetching ${tableName}:`, err);
+        }
+        return;
+      }
+
       setIsLoading(true);
       try {
-        // Employees
-        const { data: empData, error: empError } = await supabase.from('employees').select('*');
-        if (empError) throw empError;
-        if (empData && empData.length === 0) {
-          await supabase.from('employees').upsert(MOCK_EMPLOYEES);
-          setEmployees(MOCK_EMPLOYEES);
-        } else if (empData) {
-          setEmployees(empData);
-        }
-
-        // Attendance
-        const { data: attData, error: attError } = await supabase.from('attendance').select('*');
-        if (attError) throw attError;
-        if (attData && attData.length === 0) {
-          // Only upsert mock if employees table has the IDs 1 and 2 to avoid FK error
-          const { data: validEmps } = await supabase.from('employees').select('id').in('id', ['1', '2']);
-          if (validEmps && validEmps.length >= 2) {
-            await supabase.from('attendance').upsert(MOCK_ATTENDANCE);
-            setAttendanceRecords(MOCK_ATTENDANCE);
-          }
-        } else if (attData) {
-          setAttendanceRecords(attData);
-        }
-
-        // Submissions
-        const { data: subData, error: subError } = await supabase.from('submissions').select('*');
-        if (subError) throw subError;
-        if (subData && subData.length === 0) {
-          // Only upsert mock if employees table has the IDs 1 and 2 to avoid FK error
-          const { data: validEmps } = await supabase.from('employees').select('id').in('id', ['1', '2']);
-          if (validEmps && validEmps.length >= 2) {
-            await supabase.from('submissions').upsert(MOCK_SUBMISSIONS);
-            setSubmissions(MOCK_SUBMISSIONS);
-          }
-        } else if (subData) {
-          setSubmissions(subData);
-        }
-
-        // Shifts
-        const { data: shiftData, error: shiftError } = await supabase.from('shifts').select('*');
-        if (shiftError) throw shiftError;
-        if (shiftData && shiftData.length === 0) {
-          await supabase.from('shifts').upsert(DEFAULT_SHIFTS);
-          setShifts(DEFAULT_SHIFTS);
-        } else if (shiftData) {
-          setShifts(shiftData);
-        }
-
-        // Shift Assignments
-        const { data: assignData, error: assignError } = await supabase.from('shift_assignments').select('*');
-        if (assignError) throw assignError;
-        if (assignData) setShiftAssignments(assignData);
-
-        // Stores
-        const { data: storeData, error: storeError } = await supabase.from('stores').select('*');
-        if (storeError) throw storeError;
-        if (storeData) setStores(storeData);
-
-        // Helper for fetching all data with pagination
-        const fetchAllData = async (table: string, limit: number = 20000) => {
-          let allData: any[] = [];
-          let from = 0;
-          let to = 999;
-          let hasMore = true;
-
-          while (hasMore && allData.length < limit) {
-            const { data, error } = await supabase
-              .from(table)
-              .select('*')
-              .range(from, to);
-            
-            if (error) throw error;
-            if (data && data.length > 0) {
-              allData = [...allData, ...data];
-              if (data.length < 1000) {
-                hasMore = false;
-              } else {
-                from += 1000;
-                to += 1000;
-              }
-            } else {
-              hasMore = false;
-            }
-          }
-          return allData.slice(0, limit);
-        };
-
-        // Orders
-        const orderData = await fetchAllData('orders');
-        setOrders(orderData);
-
-        // Deliveries
-        const deliveryData = await fetchAllData('deliveries');
-        setDeliveries(deliveryData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-
-        // Billing Reports
-        try {
-          const billingData = await fetchAllData('billing_reports');
-          setBillingReports(billingData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-        } catch (billingError: any) {
-          console.warn('Billing reports table might not exist yet:', billingError.message);
-          setBillingReports([]);
-        }
-
-        // Courier Cash Reports
-        try {
-          const cashData = await fetchAllData('courier_cash');
-          setCourierCashRecords(cashData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-        } catch (cashError: any) {
-          console.warn('Courier cash table might not exist yet:', cashError.message);
-          setCourierCashRecords([]);
-        }
-
-        // COA Accounts
-        try {
-          const coaData = await fetchAllData('coa_accounts');
-          setCoaAccounts(coaData.sort((a, b) => a.code.localeCompare(b.code)));
-        } catch (coaError: any) {
-          console.warn('COA table might not exist yet:', coaError.message);
-          setCoaAccounts([]);
-        }
-
-        // Accounting Journals
-        try {
-          const journalData = await fetchAllData('accounting_journals');
-          setAccountingJournals(journalData.sort((a, b) => b.date.localeCompare(a.date)));
-        } catch (journalError: any) {
-          console.warn('Journal table might not exist yet:', journalError.message);
-          setAccountingJournals([]);
-        }
-
-        // Divisions
-        const { data: divData, error: divError } = await supabase.from('divisions').select('*');
-        if (!divError && divData) setDivisions(divData);
-
-        // Positions
-        const { data: posData, error: posError } = await supabase.from('positions').select('*');
-        if (!posError && posData) setPositions(posData);
-
-        // Branch Locations
-        const { data: branchData, error: branchError } = await supabase.from('branch_locations').select('*');
-        if (!branchError && branchData) setBranchLocations(branchData);
-
+        await Promise.all([
+          fetchEmployees(),
+          fetchAttendance(),
+          fetchSubmissions(),
+          fetchShifts(),
+          fetchShiftAssignments(),
+          fetchStores(),
+          fetchOrders(),
+          fetchDeliveries(),
+          fetchBillingReports(),
+          fetchCourierCash(),
+          fetchCOA(),
+          fetchJournals(),
+          fetchStaticData()
+        ]);
       } catch (err) {
         handleSupabaseError(err, 'fetch', 'all');
       } finally {
@@ -404,24 +430,18 @@ export default function App() {
 
     fetchData();
 
-    // Set up real-time subscriptions
-    const channels = [
-      supabase.channel('employees').on('postgres_changes', { event: '*', schema: 'public', table: 'employees' }, fetchData).subscribe(),
-      supabase.channel('attendance').on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, fetchData).subscribe(),
-      supabase.channel('submissions').on('postgres_changes', { event: '*', schema: 'public', table: 'submissions' }, fetchData).subscribe(),
-      supabase.channel('shifts').on('postgres_changes', { event: '*', schema: 'public', table: 'shifts' }, fetchData).subscribe(),
-      supabase.channel('shift_assignments').on('postgres_changes', { event: '*', schema: 'public', table: 'shift_assignments' }, fetchData).subscribe(),
-      supabase.channel('stores').on('postgres_changes', { event: '*', schema: 'public', table: 'stores' }, fetchData).subscribe(),
-      supabase.channel('orders').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchData).subscribe(),
-      supabase.channel('deliveries').on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries' }, fetchData).subscribe(),
-      supabase.channel('billing_reports').on('postgres_changes', { event: '*', schema: 'public', table: 'billing_reports' }, fetchData).subscribe(),
-      supabase.channel('courier_cash').on('postgres_changes', { event: '*', schema: 'public', table: 'courier_cash' }, fetchData).subscribe(),
-      supabase.channel('coa_accounts').on('postgres_changes', { event: '*', schema: 'public', table: 'coa_accounts' }, fetchData).subscribe(),
-      supabase.channel('accounting_journals').on('postgres_changes', { event: '*', schema: 'public', table: 'accounting_journals' }, fetchData).subscribe(),
-      supabase.channel('divisions').on('postgres_changes', { event: '*', schema: 'public', table: 'divisions' }, fetchData).subscribe(),
-      supabase.channel('positions').on('postgres_changes', { event: '*', schema: 'public', table: 'positions' }, fetchData).subscribe(),
-      supabase.channel('branch_locations').on('postgres_changes', { event: '*', schema: 'public', table: 'branch_locations' }, fetchData).subscribe(),
-    ];
+    // Set up real-time subscriptions with targeted fetching
+    const createChannel = (table: string) => {
+      return supabase
+        .channel(table)
+        .on('postgres_changes', { event: '*', schema: 'public', table }, () => {
+          console.log(`Real-time update for ${table}`);
+          fetchData(table);
+        })
+        .subscribe();
+    };
+
+    const channels = Object.keys(tableFetchers).map(createChannel);
 
     return () => {
       channels.forEach(channel => channel.unsubscribe());
