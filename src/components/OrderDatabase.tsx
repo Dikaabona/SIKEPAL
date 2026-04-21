@@ -648,7 +648,6 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                     company: company,
                     status: isKurir ? 'Pending' : 'Approved'
                   });
-                  setLokasiSearch('');
                   setIsAdding(true);
                 }}
                 className="flex items-center gap-2 px-4 md:px-6 py-2 bg-primary text-on-primary rounded-xl font-bold text-[10px] md:text-sm hover:bg-primary/90 transition-all shadow-md shadow-primary/20"
@@ -1029,7 +1028,6 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                         <button 
                             onClick={() => {
                               setNewOrder(order);
-                              setLokasiSearch(order.namaLokasi);
                               setIsAdding(true);
                             }}
                             className="text-stone-400 hover:text-primary transition-colors"
@@ -1118,7 +1116,6 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                       <button 
                         onClick={() => {
                           setNewOrder(order);
-                          setLokasiSearch(order.namaLokasi);
                           setIsAdding(true);
                         }}
                         className="w-10 h-10 rounded-xl bg-stone-50 text-stone-400 flex items-center justify-center border border-stone-100"

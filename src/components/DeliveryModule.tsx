@@ -4,6 +4,42 @@ import { Icons } from '../constants';
 import { DeliveryRecord, Order, Store, UserRole, Employee } from '../types';
 import { formatDate, getLocalDateString, parseIndoDate } from '../lib/utils';
 
+interface KeteranganInputProps {
+  value: string;
+  onChange: (val: string) => void;
+  isKeteranganRequired?: boolean;
+}
+
+const KeteranganInput: React.FC<KeteranganInputProps> = ({ value, onChange, isKeteranganRequired }) => {
+  const [localValue, setLocalValue] = React.useState(value);
+
+  // Sync with external changes when modal opens or resets
+  React.useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  // Debounced update to parent
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (localValue !== value) {
+        onChange(localValue);
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [localValue, onChange, value]);
+
+  return (
+    <textarea
+      value={localValue}
+      onChange={(e) => setLocalValue(e.target.value)}
+      placeholder={isKeteranganRequired ? "Wajib diisi karena waste > 20%..." : "Catatan tambahan..."}
+      className={`w-full px-4 py-3 rounded-2xl border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium h-24 resize-none ${
+        isKeteranganRequired && !localValue.trim() ? 'bg-red-50 ring-1 ring-red-200' : 'bg-stone-50'
+      }`}
+    />
+  );
+};
+
 interface DeliveryModuleProps {
   title?: string;
   addButtonLabel?: string;
@@ -2145,22 +2181,19 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">
-                    Keterangan {isKeteranganRequired && <span className="text-red-500">* (Wajib jika waste &gt; 20%)</span>}
-                  </label>
-                  <textarea
-                    value={formData.keterangan}
-                    onChange={(e) => setFormData({...formData, keterangan: e.target.value})}
-                    placeholder={isKeteranganRequired ? "Wajib diisi karena waste > 20%..." : "Catatan tambahan..."}
-                    className={`w-full px-4 py-3 rounded-2xl border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium h-24 resize-none ${
-                      isKeteranganRequired && !formData.keterangan.trim() ? 'bg-red-50 ring-1 ring-red-200' : 'bg-stone-50'
-                    }`}
-                  />
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">
+                      Keterangan {isKeteranganRequired && <span className="text-red-500">* (Wajib jika waste &gt; 20%)</span>}
+                    </label>
+                    <KeteranganInput 
+                      value={formData.keterangan}
+                      onChange={(val) => setFormData(prev => ({ ...prev, keterangan: val }))}
+                      isKeteranganRequired={isKeteranganRequired}
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="p-6 md:p-8 pt-4 pb-12 md:pb-8 border-t border-stone-50 flex gap-3 md:gap-4 bg-white flex-shrink-0">
+                <div className="p-6 md:p-8 pt-4 pb-12 md:pb-8 border-t border-stone-50 flex gap-3 md:gap-4 bg-white flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => {
