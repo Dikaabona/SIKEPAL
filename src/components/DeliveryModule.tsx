@@ -10,35 +10,50 @@ interface KeteranganInputProps {
   isKeteranganRequired?: boolean;
 }
 
-const KeteranganInput: React.FC<KeteranganInputProps> = ({ value, onChange, isKeteranganRequired }) => {
+const KeteranganInput: React.FC<KeteranganInputProps> = React.memo(({ value, onChange, isKeteranganRequired }) => {
   const [localValue, setLocalValue] = React.useState(value);
+  const skipSyncRef = useRef(false);
 
-  // Sync with external changes when modal opens or resets
+  // Sync with external changes (e.g. when modal opens or record changes)
   React.useEffect(() => {
-    setLocalValue(value);
+    if (!skipSyncRef.current) {
+      setLocalValue(value);
+    }
+    skipSyncRef.current = false;
   }, [value]);
 
-  // Debounced update to parent
+  // Handle local change
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setLocalValue(val);
+  };
+
+  // Sync back to parent on blur or debounced
+  const syncToParent = React.useCallback((val: string) => {
+    if (val !== value) {
+      skipSyncRef.current = true;
+      onChange(val);
+    }
+  }, [onChange, value]);
+
+  // Debounced update to parent (longer delay to prevent jank while typing)
   React.useEffect(() => {
-    const timer = setTimeout(() => {
-      if (localValue !== value) {
-        onChange(localValue);
-      }
-    }, 250);
+    const timer = setTimeout(() => syncToParent(localValue), 1200);
     return () => clearTimeout(timer);
-  }, [localValue, onChange, value]);
+  }, [localValue, syncToParent]);
 
   return (
     <textarea
       value={localValue}
-      onChange={(e) => setLocalValue(e.target.value)}
+      onChange={handleChange}
+      onBlur={() => syncToParent(localValue)}
       placeholder={isKeteranganRequired ? "Wajib diisi karena waste > 20%..." : "Catatan tambahan..."}
       className={`w-full px-4 py-3 rounded-2xl border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium h-24 resize-none ${
         isKeteranganRequired && !localValue.trim() ? 'bg-red-50 ring-1 ring-red-200' : 'bg-stone-50'
       }`}
     />
   );
-};
+});
 
 interface DeliveryModuleProps {
   title?: string;
@@ -106,6 +121,10 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
     tanggalPiutang: '',
     jumlahKirim: 0
   });
+
+  const handleKeteranganChange = React.useCallback((val: string) => {
+    setFormData(prev => ({ ...prev, keterangan: val }));
+  }, []);
 
   // Extract unique location names from orders and stores
   const locationOptions = useMemo(() => {
@@ -2187,7 +2206,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                     </label>
                     <KeteranganInput 
                       value={formData.keterangan}
-                      onChange={(val) => setFormData(prev => ({ ...prev, keterangan: val }))}
+                      onChange={handleKeteranganChange}
                       isKeteranganRequired={isKeteranganRequired}
                     />
                   </div>
