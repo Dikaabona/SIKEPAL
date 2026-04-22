@@ -343,9 +343,12 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <span className="material-symbols-outlined text-red-600">account_balance_wallet</span>
                   Tagihan Piutang
                 </h3>
-                <span className="px-2 py-1 rounded-full bg-red-100 text-red-600 text-[10px] font-black">
-                  {piutangNotifications.length} PERLU DITAGIH
-                </span>
+                <button 
+                  onClick={() => onNavigate('piutang')}
+                  className="text-xs font-bold text-red-600 hover:underline"
+                >
+                  View All
+                </button>
               </div>
 
               {/* Search Bar for Piutang */}
@@ -367,18 +370,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 {paginatedPiutang.map((p, i) => (
                   <div 
                     key={i} 
-                    onClick={() => {
-                      const store = stores.find(s => s.namaToko === p.namaLokasi);
-                      if (store) {
-                        // We need a way to open StoreDetailModal from Dashboard.
-                        // For now, let's navigate to Store Database with this store selected if possible,
-                        // or just show a simple alert if we can't trigger the modal directly.
-                        // Actually, the best way is to pass a prop to onNavigate or a new prop.
-                        onNavigate({ tab: 'order_database', storeId: store.id });
-                      } else {
-                        onNavigate('order_database');
-                      }
-                    }}
+                    onClick={() => onNavigate('piutang')}
                     className="p-4 bg-red-50/30 rounded-2xl border border-red-100/50 flex flex-col gap-1 active:scale-[0.98] transition-all cursor-pointer"
                   >
                     <div className="flex justify-between items-start">
@@ -531,16 +523,24 @@ const Dashboard: React.FC<DashboardProps> = ({
             variants={item}
             className="bg-white p-6 rounded-3xl border border-stone-100 shadow-sm"
           >
-            <h3 className="font-black text-stone-800 mb-6 flex items-center gap-2">
-              <span className="material-symbols-outlined text-red-600">account_balance_wallet</span>
-              Tagihan Piutang
-            </h3>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-black text-stone-800 flex items-center gap-2">
+                <span className="material-symbols-outlined text-red-600">account_balance_wallet</span>
+                Tagihan Piutang
+              </h3>
+              <button 
+                onClick={() => onNavigate('piutang')}
+                className="text-xs font-bold text-red-600 hover:underline"
+              >
+                View All
+              </button>
+            </div>
             {piutangNotifications.length > 0 ? (
               <div className="space-y-3 max-h-[250px] overflow-y-auto pr-1 custom-scrollbar">
                 {piutangNotifications.map((p, i) => (
                   <div 
                     key={i} 
-                    onClick={() => onNavigate('order_database')}
+                    onClick={() => onNavigate('piutang')}
                     className="p-4 bg-red-50/30 rounded-2xl border border-red-100/50 flex items-center justify-between active:scale-[0.98] transition-all cursor-pointer"
                   >
                     <div className="flex flex-col gap-0.5">

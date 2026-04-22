@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from './lib/supabase';
 import StoreDatabase from './components/StoreDatabase';
 import OrderDatabase from './components/OrderDatabase';
+import PiutangModule from './components/PiutangModule';
 import { ActiveTab, Employee, AttendanceRecord, Submission, Broadcast, LiveSchedule, Shift, ShiftAssignment, Store, Order, UserRole, DeliveryRecord, BillingRecord, CourierCashRecord, COAAccount, AccountingJournal, Division, Position, BranchLocation } from './types';
 import { Icons, DEFAULT_SHIFTS } from './constants';
 import Dashboard from './components/Dashboard';
@@ -138,6 +139,79 @@ const MOCK_ATTENDANCE: AttendanceRecord[] = [
     clockIn: '08:15 AM',
     notes: 'Late',
     submittedAt: new Date().toISOString(),
+  }
+];
+
+const MOCK_STORES: Store[] = [
+  {
+    id: 's1',
+    namaToko: 'Alfamart Gading Serpong',
+    alamat: 'Dusun III, Gading Serpong',
+    company: 'Sikepal',
+    grade: 'A',
+    namaPIC: 'Ahmad',
+    linkGmaps: 'https://maps.google.com',
+    kategori: 'Alfamart',
+    harga: '10000',
+    pembayaran: 'CASH',
+    operasional: '24 Jam',
+    note: '',
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 's2',
+    namaToko: 'Indomaret Karawaci',
+    alamat: 'Jl. Boulevard Palem Raya',
+    company: 'Sikepal',
+    grade: 'B',
+    namaPIC: 'Budi',
+    linkGmaps: 'https://maps.google.com',
+    kategori: 'Indomaret',
+    harga: '10000',
+    pembayaran: 'CASH',
+    operasional: '07:00 - 22:00',
+    note: '',
+    updatedAt: new Date().toISOString()
+  }
+];
+
+const MOCK_ORDERS: Order[] = [
+  {
+    id: 'o1',
+    tanggal: '22/04/2026',
+    namaKurir: 'Budi Santoso',
+    namaLokasi: 'Alfamart Gading Serpong',
+    tunaPedes: 50,
+    tunaMayo: 25,
+    ayamMayo: 25,
+    ayamPedes: 50,
+    menuBulanan: 0,
+    jumlahKirim: 150,
+    hargaSikepal: 10000,
+    periodeBayar: 'Harian',
+    sisa: 0,
+    jumlahPiutang: 0,
+    jumlahUang: 1500000,
+    pembayaran: 'TRUE',
+    tanggalBayar: '22/04/2026',
+    diskon: 0,
+    company: 'Sikepal',
+    status: 'Approved',
+    updatedAt: new Date().toISOString()
+  }
+];
+
+const MOCK_BILLING_REPORTS: BillingRecord[] = [
+  {
+    id: 'b1',
+    namaKurir: 'Budi Santoso',
+    tanggal: '2026-04-22',
+    namaLokasi: 'Alfamart Gading Serpong',
+    qtyPengiriman: 150,
+    metodePembayaran: 'CASH',
+    company: 'Sikepal',
+    status: 'Completed',
+    createdAt: new Date().toISOString()
   }
 ];
 
@@ -287,7 +361,12 @@ export default function App() {
     const fetchStores = async () => {
       const { data, error } = await supabase.from('stores').select('*');
       if (error) throw error;
-      if (data) setStores(data);
+      if (data && data.length === 0) {
+        await supabase.from('stores').upsert(MOCK_STORES);
+        setStores(MOCK_STORES);
+      } else if (data) {
+        setStores(data);
+      }
     };
 
     // Helper for fetching all data with pagination
@@ -321,18 +400,41 @@ export default function App() {
 
     const fetchOrders = async () => {
       const data = await fetchAllData('orders');
-      setOrders(data);
+      if (data && data.length === 0) {
+        await supabase.from('orders').upsert(MOCK_ORDERS);
+        setOrders(MOCK_ORDERS);
+      } else {
+        setOrders(data);
+      }
     };
 
     const fetchDeliveries = async () => {
       const data = await fetchAllData('deliveries');
-      setDeliveries(data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      if (data && data.length === 0) {
+        await supabase.from('deliveries').upsert(MOCK_DELIVERIES);
+        setDeliveries(MOCK_DELIVERIES);
+      } else {
+        setDeliveries(data.sort((a, b) => {
+          const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return tB - tA;
+        }));
+      }
     };
 
     const fetchBillingReports = async () => {
       try {
         const data = await fetchAllData('billing_reports');
-        setBillingReports(data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+        if (data && data.length === 0) {
+          await supabase.from('billing_reports').upsert(MOCK_BILLING_REPORTS);
+          setBillingReports(MOCK_BILLING_REPORTS);
+        } else {
+          setBillingReports(data.sort((a, b) => {
+            const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return tB - tA;
+          }));
+        }
       } catch (e) {
         console.warn('Billing reports table might not exist yet');
         setBillingReports([]);
@@ -1182,6 +1284,7 @@ export default function App() {
         { id: 'order_database', label: 'Data Orderan', icon: 'receipt_long' },
         { id: 'print_admin', label: 'Print Admin', icon: 'print' },
         { id: 'billing_report', label: 'Billing report', icon: 'payments' },
+        { id: 'piutang', label: 'Tagihan Piutang', icon: 'account_balance_wallet' },
         { id: 'penagihan_kurir', label: 'Penagihan Kurir', icon: 'account_balance_wallet' },
         { id: 'courier_cash', label: 'Kas Kurir', icon: 'payments' },
         { id: 'daily_report', label: 'Daily Report', icon: 'summarize' },
@@ -1291,6 +1394,15 @@ export default function App() {
             onPrefillRequest={handlePrefillRequest}
             initialSelectedStoreId={returnStoreId || undefined}
             onStoreOpened={() => setReturnStoreId(null)}
+          />
+        );
+      case 'piutang':
+        return (
+          <PiutangModule 
+            orders={orders}
+            onNavigate={handleNavigate}
+            company={userCompany}
+            stores={stores}
           />
         );
       case 'employee_database':

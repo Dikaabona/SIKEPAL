@@ -32,6 +32,7 @@ export type ActiveTab =
   | 'report_order'
   | 'daily_report'
   | 'billing_report'
+  | 'piutang'
   | 'penagihan_kurir'
   | 'courier_cash'
   | 'accounting'

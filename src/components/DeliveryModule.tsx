@@ -213,7 +213,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   const [locationSearchQuery, setLocationSearchQuery] = useState('');
   const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState<number | 'all'>(30);
+  const [itemsPerPage, setItemsPerPage] = useState<number | 'all'>(title === "Billing Report" ? 10 : 30);
 
   // States for Editing Order from Delivery Report
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
@@ -1249,6 +1249,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                 }}
                 className="text-[11px] font-black text-stone-900 border border-stone-200 rounded-lg px-2 py-1 outline-none bg-stone-50/50 hover:bg-stone-50 transition-all cursor-pointer shadow-sm"
               >
+                <option value={10}>10</option>
                 <option value={30}>30</option>
                 <option value={50}>50</option>
                 <option value={100}>100</option>
