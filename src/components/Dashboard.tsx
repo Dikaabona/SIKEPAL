@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { Employee, Submission, Broadcast, AttendanceRecord, ShiftAssignment, UserRole, Shift, BranchLocation, Order, Store, DeliveryRecord, BillingRecord } from '../types';
-import { parseIndoDate, formatCurrency } from '../lib/utils';
+import { parseIndoDate, formatCurrency, getLocalDateString } from '../lib/utils';
 
 interface DashboardProps {
   employees: Employee[];
@@ -40,18 +40,43 @@ const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentDistance, setCurrentDistance] = useState<number | null>(null);
-  const [selectedSumDate, setSelectedSumDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedSumDate, setSelectedSumDate] = useState(getLocalDateString());
+
+  // Date normalization helper for robust comparisons
+  const normalizeDateString = (dateStr: string) => {
+    if (!dateStr) return '';
+    const d = parseIndoDate(dateStr);
+    return d ? getLocalDateString(d) : dateStr;
+  };
 
   // Summary Calculations
   const deliverySummary = useMemo(() => {
-    const filtered = deliveries.filter(d => d.tanggal === selectedSumDate);
+    let filtered = deliveries.filter(d => normalizeDateString(d.tanggal) === selectedSumDate);
+    
+    // Filter specifically for KURIR division if logged in as one
+    const isKurir = currentUserEmployee?.division?.toUpperCase() === 'KURIR' || 
+                    currentUserEmployee?.jabatan?.toUpperCase() === 'KURIR';
+    
+    if (isKurir && currentUserEmployee?.nama) {
+      filtered = filtered.filter(d => d.namaKurir === currentUserEmployee.nama);
+    }
+
     const uniqueLocations = new Set(filtered.map(d => d.namaLokasi)).size;
     const totalQty = filtered.reduce((acc, d) => acc + (Number(d.qtyPengiriman) || 0), 0);
     return { uniqueLocations, totalQty };
-  }, [deliveries, selectedSumDate]);
+  }, [deliveries, selectedSumDate, currentUserEmployee]);
 
   const billingSummary = useMemo(() => {
-    const filtered = billingReports.filter(b => b.tanggal === selectedSumDate);
+    let filtered = billingReports.filter(b => normalizeDateString(b.tanggal) === selectedSumDate);
+
+    // Filter specifically for KURIR division if logged in as one
+    const isKurir = currentUserEmployee?.division?.toUpperCase() === 'KURIR' || 
+                    currentUserEmployee?.jabatan?.toUpperCase() === 'KURIR';
+    
+    if (isKurir && currentUserEmployee?.nama) {
+      filtered = filtered.filter(b => b.namaKurir === currentUserEmployee.nama);
+    }
+
     const penagihanRecords = filtered.filter(b => !b.metodePembayaran || b.metodePembayaran === 'Cash' || b.metodePembayaran === 'Transfer');
     const uniqueLocations = new Set(filtered.map(b => b.namaLokasi)).size;
     
@@ -71,7 +96,40 @@ const Dashboard: React.FC<DashboardProps> = ({
       piutang,
       total: cash + transfer + piutang
     };
-  }, [billingReports, selectedSumDate]);
+  }, [billingReports, selectedSumDate, currentUserEmployee]);
+
+  const orderSummary = useMemo(() => {
+    let filtered = orders.filter(o => normalizeDateString(o.tanggal) === selectedSumDate);
+    
+    // Filter specifically for KURIR division if logged in as one
+    const isKurir = currentUserEmployee?.division?.toUpperCase() === 'KURIR' || 
+                    currentUserEmployee?.jabatan?.toUpperCase() === 'KURIR';
+    
+    if (isKurir && currentUserEmployee?.nama) {
+      filtered = filtered.filter(o => o.namaKurir === currentUserEmployee.nama);
+    }
+
+    return filtered.reduce((acc, order) => {
+      acc.tunaPedes += (Number(order.tunaPedes) || 0);
+      acc.tunaMayo += (Number(order.tunaMayo) || 0);
+      acc.ayamMayo += (Number(order.ayamMayo) || 0);
+      acc.ayamPedes += (Number(order.ayamPedes) || 0);
+      acc.menuBulanan += (Number(order.menuBulanan) || 0);
+      acc.jumlahKirim += (Number(order.jumlahKirim) || 0);
+      acc.sisa += (Number(order.sisa) || 0);
+      return acc;
+    }, {
+      tunaPedes: 0,
+      tunaMayo: 0,
+      ayamMayo: 0,
+      ayamPedes: 0,
+      menuBulanan: 0,
+      jumlahKirim: 0,
+      sisa: 0
+    });
+  }, [orders, selectedSumDate, currentUserEmployee]);
+
+  const percentageSisa = orderSummary.jumlahKirim > 0 ? (orderSummary.sisa / orderSummary.jumlahKirim) * 100 : 0;
 
   const assignedLocation = branchLocations.find(loc => loc.id === currentUserEmployee?.branchLocationId);
 
@@ -308,6 +366,42 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <span className="text-[7px] font-bold text-stone-400 uppercase">PIUTANG:</span>
                   <span className="text-[9px] font-black text-orange-600">{formatCurrency(billingSummary.piutang).replace('Rp ', '')}</span>
                 </div>
+              </div>
+            </div>
+            {/* Order Statistics Summary (Mobile) */}
+            <div className="bg-white rounded-[20px] p-2 shadow-md border border-stone-50">
+              <p className="text-[6px] font-black text-stone-400 uppercase tracking-[0.2em] mb-1.5 px-1">INFORMASI RINGKASAN</p>
+              <div className="grid grid-cols-5 gap-1 mb-1.5">
+                {[
+                  { label: "TUNA\nPEDES", color: "text-pink-500", val: orderSummary.tunaPedes },
+                  { label: "TUNA\nMAYO", color: "text-blue-500", val: orderSummary.tunaMayo },
+                  { label: "AYAM\nMAYO", color: "text-orange-500", val: orderSummary.ayamMayo },
+                  { label: "AYAM\nPEDES", color: "text-red-500", val: orderSummary.ayamPedes },
+                  { label: "MENU\nBULANAN", color: "text-emerald-600", val: orderSummary.menuBulanan },
+                ].map((item, idx) => (
+                  <div key={idx} className="flex flex-col items-center">
+                    <span className={`text-[4.5px] font-black ${item.color} uppercase text-center leading-[1.1] h-[10px] flex items-center`}>
+                      {item.label.split('\n').map((line, i) => <React.Fragment key={i}>{line}<br/></React.Fragment>)}
+                    </span>
+                    <div className="mt-0.5 bg-stone-50 rounded-full w-full py-0.5 text-center border border-stone-100 flex items-center justify-center h-4">
+                      <span className="text-[8px] font-black text-stone-800">{item.val}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-3 gap-1 pt-1 border-t border-stone-100">
+                {[
+                  { label: "JUMLAH", val: orderSummary.jumlahKirim },
+                  { label: "SISA", val: orderSummary.sisa },
+                  { label: "%", val: percentageSisa.toFixed(2) + "%" },
+                ].map((item, idx) => (
+                  <div key={idx} className="flex flex-col items-center">
+                    <span className="text-[5px] font-black text-stone-800 uppercase tracking-wider leading-none mb-0.5">{item.label}</span>
+                    <div className="bg-stone-50 rounded-full w-full py-0.5 text-center border border-stone-100 flex items-center justify-center h-4">
+                      <span className="text-[8px] font-black text-stone-900">{item.val}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </motion.div>

@@ -86,7 +86,7 @@ const OrderModal: React.FC<OrderModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 md:p-8">
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -98,9 +98,9 @@ const OrderModal: React.FC<OrderModalProps> = ({
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
-            className="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden"
+            className="relative bg-white rounded-[32px] shadow-2xl w-full max-w-[500px] md:max-w-4xl overflow-hidden"
           >
-            <div className="p-6 border-b border-stone-100 flex justify-between items-center bg-stone-50/50">
+            <div className="p-5 md:p-6 border-b border-stone-100 flex justify-between items-center bg-stone-50/50">
               <h3 className="text-lg font-black text-stone-800 uppercase tracking-tight">
                 {formData.id ? 'Edit Order' : 'Tambah Order Baru'}
               </h3>
@@ -386,7 +386,7 @@ const OrderModal: React.FC<OrderModalProps> = ({
               )}
             </div>
 
-            <div className="p-6 border-t border-stone-100 bg-stone-50/50 flex justify-end gap-3">
+            <div className="p-5 md:p-6 border-t border-stone-100 bg-stone-50/50 flex justify-end gap-3">
               <button 
                 onClick={onClose}
                 className="px-6 py-2 text-stone-500 font-bold text-sm hover:bg-stone-100 rounded-xl transition-all"

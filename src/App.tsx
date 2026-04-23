@@ -2060,27 +2060,6 @@ export default function App() {
         </div>
       </main>
 
-      {/* Floating Action Button (+ Order) - Mobile Only */}
-      <AnimatePresence>
-        {!isMobileQuickMenuOpen && (
-          <motion.button
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            onClick={() => {
-              setActiveTab('order_database');
-              setAutoOpenOrderModal(true);
-              // Reset the flag after a short delay so it doesn't stay true
-              setTimeout(() => setAutoOpenOrderModal(false), 500);
-            }}
-            className="fixed bottom-[88px] right-6 z-50 w-16 h-16 bg-orange-600 text-white rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex flex-col items-center justify-center border-4 border-white active:scale-90 transition-transform md:hidden"
-          >
-            <span className="material-symbols-outlined text-3xl font-black">add</span>
-            <span className="text-[10px] font-black uppercase tracking-tighter -mt-1 leading-none">Order</span>
-          </motion.button>
-        )}
-      </AnimatePresence>
-
       {/* Bottom Navigation (Mobile) */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-stone-100 px-2 py-2 flex justify-around items-center md:hidden z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
         {[
