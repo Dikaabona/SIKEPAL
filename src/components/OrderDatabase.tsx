@@ -18,6 +18,7 @@ interface OrderDatabaseProps {
   onPrefillRequest?: (location: string, type: 'delivery' | 'billing', courier?: string, storeId?: string) => void;
   initialSelectedStoreId?: string;
   onStoreOpened?: () => void;
+  autoOpenAddModal?: boolean;
 }
 
 const OrderDatabase: React.FC<OrderDatabaseProps> = ({ 
@@ -32,9 +33,16 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
   currentUserEmployee,
   onPrefillRequest,
   initialSelectedStoreId,
-  onStoreOpened
+  onStoreOpened,
+  autoOpenAddModal
 }) => {
   const [isAdding, setIsAdding] = useState(false);
+
+  useEffect(() => {
+    if (autoOpenAddModal) {
+      setIsAdding(true);
+    }
+  }, [autoOpenAddModal]);
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const [selectedOrderForModal, setSelectedOrderForModal] = useState<Order | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -51,7 +59,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
   const [showSyncSettings, setShowSyncSettings] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [itemsPerPage, setItemsPerPage] = useState(30);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [showPiutangList, setShowPiutangList] = useState(false);
 
   const [newOrder, setNewOrder] = useState<Partial<Order>>({
@@ -1178,6 +1186,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                   }}
                   className="bg-white border border-stone-200 rounded-lg text-[10px] font-bold px-2 py-1 outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                 >
+                  <option value={10}>10</option>
                   <option value={30}>30</option>
                   <option value={50}>50</option>
                   <option value={100}>100</option>

@@ -343,7 +343,7 @@ const AttendanceModule: React.FC<AttendanceModuleProps> = ({
               </div>
             )}
             
-            <div className="flex items-center gap-5">
+            <div className="flex flex-col items-center gap-4">
               <div className="flex flex-col items-center">
                 <div className={`px-6 py-2.5 rounded-2xl ${existingRecord ? 'bg-orange-500 shadow-orange-200' : 'bg-green-500 shadow-green-200'} text-white shadow-lg transform -rotate-1`}>
                   <span className="text-sm font-black uppercase tracking-[0.15em]">{actionLabel}</span>

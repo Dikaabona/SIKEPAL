@@ -213,7 +213,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   const [locationSearchQuery, setLocationSearchQuery] = useState('');
   const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState<number | 'all'>(title === "Billing Report" ? 10 : 30);
+  const [itemsPerPage, setItemsPerPage] = useState<number | 'all'>(10);
 
   // States for Editing Order from Delivery Report
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
@@ -2152,33 +2152,14 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                           </button>
                         </div>
                       ) : (
-                        <div className="w-full space-y-3">
-                          <label className="w-full py-10 rounded-3xl border-2 border-dashed border-stone-200 bg-stone-50 flex flex-col items-center justify-center gap-2 text-stone-400 hover:bg-stone-100 transition-all cursor-pointer">
-                            <span className="material-symbols-outlined text-3xl">cloud_upload</span>
-                            <span className="text-[10px] font-bold uppercase tracking-widest">Upload Bukti</span>
-                            <input 
-                              type="file" 
-                              accept="image/*" 
-                              className="hidden" 
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  const reader = new FileReader();
-                                  reader.onloadend = () => {
-                                    setFormData({ ...formData, fotoBukti: reader.result as string });
-                                  };
-                                  reader.readAsDataURL(file);
-                                }
-                              }}
-                            />
-                          </label>
+                        <div className="w-full">
                           <button
                             type="button"
                             onClick={() => startCamera('fotoBukti')}
-                            className="w-full py-10 rounded-3xl border-2 border-dashed border-stone-200 bg-stone-50 flex flex-col items-center justify-center gap-3 text-stone-400 hover:bg-stone-100 hover:border-stone-300 transition-all"
+                            className="w-full py-16 rounded-3xl border-2 border-dashed border-stone-200 bg-stone-50 flex flex-col items-center justify-center gap-4 text-stone-400 hover:bg-stone-100 hover:border-stone-300 transition-all"
                           >
-                            <span className="material-symbols-outlined text-4xl">add_a_photo</span>
-                            <span className="text-xs font-bold uppercase tracking-widest">Ambil Foto Bukti</span>
+                            <span className="material-symbols-outlined text-5xl">add_a_photo</span>
+                            <span className="text-sm font-black uppercase tracking-widest">Foto Bukti</span>
                           </button>
                         </div>
                       )}

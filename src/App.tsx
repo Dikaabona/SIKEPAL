@@ -245,6 +245,8 @@ export default function App() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileQuickMenuOpen, setIsMobileQuickMenuOpen] = useState(false);
+  const [autoOpenOrderModal, setAutoOpenOrderModal] = useState(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -1394,6 +1396,7 @@ export default function App() {
             onPrefillRequest={handlePrefillRequest}
             initialSelectedStoreId={returnStoreId || undefined}
             onStoreOpened={() => setReturnStoreId(null)}
+            autoOpenAddModal={autoOpenOrderModal}
           />
         );
       case 'piutang':
@@ -1986,18 +1989,47 @@ export default function App() {
         </div>
       </main>
 
+      {/* Floating Action Button (+ Order) - Mobile Only */}
+      <AnimatePresence>
+        {!isMobileQuickMenuOpen && (
+          <motion.button
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            onClick={() => {
+              setActiveTab('order_database');
+              setAutoOpenOrderModal(true);
+              // Reset the flag after a short delay so it doesn't stay true
+              setTimeout(() => setAutoOpenOrderModal(false), 500);
+            }}
+            className="fixed bottom-[88px] right-6 z-50 w-16 h-16 bg-orange-600 text-white rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex flex-col items-center justify-center border-4 border-white active:scale-90 transition-transform md:hidden"
+          >
+            <span className="material-symbols-outlined text-3xl font-black">add</span>
+            <span className="text-[10px] font-black uppercase tracking-tighter -mt-1 leading-none">Order</span>
+          </motion.button>
+        )}
+      </AnimatePresence>
+
       {/* Bottom Navigation (Mobile) */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-stone-100 px-2 py-2 flex justify-around items-center md:hidden z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
         {[
           { id: 'home', icon: 'home', label: currentUserEmployee?.nama ? `Hi ${currentUserEmployee.nama.split(' ')[0]}` : 'Home' },
           { id: 'attendance', icon: 'how_to_reg', label: 'Absen' },
+          { id: 'quick_menu', icon: 'apps', label: 'Menu' },
           { id: 'inbox', icon: 'inbox', label: 'Inbox' }
         ].map((item) => {
-          const isActive = activeTab === item.id || (item.id === 'attendance' && activeTab === 'list_attendance');
+          const isActive = item.id === 'quick_menu' ? isMobileQuickMenuOpen : (activeTab === item.id || (item.id === 'attendance' && activeTab === 'list_attendance'));
           return (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id as ActiveTab)}
+              onClick={() => {
+                if (item.id === 'quick_menu') {
+                  setIsMobileQuickMenuOpen(!isMobileQuickMenuOpen);
+                } else {
+                  setActiveTab(item.id as ActiveTab);
+                  setIsMobileQuickMenuOpen(false);
+                }
+              }}
               className={`flex flex-col items-center gap-1 px-3 py-2 rounded-2xl transition-all ${
                 isActive ? 'text-orange-700' : 'text-stone-400'
               }`}
@@ -2012,6 +2044,72 @@ export default function App() {
           );
         })}
       </nav>
+
+      {/* Quick Menu Popup (Mobile) */}
+      <AnimatePresence>
+        {isMobileQuickMenuOpen && (
+          <div className="fixed inset-0 z-[49] md:hidden">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileQuickMenuOpen(false)}
+              className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="absolute bottom-[72px] left-4 right-4 bg-white rounded-[32px] p-6 shadow-2xl border border-stone-100"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-black text-stone-800 uppercase tracking-widest text-sm">Quick Menu</h3>
+                <button 
+                  onClick={() => setIsMobileQuickMenuOpen(false)}
+                  className="p-2 text-stone-400 hover:bg-stone-100 rounded-full"
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                {[
+                  { id: 'selfie_attendance', label: 'Absen Selfie', icon: 'photo_camera', color: 'bg-orange-500' },
+                  { id: 'order_database', label: 'Data Orderan', icon: 'receipt_long', color: 'bg-emerald-500' },
+                  { id: 'delivery', label: 'Delivery Report', icon: 'local_shipping', color: 'bg-blue-500' },
+                  { id: 'billing_report', label: 'Billing Report', icon: 'payments', color: 'bg-purple-500' },
+                  { id: 'production', label: 'Produksi', icon: 'inventory', color: 'bg-orange-100', isImage: true, imageUrl: 'https://lh3.googleusercontent.com/d/1xnGnOOO6RvjqUW4MTVx9-u7yDTE-qBxl' }
+                ].map((menu) => (
+                  <button
+                    key={menu.id}
+                    onClick={() => {
+                      setActiveTab(menu.id as ActiveTab);
+                      setIsMobileQuickMenuOpen(false);
+                    }}
+                    className="flex flex-col items-center gap-2 active:scale-95 transition-transform"
+                  >
+                    <div className={`w-14 h-14 rounded-2xl ${menu.color} flex items-center justify-center text-white shadow-lg`}>
+                      {menu.isImage ? (
+                        <img 
+                          src={menu.imageUrl} 
+                          alt={menu.label} 
+                          className="w-8 h-8 object-contain" 
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <span className="material-symbols-outlined text-2xl">{menu.icon}</span>
+                      )}
+                    </div>
+                    <span className="text-[10px] font-black text-stone-700 uppercase tracking-tight text-center leading-tight">
+                      {menu.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
