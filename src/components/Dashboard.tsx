@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Employee, Submission, Broadcast, AttendanceRecord, ShiftAssignment, UserRole, Shift, BranchLocation, Order, Store } from '../types';
-import { parseIndoDate } from '../lib/utils';
+import { Employee, Submission, Broadcast, AttendanceRecord, ShiftAssignment, UserRole, Shift, BranchLocation, Order, Store, DeliveryRecord, BillingRecord } from '../types';
+import { parseIndoDate, formatCurrency } from '../lib/utils';
 
 interface DashboardProps {
   employees: Employee[];
@@ -21,6 +21,8 @@ interface DashboardProps {
   onRefreshData: () => void;
   branchLocations: BranchLocation[];
   stores: Store[];
+  deliveries: DeliveryRecord[];
+  billingReports: BillingRecord[];
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ 
@@ -32,10 +34,44 @@ const Dashboard: React.FC<DashboardProps> = ({
   currentUserEmployee,
   branchLocations,
   userRole,
-  stores
+  stores,
+  deliveries,
+  billingReports
 }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentDistance, setCurrentDistance] = useState<number | null>(null);
+  const [selectedSumDate, setSelectedSumDate] = useState(new Date().toISOString().split('T')[0]);
+
+  // Summary Calculations
+  const deliverySummary = useMemo(() => {
+    const filtered = deliveries.filter(d => d.tanggal === selectedSumDate);
+    const uniqueLocations = new Set(filtered.map(d => d.namaLokasi)).size;
+    const totalQty = filtered.reduce((acc, d) => acc + (Number(d.qtyPengiriman) || 0), 0);
+    return { uniqueLocations, totalQty };
+  }, [deliveries, selectedSumDate]);
+
+  const billingSummary = useMemo(() => {
+    const filtered = billingReports.filter(b => b.tanggal === selectedSumDate);
+    const penagihanRecords = filtered.filter(b => !b.metodePembayaran || b.metodePembayaran === 'Cash' || b.metodePembayaran === 'Transfer');
+    const uniqueLocations = new Set(filtered.map(b => b.namaLokasi)).size;
+    
+    let cash = 0, transfer = 0, piutang = 0;
+    filtered.forEach(b => {
+      const amount = Number(b.qtyPengiriman) || 0;
+      if (!b.metodePembayaran || b.metodePembayaran === 'Cash') cash += amount;
+      else if (b.metodePembayaran === 'Transfer') transfer += amount;
+      else if (b.metodePembayaran === 'Piutang') piutang += amount;
+    });
+
+    return { 
+      uniqueLocations, 
+      count: penagihanRecords.length,
+      cash,
+      transfer,
+      piutang,
+      total: cash + transfer + piutang
+    };
+  }, [billingReports, selectedSumDate]);
 
   const assignedLocation = branchLocations.find(loc => loc.id === currentUserEmployee?.branchLocationId);
 
@@ -123,78 +159,156 @@ const Dashboard: React.FC<DashboardProps> = ({
       className="space-y-6 md:space-y-8"
     >
       {/* Mobile View */}
-      <div className="md:hidden -mx-4 -mt-6">
+      <div className="md:hidden -mx-4 -mt-6 h-[calc(100vh-80px)] overflow-hidden flex flex-col">
         {/* Yellow Header Section */}
-        <div className="bg-[#FFC107] pt-4 pb-8 px-4 rounded-b-[48px]">
+        <div className="bg-[#FFC107] pt-3 pb-6 px-4 rounded-b-[40px] flex-shrink-0">
           {/* Employee Name & Role (Below Logo Header) */}
           <motion.div 
             variants={item}
-            className="mb-4"
+            className="mb-3"
           >
-            <h1 className="text-xl font-black text-[#1A1A1A] uppercase tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">
+            <h1 className="text-lg font-black text-[#1A1A1A] uppercase tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">
               {currentUserEmployee?.nama || 'MUHAMMAD MAHARDHIKA'}
             </h1>
-            <p className="text-[11px] font-bold text-stone-700 uppercase tracking-[0.2em] mt-1">
+            <p className="text-[10px] font-bold text-stone-700 uppercase tracking-[0.2em] mt-0.5">
               {currentUserEmployee?.jabatan || 'STAFF'} • {currentUserEmployee?.division || 'ADMIN'}
             </p>
           </motion.div>
 
           <motion.div 
             variants={item}
-            className="bg-white rounded-[40px] p-8 shadow-xl relative flex flex-col items-center text-center"
+            className="bg-white rounded-[28px] p-4 shadow-xl relative flex flex-col items-center text-center"
           >
-            {/* Real-time Clock (Moved from bottom) */}
-            <div className="text-center mb-6">
-              <h2 className="text-4xl font-black text-stone-900 tabular-nums">
-                {currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-              </h2>
-              <p className="text-[10px] font-bold text-stone-400 uppercase tracking-[0.2em] mt-1">
-                {currentTime.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-              </p>
+            {/* Interactive Date Selection (Mobile) */}
+            <div className="text-center mb-3 w-full px-2 relative group">
+              <label className="cursor-pointer block">
+                <h2 className="text-lg font-black text-stone-900 uppercase tracking-tight whitespace-nowrap overflow-hidden text-ellipsis flex items-center justify-center gap-2">
+                  {new Date(selectedSumDate).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                  <span className="material-symbols-outlined text-orange-500 text-sm">calendar_month</span>
+                </h2>
+                <input 
+                  type="date" 
+                  value={selectedSumDate}
+                  onChange={(e) => setSelectedSumDate(e.target.value)}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                />
+              </label>
+              <p className="text-[7px] font-bold text-stone-400 uppercase tracking-[0.2em] mt-0.5">Klik untuk ganti tanggal</p>
             </div>
 
             {/* Announcements Section (Mobile - Moved up) */}
             <motion.div 
               variants={item}
-              className="mt-6 w-full text-left"
+              className="mt-2 w-full text-left"
             >
-              <div className="flex items-center justify-between mb-3 px-2">
-                <h3 className="text-xs font-black text-stone-800 flex items-center gap-2 uppercase tracking-widest">
-                  <span className="material-symbols-outlined text-orange-600 text-sm">notifications</span>
+              <div className="flex items-center justify-between mb-1.5 px-1">
+                <h3 className="text-[9px] font-black text-stone-800 flex items-center gap-1.5 uppercase tracking-widest">
+                  <span className="material-symbols-outlined text-orange-600 text-xs">notifications</span>
                   Pengumuman
                 </h3>
-                <button className="text-[10px] font-bold text-orange-600 hover:underline uppercase tracking-wider">View All</button>
+                <button className="text-[8px] font-bold text-orange-600 hover:underline uppercase tracking-wider">View All</button>
               </div>
-              <div className="space-y-2">
-                <div className="p-3 bg-orange-50/50 rounded-2xl border border-orange-100">
-                  <p className="text-xs font-black text-orange-900 leading-tight">New Shift Schedule Released</p>
-                  <p className="text-[10px] text-orange-700/70 mt-0.5 line-clamp-1">Please check your schedule for next week in the Shift module.</p>
-                </div>
+              <div className="space-y-1">
                 {broadcasts && broadcasts.length > 0 && broadcasts.slice(0, 1).map((b, i) => (
-                  <div key={i} className="p-3 bg-stone-50 rounded-2xl border border-stone-100">
-                    <p className="text-xs font-black text-stone-800 leading-tight">{b.title}</p>
-                    <p className="text-[10px] text-stone-500 mt-0.5 line-clamp-1">{b.message}</p>
+                  <div key={i} className={`p-2 rounded-xl border ${b.type === 'info' ? 'bg-orange-50/50 border-orange-100' : 'bg-stone-50 border-stone-100'}`}>
+                    <p className={`text-[10px] font-black leading-tight ${b.type === 'info' ? 'text-orange-900' : 'text-stone-800'}`}>{b.title}</p>
+                    <p className={`text-[8px] mt-0.5 line-clamp-1 ${b.type === 'info' ? 'text-orange-700/70' : 'text-stone-500'}`}>{b.message}</p>
                   </div>
                 ))}
               </div>
             </motion.div>
           </motion.div>
-        </div>
 
-        <div className="px-4 space-y-6 mt-6">
-          {/* Location Badge (Moved to where Clock was) */}
-          <motion.div 
-            variants={item}
-            className="bg-white px-6 py-5 rounded-[32px] border border-stone-100 shadow-sm flex flex-col items-center gap-3 text-center"
-          >
-            <div className="w-12 h-12 rounded-2xl bg-[#FFFDE7] border border-[#FFF9C4] flex items-center justify-center text-[#FFB300] shadow-sm">
-              <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
+          {/* Summaries */}
+          <motion.div variants={item} className="mt-6 space-y-3 px-0">
+            {/* Top Metrics Grid (One Row - Mobile) */}
+            <div className="grid grid-cols-4 gap-1.5">
+              {/* Delivery Locations */}
+              <div className="bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border border-stone-100">
+                <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                  <span className="material-symbols-outlined text-[12px]">storefront</span>
+                </div>
+                <div className="text-center">
+                  <p className="text-[5.5px] font-black text-stone-400 uppercase leading-none mb-1">LOKASI (D)</p>
+                  <div className="flex items-baseline justify-center gap-0.5 leading-none">
+                    <span className="text-xs font-black text-stone-900">{deliverySummary.uniqueLocations}</span>
+                    <span className="text-[6px] font-bold text-stone-400 uppercase">TITIK</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Delivery Total Qty */}
+              <div className="bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border border-stone-100">
+                <div className="w-6 h-6 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+                  <span className="material-symbols-outlined text-[12px]">package_2</span>
+                </div>
+                <div className="text-center">
+                  <p className="text-[5.5px] font-black text-stone-400 uppercase leading-none mb-1">TOTAL QTY</p>
+                  <div className="flex items-baseline justify-center gap-0.5 leading-none">
+                    <span className="text-xs font-black text-stone-900">{deliverySummary.totalQty}</span>
+                    <span className="text-[6px] font-bold text-stone-400 uppercase">PCS</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Billing Locations */}
+              <div className="bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border border-stone-100">
+                <div className="w-6 h-6 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
+                  <span className="material-symbols-outlined text-[12px]">storefront</span>
+                </div>
+                <div className="text-center">
+                  <p className="text-[5.5px] font-black text-stone-400 uppercase leading-none mb-1">LOKASI (B)</p>
+                  <div className="flex items-baseline justify-center gap-0.5 leading-none">
+                    <span className="text-xs font-black text-stone-900">{billingSummary.uniqueLocations}</span>
+                    <span className="text-[6px] font-bold text-stone-400 uppercase">TITIK</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Billing Count */}
+              <div className="bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border border-stone-100">
+                <div className="w-6 h-6 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
+                  <span className="material-symbols-outlined text-[12px]">receipt_long</span>
+                </div>
+                <div className="text-center">
+                  <p className="text-[5.5px] font-black text-stone-400 uppercase leading-none mb-1">JUMLAH DATA</p>
+                  <div className="flex items-baseline justify-center gap-0.5 leading-none">
+                    <span className="text-xs font-black text-stone-900">{billingSummary.count}</span>
+                    <span className="text-[6px] font-bold text-stone-400 uppercase">DATA</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="text-[10px] font-bold text-stone-400 uppercase tracking-[0.2em] mb-1 text-center w-full">Current Location</p>
-              <span className="text-sm font-black text-[#827717] uppercase tracking-wider block">
-                DI {locationName} ({currentDistance !== null ? `${currentDistance}M` : `${locationRadius}M`})
-              </span>
+
+            {/* Payment Methods Full Width (Mobile) */}
+            <div className="bg-white rounded-[20px] p-3 shadow-md border border-stone-50">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                  <span className="material-symbols-outlined text-sm">account_balance_wallet</span>
+                </div>
+                <div>
+                  <p className="text-[7px] font-black text-stone-400 uppercase tracking-[0.2em] leading-none mb-0.5">METODE BAYAR</p>
+                  <p className="text-[6px] font-bold text-stone-300 uppercase tracking-widest leading-none">TOTAL HARI INI</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                <div className="flex justify-between items-center py-0.5 border-b border-stone-50">
+                  <span className="text-[7px] font-bold text-stone-400 uppercase">CASH:</span>
+                  <span className="text-[9px] font-black text-stone-800">{formatCurrency(billingSummary.cash).replace('Rp ', '')}</span>
+                </div>
+                <div className="flex justify-between items-center py-0.5 border-b border-stone-50">
+                  <span className="text-[7px] font-bold text-stone-400 uppercase">TRANSFER:</span>
+                  <span className="text-[9px] font-black text-blue-600">{formatCurrency(billingSummary.transfer).replace('Rp ', '')}</span>
+                </div>
+                <div className="flex justify-between items-center py-0.5 border-b border-stone-50">
+                  <span className="text-[7px] font-bold text-stone-400 uppercase">TOTAL:</span>
+                  <span className="text-[9px] font-black text-stone-800">{formatCurrency(billingSummary.total).replace('Rp ', '')}</span>
+                </div>
+                <div className="flex justify-between items-center py-0.5 border-b border-stone-50">
+                  <span className="text-[7px] font-bold text-stone-400 uppercase">PIUTANG:</span>
+                  <span className="text-[9px] font-black text-orange-600">{formatCurrency(billingSummary.piutang).replace('Rp ', '')}</span>
+                </div>
+              </div>
             </div>
           </motion.div>
         </div>

@@ -238,7 +238,9 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       const totalNilai = filteredDeliveries.reduce((sum, d) => sum + (Number(d.qtyPengiriman) || 0), 0);
       const totalSisa = filteredDeliveries.reduce((sum, d) => sum + (Number(d.sisa) || 0), 0);
       const uniqueLocations = new Set(filteredDeliveries.map(d => d.namaLokasi)).size;
-      const totalPenagihan = filteredDeliveries.length;
+      const totalPenagihan = filteredDeliveries.filter(d => 
+        !d.metodePembayaran || d.metodePembayaran === 'Cash' || d.metodePembayaran === 'Transfer'
+      ).length;
 
       const totalCash = filteredDeliveries
         .filter(d => !d.metodePembayaran || d.metodePembayaran === 'Cash')

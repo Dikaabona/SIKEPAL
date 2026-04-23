@@ -144,6 +144,7 @@ export interface Broadcast {
   company: string;
   targetEmployeeIds: string[];
   sentAt: string;
+  type?: 'info' | 'announcement';
 }
 
 export interface LiveReport {

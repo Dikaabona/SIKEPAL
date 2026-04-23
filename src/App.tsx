@@ -238,6 +238,18 @@ const MOCK_SUBMISSIONS: Submission[] = [
   }
 ];
 
+const MOCK_BROADCASTS: Broadcast[] = [
+  {
+    id: '2',
+    title: 'Monthly KPI Review',
+    message: 'KPI reviews will be held on Friday, Oct 27th.',
+    sentAt: new Date().toISOString(),
+    type: 'announcement',
+    company: 'Sikepal',
+    targetEmployeeIds: []
+  }
+];
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
   const [expandedMenus, setExpandedMenus] = useState<string[]>(['attendance', 'database', 'report']);
@@ -250,7 +262,7 @@ export default function App() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
+  const [broadcasts, setBroadcasts] = useState<Broadcast[]>(MOCK_BROADCASTS);
   const [liveSchedules, setLiveSchedules] = useState<LiveSchedule[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [shiftAssignments, setShiftAssignments] = useState<ShiftAssignment[]>([]);
@@ -326,48 +338,78 @@ export default function App() {
     };
 
     const fetchEmployees = async () => {
-      const { data, error } = await supabase.from('employees').select('*');
-      if (error) throw error;
-      if (data && data.length === 0) {
-        await supabase.from('employees').upsert(MOCK_EMPLOYEES);
+      try {
+        const { data, error } = await supabase.from('employees').select('*');
+        if (error) throw error;
+        if (data && data.length === 0) {
+          await supabase.from('employees').upsert(MOCK_EMPLOYEES);
+          setEmployees(MOCK_EMPLOYEES);
+        } else if (data) {
+          setEmployees(data);
+        }
+      } catch (e) {
+        console.warn('Employees table might not exist yet, using mock data');
         setEmployees(MOCK_EMPLOYEES);
-      } else if (data) {
-        setEmployees(data);
       }
     };
 
     const fetchAttendance = async () => {
-      const { data, error } = await supabase.from('attendance').select('*');
-      if (error) throw error;
-      if (data) setAttendanceRecords(data);
+      try {
+        const { data, error } = await supabase.from('attendance').select('*');
+        if (error) throw error;
+        if (data) setAttendanceRecords(data);
+      } catch (e) {
+        console.warn('Attendance table might not exist yet');
+        setAttendanceRecords([]);
+      }
     };
 
     const fetchSubmissions = async () => {
-      const { data, error } = await supabase.from('submissions').select('*');
-      if (error) throw error;
-      if (data) setSubmissions(data);
+      try {
+        const { data, error } = await supabase.from('submissions').select('*');
+        if (error) throw error;
+        if (data) setSubmissions(data);
+      } catch (e) {
+        console.warn('Submissions table might not exist yet');
+        setSubmissions([]);
+      }
     };
 
     const fetchShifts = async () => {
-      const { data, error } = await supabase.from('shifts').select('*');
-      if (error) throw error;
-      if (data) setShifts(data);
+      try {
+        const { data, error } = await supabase.from('shifts').select('*');
+        if (error) throw error;
+        if (data) setShifts(data);
+      } catch (e) {
+        console.warn('Shifts table might not exist yet');
+        setShifts([]);
+      }
     };
 
     const fetchShiftAssignments = async () => {
-      const { data, error } = await supabase.from('shift_assignments').select('*');
-      if (error) throw error;
-      if (data) setShiftAssignments(data);
+      try {
+        const { data, error } = await supabase.from('shift_assignments').select('*');
+        if (error) throw error;
+        if (data) setShiftAssignments(data);
+      } catch (e) {
+        console.warn('Shift assignments table might not exist yet');
+        setShiftAssignments([]);
+      }
     };
 
     const fetchStores = async () => {
-      const { data, error } = await supabase.from('stores').select('*');
-      if (error) throw error;
-      if (data && data.length === 0) {
-        await supabase.from('stores').upsert(MOCK_STORES);
+      try {
+        const { data, error } = await supabase.from('stores').select('*');
+        if (error) throw error;
+        if (data && data.length === 0) {
+          await supabase.from('stores').upsert(MOCK_STORES);
+          setStores(MOCK_STORES);
+        } else if (data) {
+          setStores(data);
+        }
+      } catch (e) {
+        console.warn('Stores table might not exist yet, using mock data');
         setStores(MOCK_STORES);
-      } else if (data) {
-        setStores(data);
       }
     };
 
@@ -401,26 +443,36 @@ export default function App() {
     };
 
     const fetchOrders = async () => {
-      const data = await fetchAllData('orders');
-      if (data && data.length === 0) {
-        await supabase.from('orders').upsert(MOCK_ORDERS);
+      try {
+        const data = await fetchAllData('orders');
+        if (data && data.length === 0) {
+          await supabase.from('orders').upsert(MOCK_ORDERS);
+          setOrders(MOCK_ORDERS);
+        } else {
+          setOrders(data);
+        }
+      } catch (e) {
+        console.warn('Orders table might not exist yet, using mock data');
         setOrders(MOCK_ORDERS);
-      } else {
-        setOrders(data);
       }
     };
 
     const fetchDeliveries = async () => {
-      const data = await fetchAllData('deliveries');
-      if (data && data.length === 0) {
-        await supabase.from('deliveries').upsert(MOCK_DELIVERIES);
+      try {
+        const data = await fetchAllData('deliveries');
+        if (data && data.length === 0) {
+          await supabase.from('deliveries').upsert(MOCK_DELIVERIES);
+          setDeliveries(MOCK_DELIVERIES);
+        } else {
+          setDeliveries(data.sort((a, b) => {
+            const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return tB - tA;
+          }));
+        }
+      } catch (e) {
+        console.warn('Deliveries table might not exist yet, using mock data');
         setDeliveries(MOCK_DELIVERIES);
-      } else {
-        setDeliveries(data.sort((a, b) => {
-          const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return tB - tA;
-        }));
       }
     };
 
@@ -472,12 +524,16 @@ export default function App() {
     };
 
     const fetchStaticData = async () => {
-      const { data: divData } = await supabase.from('divisions').select('*');
-      if (divData) setDivisions(divData);
-      const { data: posData } = await supabase.from('positions').select('*');
-      if (posData) setPositions(posData);
-      const { data: branchData } = await supabase.from('branch_locations').select('*');
-      if (branchData) setBranchLocations(branchData);
+      try {
+        const { data: divData } = await supabase.from('divisions').select('*');
+        if (divData) setDivisions(divData);
+        const { data: posData } = await supabase.from('positions').select('*');
+        if (posData) setPositions(posData);
+        const { data: branchData } = await supabase.from('branch_locations').select('*');
+        if (branchData) setBranchLocations(branchData);
+      } catch (e) {
+        console.warn('Static data tables might not exist yet');
+      }
     };
 
     const tableFetchers: Record<string, () => Promise<void>> = {
@@ -510,24 +566,37 @@ export default function App() {
 
       setIsLoading(true);
       try {
+        // Step 1: Fetch Critical Data for Home Screen
         await Promise.all([
           fetchEmployees(),
-          fetchAttendance(),
-          fetchSubmissions(),
+          fetchAttendance(), // Currently fetches all, could be optimized further if needed
           fetchShifts(),
           fetchShiftAssignments(),
           fetchStores(),
+          fetchStaticData()
+        ]);
+        
+        // Hide loader as soon as home screen data is ready
+        setIsLoading(false);
+
+        // Step 2: Fetch Secondary Data in Background
+        Promise.allSettled([
+          fetchSubmissions(),
           fetchOrders(),
           fetchDeliveries(),
           fetchBillingReports(),
           fetchCourierCash(),
           fetchCOA(),
-          fetchJournals(),
-          fetchStaticData()
-        ]);
+          fetchJournals()
+        ]).then((results) => {
+          const failures = results.filter(r => r.status === 'rejected');
+          if (failures.length > 0) {
+            console.warn(`${failures.length} secondary data tables failed to fetch, possibly due to missing tables or network issues.`);
+          }
+        });
+
       } catch (err) {
         handleSupabaseError(err, 'fetch', 'all');
-      } finally {
         setIsLoading(false);
       }
     };
@@ -1342,6 +1411,8 @@ export default function App() {
             onRefreshData={refreshData}
             branchLocations={branchLocations}
             stores={stores}
+            deliveries={deliveries}
+            billingReports={billingReports}
           />
         );
       case 'attendance':
@@ -2014,7 +2085,6 @@ export default function App() {
       <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-stone-100 px-2 py-2 flex justify-around items-center md:hidden z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
         {[
           { id: 'home', icon: 'home', label: currentUserEmployee?.nama ? `Hi ${currentUserEmployee.nama.split(' ')[0]}` : 'Home' },
-          { id: 'attendance', icon: 'how_to_reg', label: 'Absen' },
           { id: 'quick_menu', icon: 'apps', label: 'Menu' },
           { id: 'inbox', icon: 'inbox', label: 'Inbox' }
         ].map((item) => {
