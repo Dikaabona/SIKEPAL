@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Employee, Submission, Broadcast, AttendanceRecord, ShiftAssignment, UserRole, Shift, BranchLocation, Order, Store, DeliveryRecord, BillingRecord } from '../types';
 import { parseIndoDate, formatCurrency, getLocalDateString } from '../lib/utils';
 
@@ -12,7 +12,7 @@ interface DashboardProps {
   currentUserEmployee: Employee | null;
   attendanceRecords: AttendanceRecord[];
   shiftAssignments: ShiftAssignment[];
-  onNavigate: (tab: any) => void;
+  onNavigate: (tab: any, prefill?: { location: string, type: 'delivery' | 'billing', courier?: string }) => void;
   userCompany: string;
   onOpenBroadcast: () => void;
   onOpenDrive: () => void;
@@ -41,6 +41,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentDistance, setCurrentDistance] = useState<number | null>(null);
   const [selectedSumDate, setSelectedSumDate] = useState(getLocalDateString());
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const [selectedStoreForDetail, setSelectedStoreForDetail] = useState<Store | null>(null);
 
   // Date normalization helper for robust comparisons
   const normalizeDateString = (dateStr: string) => {
@@ -98,7 +102,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     };
   }, [billingReports, selectedSumDate, currentUserEmployee]);
 
-  const orderSummary = useMemo(() => {
+  const filteredOrders = useMemo(() => {
     let filtered = orders.filter(o => normalizeDateString(o.tanggal) === selectedSumDate);
     
     // Filter specifically for KURIR division if logged in as one
@@ -108,8 +112,11 @@ const Dashboard: React.FC<DashboardProps> = ({
     if (isKurir && currentUserEmployee?.nama) {
       filtered = filtered.filter(o => o.namaKurir === currentUserEmployee.nama);
     }
+    return filtered;
+  }, [orders, selectedSumDate, currentUserEmployee]);
 
-    return filtered.reduce((acc, order) => {
+  const orderSummary = useMemo(() => {
+    return filteredOrders.reduce((acc, order) => {
       acc.tunaPedes += (Number(order.tunaPedes) || 0);
       acc.tunaMayo += (Number(order.tunaMayo) || 0);
       acc.ayamMayo += (Number(order.ayamMayo) || 0);
@@ -127,11 +134,21 @@ const Dashboard: React.FC<DashboardProps> = ({
       jumlahKirim: 0,
       sisa: 0
     });
-  }, [orders, selectedSumDate, currentUserEmployee]);
+  }, [filteredOrders]);
 
   const percentageSisa = orderSummary.jumlahKirim > 0 ? (orderSummary.sisa / orderSummary.jumlahKirim) * 100 : 0;
 
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+  const paginatedOrders = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredOrders.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredOrders, currentPage]);
+
   const assignedLocation = branchLocations.find(loc => loc.id === currentUserEmployee?.branchLocationId);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedSumDate]);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -217,7 +234,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       className="space-y-6 md:space-y-8"
     >
       {/* Mobile View */}
-      <div className="md:hidden -mx-4 -mt-6 h-[calc(100vh-80px)] overflow-hidden flex flex-col">
+      <div className="md:hidden -mx-4 -mt-6 h-[calc(100vh-80px)] overflow-y-auto overflow-x-hidden flex flex-col bg-stone-100">
         {/* Yellow Header Section */}
         <div className="bg-[#FFC107] pt-3 pb-6 px-4 rounded-b-[40px] flex-shrink-0">
           {/* Employee Name & Role (Below Logo Header) */}
@@ -406,7 +423,246 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </motion.div>
         </div>
+
+        {/* Data Orderan List (Mobile) */}
+        <div className="px-4 py-4 space-y-4">
+          <p className="text-[10px] font-black text-stone-400 uppercase tracking-[0.2em] mb-1">Data Orderan Hari Ini</p>
+          <div className="space-y-4">
+            {paginatedOrders.length > 0 ? (
+              paginatedOrders.map((order) => (
+                <motion.div 
+                  key={order.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white rounded-[24px] p-4 shadow-sm border border-stone-200"
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest">{order.tanggal}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                      order.status === 'Approved' ? 'bg-green-100 text-green-700' :
+                      order.status === 'Rejected' ? 'bg-red-100 text-red-700' :
+                      'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {order.status || 'Approved'}
+                    </span>
+                  </div>
+                  
+                  <div className="mb-4">
+                    <button 
+                      onClick={() => {
+                        const store = stores.find(s => s.namaToko === order.namaLokasi);
+                        if (store) setSelectedStoreForDetail(store);
+                      }}
+                      className="text-left block group"
+                    >
+                      <h4 className="text-sm font-black text-stone-800 uppercase tracking-tight leading-short group-active:text-primary transition-colors">{order.namaLokasi}</h4>
+                    </button>
+                    <span className="text-[10px] font-bold text-primary uppercase block mt-0.5">{order.namaKurir}</span>
+                    <span className="text-[8px] text-stone-400 italic block">Sikepal Delivery</span>
+                  </div>
+
+                  <div className="grid grid-cols-6 gap-1">
+                    {[
+                      { label: "TUNA PDS", val: order.tunaPedes, color: "text-pink-600" },
+                      { label: "TUNA MYO", val: order.tunaMayo, color: "text-blue-600" },
+                      { label: "AYAM MYO", val: order.ayamMayo, color: "text-orange-600" },
+                      { label: "AYAM PDS", val: order.ayamPedes, color: "text-red-600" },
+                      { label: "MENU BLN", val: order.menuBulanan, color: "text-emerald-700" },
+                      { label: "TOTAL", val: order.jumlahKirim, color: "text-stone-900", isTotal: true },
+                    ].map((item, idx) => (
+                      <div key={idx} className={`flex flex-col items-center p-1 rounded-xl border border-stone-50 ${item.isTotal ? 'bg-orange-50/50 border-orange-100' : 'bg-stone-50/50'}`}>
+                        <span className="text-[4.5px] font-black text-stone-400 uppercase leading-none mb-1 text-center scale-[0.8]">{item.label}</span>
+                        <span className={`text-[10px] font-black ${item.color}`}>{item.val}</span>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 opacity-30">
+                <span className="material-symbols-outlined text-4xl mb-2 text-stone-400">inventory_2</span>
+                <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest">Tidak Ada Data</p>
+              </div>
+            )}
+          </div>
+
+          {/* Pagination Controls (Mobile) */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4 pb-2 px-2">
+              <button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="w-10 h-10 rounded-full flex items-center justify-center border border-stone-200 bg-white disabled:opacity-30 disabled:bg-stone-50 transition-all active:scale-90"
+              >
+                <span className="material-symbols-outlined text-stone-600">chevron_left</span>
+              </button>
+              
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest">Halaman</span>
+                <span className="text-sm font-black text-stone-800">{currentPage} <span className="text-stone-300 font-medium">/</span> {totalPages}</span>
+              </div>
+
+              <button 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="w-10 h-10 rounded-full flex items-center justify-center border border-stone-200 bg-white disabled:opacity-30 disabled:bg-stone-50 transition-all active:scale-90"
+              >
+                <span className="material-symbols-outlined text-stone-600">chevron_right</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Bottom spacers for scrolling comfort */}
+        <div className="h-24"></div>
       </div>
+
+      {/* Store Detail Modal (Mobile) */}
+      <AnimatePresence>
+        {selectedStoreForDetail && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedStoreForDetail(null)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              className="relative bg-white rounded-[40px] shadow-2xl w-full max-w-md overflow-hidden p-6"
+            >
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex items-center gap-3">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-xl font-black shadow-lg ${
+                    selectedStoreForDetail.grade === 'A' ? 'bg-green-500' :
+                    selectedStoreForDetail.grade === 'B' ? 'bg-blue-500' :
+                    selectedStoreForDetail.grade === 'C' ? 'bg-yellow-500' :
+                    selectedStoreForDetail.grade === 'D' ? 'bg-orange-500' :
+                    'bg-[#FFC107]'
+                  }`}>
+                    {selectedStoreForDetail.namaToko.charAt(0)}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-stone-800 uppercase tracking-tight leading-none mb-1">
+                      {selectedStoreForDetail.namaToko}
+                    </h3>
+                    <div className="flex gap-1">
+                      <span className="px-2 py-0.5 bg-stone-100 text-stone-600 rounded text-[8px] font-black uppercase tracking-widest leading-none">
+                        {selectedStoreForDetail.kategori || '-'}
+                      </span>
+                      <span className="px-2 py-0.5 bg-stone-100 text-stone-600 rounded text-[8px] font-black uppercase tracking-widest leading-none">
+                        {selectedStoreForDetail.kurir || '-'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedStoreForDetail(null)}
+                  className="w-10 h-10 rounded-full bg-stone-100 flex items-center justify-center text-stone-400 active:scale-90 transition-all shadow-sm"
+                >
+                  <span className="material-symbols-outlined text-xl">close</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="bg-stone-50/50 p-4 rounded-[28px] border border-stone-100">
+                  <span className="text-[8px] font-black text-stone-400 uppercase tracking-widest block mb-1">PIC</span>
+                  <div className="text-sm font-black text-stone-800 mb-0.5 leading-tight">{selectedStoreForDetail.namaPIC || '-'}</div>
+                  <div className="text-[10px] text-stone-500 font-bold tracking-tight">{selectedStoreForDetail.nomorPIC || '-'}</div>
+                </div>
+                <div className="bg-stone-50/50 p-4 rounded-[28px] border border-stone-100">
+                  <span className="text-[8px] font-black text-stone-400 uppercase tracking-widest block mb-1">Harga & Bayar</span>
+                  <div className="text-sm font-black text-stone-800 mb-0.5 leading-tight">{selectedStoreForDetail.harga || '-'}</div>
+                  <div className="text-[10px] text-stone-500 font-bold uppercase tracking-tight">{selectedStoreForDetail.pembayaran || '-'}</div>
+                </div>
+              </div>
+
+              <div className="bg-stone-50/50 p-4 rounded-2xl border border-stone-100 mb-4 flex items-center gap-3">
+                <span className="material-symbols-outlined text-stone-400">schedule</span>
+                <span className="text-sm font-black text-stone-800 uppercase tracking-tight">{selectedStoreForDetail.operasional || '-'}</span>
+              </div>
+
+              {/* Piutang Section in Modal (Matching provided design) */}
+              <div className="bg-orange-50/30 rounded-[32px] border border-orange-100/50 p-5 mb-4 relative overflow-hidden">
+                <div className="flex justify-between items-center mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-black text-orange-600 uppercase tracking-widest">PIUTANG</span>
+                    <span className="material-symbols-outlined text-orange-500 text-lg">arrow_forward</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-orange-400 tracking-wider">
+                    {getLocalDateString()}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white/80 backdrop-blur-sm p-4 rounded-[24px] border border-orange-100 shadow-sm">
+                    <span className="text-[8px] font-black text-orange-500 uppercase tracking-tight block mb-1">TOTAL PIUTANG (QTY)</span>
+                    <div className="text-lg font-black text-stone-800 leading-none">
+                      {orders.filter(o => o.namaLokasi === selectedStoreForDetail.namaToko && o.pembayaran === 'FALSE').length}
+                    </div>
+                  </div>
+                  <div className="bg-white/80 backdrop-blur-sm p-4 rounded-[24px] border border-orange-100 shadow-sm">
+                    <span className="text-[8px] font-black text-orange-500 uppercase tracking-tight block mb-1">JUMLAH PIUTANG (RP)</span>
+                    <div className="text-lg font-black text-stone-800 leading-none">
+                      {formatCurrency(orders.filter(o => o.namaLokasi === selectedStoreForDetail.namaToko && o.pembayaran === 'FALSE').reduce((sum, o) => sum + (o.jumlahUang || 0), 0))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <button 
+                  onClick={() => {
+                    onNavigate('delivery', { 
+                      location: selectedStoreForDetail.namaToko, 
+                      type: 'delivery',
+                      courier: currentUserEmployee?.nama || undefined 
+                    });
+                    setSelectedStoreForDetail(null);
+                  }}
+                  className="bg-orange-50/50 py-4 rounded-2xl flex flex-col items-center gap-2 border border-stone-100 group active:scale-95 transition-all"
+                >
+                  <div className="w-10 h-10 rounded-full bg-[#FFC107]/10 flex items-center justify-center text-[#FFC107]">
+                    <span className="material-symbols-outlined">local_shipping</span>
+                  </div>
+                  <span className="text-[9px] font-black text-[#A66000] uppercase tracking-widest">Delivery Report</span>
+                </button>
+                <button 
+                  onClick={() => {
+                    onNavigate('billing_report', { 
+                      location: selectedStoreForDetail.namaToko, 
+                      type: 'billing',
+                      courier: currentUserEmployee?.nama || undefined 
+                    });
+                    setSelectedStoreForDetail(null);
+                  }}
+                  className="bg-blue-50/50 py-4 rounded-2xl flex flex-col items-center gap-2 border border-stone-100 group active:scale-95 transition-all"
+                >
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                    <span className="material-symbols-outlined">receipt_long</span>
+                  </div>
+                  <span className="text-[9px] font-black text-blue-900 uppercase tracking-widest">Billing Report</span>
+                </button>
+              </div>
+
+              {selectedStoreForDetail.linkGmaps && (
+                <a 
+                  href={selectedStoreForDetail.linkGmaps} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-3 w-full py-4 bg-[#1A1A1A] text-white rounded-[24px] text-sm font-black uppercase tracking-widest shadow-xl shadow-stone-900/20 active:scale-95 transition-all mb-2"
+                >
+                  <span className="material-symbols-outlined">location_on</span>
+                  Buka di Google Maps
+                </a>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Desktop View */}
       <div className="hidden md:block space-y-8">

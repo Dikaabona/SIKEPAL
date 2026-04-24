@@ -259,6 +259,8 @@ export default function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileQuickMenuOpen, setIsMobileQuickMenuOpen] = useState(false);
   const [autoOpenOrderModal, setAutoOpenOrderModal] = useState(false);
+  const [autoOpenDeliveryForStore, setAutoOpenDeliveryForStore] = useState<string | null>(null);
+  const [autoOpenBillingForStore, setAutoOpenBillingForStore] = useState<string | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -1380,7 +1382,11 @@ export default function App() {
     setActiveTab(type === 'delivery' ? 'delivery' : 'billing_report');
   };
 
-  const handleNavigate = (tab: any) => {
+  const handleNavigate = (tab: any, prefill?: { location: string, type: 'delivery' | 'billing', courier?: string }) => {
+    if (prefill) {
+      handlePrefillRequest(prefill.location, prefill.type, prefill.courier);
+      return;
+    }
     if (typeof tab === 'object' && tab.tab === 'order_database' && tab.storeId) {
       setReturnStoreId(tab.storeId);
       setActiveTab('order_database');
