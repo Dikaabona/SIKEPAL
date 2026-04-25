@@ -145,6 +145,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
     const start = startDate ? parseIndoDate(startDate) : null;
     const end = endDate ? parseIndoDate(endDate) : null;
     const searchLower = searchQuery.toLowerCase();
+    const isKurir = currentUserEmployee?.division?.toLowerCase() === 'kurir';
 
     const withDates = orders.map(order => ({
       order,
@@ -152,6 +153,11 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
     }));
 
     return withDates.filter(({ order, orderDate }) => {
+      // Role-based filtering: Kurir only see their own orders
+      if (isKurir && currentUserEmployee && order.employeeId !== currentUserEmployee.id) {
+        return false;
+      }
+
       const matchesSearch = 
         order.namaLokasi.toLowerCase().includes(searchLower) ||
         order.namaKurir.toLowerCase().includes(searchLower);
@@ -849,7 +855,11 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
             <div className="grid grid-cols-10 gap-4 items-center">
               <div className="col-span-2 flex flex-col justify-center">
                 <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">NAMA</span>
-                <span className="text-sm font-black text-stone-800 uppercase">{filterKurir || 'SEMUA KURIR'}</span>
+                <span className="text-sm font-black text-stone-800 uppercase">
+                  {currentUserEmployee?.division?.toLowerCase() === 'kurir' 
+                    ? currentUserEmployee.nama 
+                    : (filterKurir || 'SEMUA KURIR')}
+                </span>
               </div>
               <div className="col-span-8 grid grid-cols-8 gap-2">
                 <div className="text-center py-2 bg-stone-50 rounded-xl border border-stone-100">
@@ -885,7 +895,11 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
             <div className="flex justify-between items-end">
               <div>
                 <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest block mb-1">RINGKASAN</span>
-                <span className="text-lg font-black text-stone-800 uppercase">{filterKurir || 'SEMUA KURIR'}</span>
+                <span className="text-lg font-black text-stone-800 uppercase">
+                  {currentUserEmployee?.division?.toLowerCase() === 'kurir' 
+                    ? currentUserEmployee.nama 
+                    : (filterKurir || 'SEMUA KURIR')}
+                </span>
               </div>
               <div className="text-right">
                 <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest block mb-1">TANGGAL</span>
