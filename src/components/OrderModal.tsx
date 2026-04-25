@@ -267,46 +267,48 @@ const OrderModal: React.FC<OrderModalProps> = ({
                 </div>
               </div>
 
-              {/* Section 3: Detail Harga & Pembayaran */}
-              <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4 bg-stone-50/50 p-4 rounded-2xl border border-stone-100">
-                <div className="md:col-span-3 mb-1">
-                  <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Harga & Bayar</h4>
+              {/* Section 3: Detail Harga & Pembayaran - Hidden for Kurir */}
+              {currentUserEmployee?.division?.toLowerCase() !== 'kurir' && (
+                <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4 bg-stone-50/50 p-4 rounded-2xl border border-stone-100">
+                  <div className="md:col-span-3 mb-1">
+                    <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Harga & Bayar</h4>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Harga Sikepal</label>
+                    <input 
+                      type="number" 
+                      value={formData.hargaSikepal}
+                      onChange={(e) => setFormData({...formData, hargaSikepal: parseInt(e.target.value) || 0})}
+                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Periode Bayar</label>
+                    <select 
+                      value={formData.periodeBayar}
+                      onChange={(e) => setFormData({...formData, periodeBayar: e.target.value})}
+                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    >
+                      <option value="">Pilih Periode</option>
+                      <option value="Harian">Harian</option>
+                      <option value="Mingguan">Mingguan</option>
+                      <option value="Bulanan">Bulanan</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Pembayaran</label>
+                    <select 
+                      value={formData.pembayaran}
+                      onChange={(e) => setFormData({...formData, pembayaran: e.target.value})}
+                      className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    >
+                      <option value="">Pilih Status</option>
+                      <option value="FALSE">BELUM LUNAS</option>
+                      <option value="TRUE">LUNAS</option>
+                    </select>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Harga Sikepal</label>
-                  <input 
-                    type="number" 
-                    value={formData.hargaSikepal}
-                    onChange={(e) => setFormData({...formData, hargaSikepal: parseInt(e.target.value) || 0})}
-                    className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Periode Bayar</label>
-                  <select 
-                    value={formData.periodeBayar}
-                    onChange={(e) => setFormData({...formData, periodeBayar: e.target.value})}
-                    className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  >
-                    <option value="">Pilih Periode</option>
-                    <option value="Harian">Harian</option>
-                    <option value="Mingguan">Mingguan</option>
-                    <option value="Bulanan">Bulanan</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Pembayaran</label>
-                  <select 
-                    value={formData.pembayaran}
-                    onChange={(e) => setFormData({...formData, pembayaran: e.target.value})}
-                    className="w-full px-4 py-2 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                  >
-                    <option value="">Pilih Status</option>
-                    <option value="FALSE">BELUM LUNAS</option>
-                    <option value="TRUE">LUNAS</option>
-                  </select>
-                </div>
-              </div>
+              )}
 
               {/* Section 4: Detail Keuangan (Advanced) - Hidden for Kurir */}
               {currentUserEmployee?.division?.toLowerCase() !== 'kurir' && (

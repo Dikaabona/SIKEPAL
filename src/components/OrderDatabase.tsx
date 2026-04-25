@@ -1008,7 +1008,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                     </td>
                     <td className="px-4 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {(userRole === 'admin' || userRole === 'owner') && order.status === 'Pending' && (
+                        {(userRole === 'admin' || userRole === 'owner') && currentUserEmployee?.division?.toLowerCase() !== 'kurir' && order.status === 'Pending' && (
                           <>
                             <button 
                               onClick={() => onSaveOrder({...order, status: 'Approved', updatedAt: new Date().toISOString()})}
@@ -1098,7 +1098,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                       {order.status || 'Approved'}
                     </span>
                     <div className="flex gap-2">
-                      {(userRole === 'admin' || userRole === 'owner') && order.status === 'Pending' && (
+                      {(userRole === 'admin' || userRole === 'owner') && currentUserEmployee?.division?.toLowerCase() !== 'kurir' && order.status === 'Pending' && (
                         <div className="flex gap-1">
                           <button 
                             onClick={() => onSaveOrder({...order, status: 'Approved', updatedAt: new Date().toISOString()})}
