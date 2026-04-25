@@ -362,37 +362,37 @@ const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Absensi Status Card (Mobile) */}
-            <div className="bg-white rounded-[20px] p-2.5 shadow-md border border-stone-50">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${attendanceStatus ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
-                    <span className="material-symbols-outlined text-lg">
-                      {attendanceStatus ? 'person_check' : 'person_cancel'}
+              {/* Absensi Metric (Mobile - NEW) */}
+              <button 
+                onClick={() => onNavigate('selfie_attendance')}
+                className={`bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border active:scale-95 transition-all ${attendanceStatus ? 'border-emerald-100' : 'border-red-100'}`}
+              >
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${attendanceStatus ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                  <span className="material-symbols-outlined text-[12px]">{attendanceStatus ? 'person_check' : 'person_cancel'}</span>
+                </div>
+                <div className="text-center">
+                  <p className="text-[5.5px] font-black text-stone-400 uppercase leading-none mb-1">ABSENSI</p>
+                  <div className="flex items-baseline justify-center gap-0.5 leading-none">
+                    <span className={`text-[8px] font-black uppercase ${attendanceStatus ? 'text-emerald-700' : 'text-red-700'}`}>
+                      {attendanceStatus ? 'MASUK' : 'BELUM'}
                     </span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-[7px] font-black text-stone-400 uppercase tracking-[0.2em] leading-none mb-1">STATUS ABSENSI</span>
-                    <span className={`text-[11px] font-black uppercase tracking-tight ${attendanceStatus ? 'text-emerald-700' : 'text-red-700'}`}>
-                      {attendanceStatus ? 'Sudah Absen' : 'Belum Absen'}
-                    </span>
-                    {attendanceStatus && (
-                      <span className="text-[6px] font-bold text-stone-400 mt-0.5 uppercase tracking-tighter">
-                        {attendanceStatus.checkInTime} • {attendanceStatus.locationName || 'Lokasi Terdeteksi'}
-                      </span>
-                    )}
                   </div>
                 </div>
-                {!attendanceStatus && (
-                  <button 
-                    onClick={() => onNavigate('attendance')}
-                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-[8px] font-black uppercase tracking-widest shadow-lg shadow-red-200 active:scale-95 transition-all"
-                  >
-                    Absen Sekarang
-                  </button>
-                )}
+              </button>
+
+              {/* Sisa Metric (Mobile - NEW) */}
+              <div className="bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border border-stone-100">
+                <div className="w-6 h-6 rounded-full bg-orange-50 flex items-center justify-center text-orange-600">
+                  <span className="material-symbols-outlined text-[12px]">inventory_2</span>
+                </div>
+                <div className="text-center">
+                  <p className="text-[5.5px] font-black text-stone-400 uppercase leading-none mb-1">SISA</p>
+                  <div className="flex items-baseline justify-center gap-0.5 leading-none">
+                    <span className="text-xs font-black text-stone-900">{orderSummary.sisa}</span>
+                    <span className="text-[6px] font-bold text-stone-400 uppercase">PCS</span>
+                  </div>
+                </div>
               </div>
             </div>
 

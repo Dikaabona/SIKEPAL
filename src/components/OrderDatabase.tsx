@@ -337,9 +337,12 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
   const handleModalSave = async (orderToSave: Order) => {
     await onSaveOrder(orderToSave);
     setIsAdding(false);
+    
+    const isKurir = currentUserEmployee?.division?.toLowerCase() === 'kurir';
     setNewOrder({
       tanggal: getLocalDateString(),
-      namaKurir: '',
+      namaKurir: isKurir ? (currentUserEmployee?.nama || '') : '',
+      employeeId: isKurir ? (currentUserEmployee?.id || '') : '',
       namaLokasi: '',
       tunaPedes: 0,
       tunaMayo: 0,
@@ -356,7 +359,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
       tanggalBayar: '',
       diskon: 0,
       company: company,
-      status: 'Approved'
+      status: isKurir ? 'Pending' : 'Approved'
     });
   };
 
@@ -637,7 +640,8 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                   const isKurir = currentUserEmployee?.division?.toLowerCase() === 'kurir';
                   setNewOrder({
                     tanggal: getLocalDateString(),
-                    namaKurir: '',
+                    namaKurir: isKurir ? (currentUserEmployee?.nama || '') : '',
+                    employeeId: isKurir ? (currentUserEmployee?.id || '') : '',
                     namaLokasi: '',
                     tunaPedes: 0,
                     tunaMayo: 0,

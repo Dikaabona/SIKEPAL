@@ -30,9 +30,17 @@ const OrderModal: React.FC<OrderModalProps> = ({
   const [showLokasiDropdown, setShowLokasiDropdown] = useState(false);
 
   useEffect(() => {
-    setFormData(order);
-    setLokasiSearch(order.namaLokasi || '');
-  }, [order, isOpen]);
+    let newFormData = { ...order };
+    const isKurir = currentUserEmployee?.division?.toLowerCase() === 'kurir';
+    
+    if (!order.id && isKurir && currentUserEmployee) {
+      newFormData.employeeId = currentUserEmployee.id;
+      newFormData.namaKurir = currentUserEmployee.nama;
+    }
+    
+    setFormData(newFormData);
+    setLokasiSearch(newFormData.namaLokasi || '');
+  }, [order, isOpen, currentUserEmployee]);
 
   const handleSave = async () => {
     if (!formData.namaLokasi || !formData.tanggal) {
@@ -131,6 +139,7 @@ const OrderModal: React.FC<OrderModalProps> = ({
                   <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nama Kurir</label>
                   <select 
                     value={formData.employeeId || ''}
+                    disabled={currentUserEmployee?.division?.toLowerCase() === 'kurir'}
                     onChange={(e) => {
                       const emp = employees.find(emp => emp.id === e.target.value);
                       setFormData({
@@ -139,7 +148,7 @@ const OrderModal: React.FC<OrderModalProps> = ({
                         namaKurir: emp ? emp.nama : ''
                       });
                     }}
-                    className="w-full px-4 py-2.5 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    className="w-full px-4 py-2.5 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all disabled:bg-stone-50 disabled:text-stone-500"
                   >
                     <option value="">Pilih Kurir</option>
                     {employees
