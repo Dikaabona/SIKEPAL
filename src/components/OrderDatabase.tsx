@@ -61,6 +61,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [showPiutangList, setShowPiutangList] = useState(false);
+  const isKurir = currentUserEmployee?.division?.toLowerCase() === 'kurir';
 
   const [newOrder, setNewOrder] = useState<Partial<Order>>({
     tanggal: getLocalDateString(),
@@ -108,9 +109,12 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
   };
 
   const kurirOptions = useMemo(() => {
+    if (isKurir && currentUserEmployee) {
+      return [currentUserEmployee.nama];
+    }
     const kurirs = new Set(orders.map(o => o.namaKurir).filter(Boolean));
     return Array.from(kurirs).sort();
-  }, [orders]);
+  }, [orders, currentUserEmployee, isKurir]);
 
   const lokasiOptions = useMemo(() => {
     const lokasis = new Set(orders.map(o => o.namaLokasi).filter(Boolean));
@@ -145,7 +149,6 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
     const start = startDate ? parseIndoDate(startDate) : null;
     const end = endDate ? parseIndoDate(endDate) : null;
     const searchLower = searchQuery.toLowerCase();
-    const isKurir = currentUserEmployee?.division?.toLowerCase() === 'kurir';
 
     const withDates = orders.map(order => ({
       order,
@@ -154,8 +157,14 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
 
     return withDates.filter(({ order, orderDate }) => {
       // Role-based filtering: Kurir only see their own orders
-      if (isKurir && currentUserEmployee && order.employeeId !== currentUserEmployee.id) {
-        return false;
+      // Check both employeeId and namaKurir as fallback for old data
+      if (isKurir && currentUserEmployee) {
+        const matchesId = order.employeeId === currentUserEmployee.id;
+        const matchesName = order.namaKurir?.toLowerCase().trim() === currentUserEmployee.nama?.toLowerCase().trim();
+        
+        if (!matchesId && !matchesName) {
+          return false;
+        }
       }
 
       const matchesSearch = 
@@ -165,7 +174,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
       const matchesStartDate = !start || (orderDate && orderDate >= start);
       const matchesEndDate = !end || (orderDate && orderDate <= end);
       
-      const matchesKurir = !filterKurir || order.namaKurir === filterKurir;
+      const matchesKurir = !filterKurir || order.namaKurir?.toLowerCase().trim() === filterKurir.toLowerCase().trim();
       const matchesLokasi = !filterLokasi || order.namaLokasi === filterLokasi;
       const matchesPembayaran = !filterPembayaran || order.pembayaran === filterPembayaran;
 
@@ -173,7 +182,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
     })
     .sort((a, b) => (b.orderDate?.getTime() || 0) - (a.orderDate?.getTime() || 0))
     .map(item => item.order);
-  }, [orders, searchQuery, startDate, endDate, filterKurir, filterLokasi, filterPembayaran]);
+  }, [orders, searchQuery, startDate, endDate, filterKurir, filterLokasi, filterPembayaran, isKurir, currentUserEmployee]);
 
   const handleDownloadTemplate = () => {
     const templateData = [
@@ -239,7 +248,6 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
 
-        const isKurir = currentUserEmployee?.division?.toLowerCase() === 'kurir';
         const initialStatus = isKurir ? 'Pending' : 'Approved';
 
         const newOrders: Order[] = jsonData.map(row => {
@@ -331,6 +339,12 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
   const percentageSisa = summary.jumlahKirim > 0 ? (summary.sisa / summary.jumlahKirim) * 100 : 0;
 
   useEffect(() => {
+    if (isKurir && currentUserEmployee && !filterKurir) {
+      setFilterKurir(currentUserEmployee.nama);
+    }
+  }, [isKurir, currentUserEmployee, filterKurir]);
+
+  useEffect(() => {
     if (initialSelectedStoreId) {
       const store = stores.find(s => s.id === initialSelectedStoreId);
       if (store) {
@@ -344,7 +358,6 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
     await onSaveOrder(orderToSave);
     setIsAdding(false);
     
-    const isKurir = currentUserEmployee?.division?.toLowerCase() === 'kurir';
     setNewOrder({
       tanggal: getLocalDateString(),
       namaKurir: isKurir ? (currentUserEmployee?.nama || '') : '',
@@ -643,7 +656,6 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
               </button>
               <button 
                 onClick={() => {
-                  const isKurir = currentUserEmployee?.division?.toLowerCase() === 'kurir';
                   setNewOrder({
                     tanggal: getLocalDateString(),
                     namaKurir: isKurir ? (currentUserEmployee?.nama || '') : '',
@@ -1082,31 +1094,31 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
             paginatedOrders.map((order) => (
               <div key={order.id} className="p-4 space-y-4">
                 <div className="flex justify-between items-start">
-                  <div>
-                    <div className="text-xs font-black text-stone-400 uppercase tracking-wider mb-1">{formatDate(order.tanggal)}</div>
-                    <button 
-                      onClick={() => {
-                        const store = stores.find(s => s.namaToko.toLowerCase() === order.namaLokasi.toLowerCase());
-                        if (store) {
-                          setSelectedStore(store);
-                          setSelectedOrderForModal(order);
-                        } else {
-                          alert(`Data toko "${order.namaLokasi}" tidak ditemukan di database toko.`);
-                        }
-                      }}
-                      className="text-base font-black text-stone-800 uppercase text-left block hover:text-primary transition-colors"
-                    >
-                      {order.namaLokasi}
-                    </button>
-                    <div className="flex flex-col">
-                      <span className="text-xs font-bold text-primary uppercase">
-                        {employees.find(e => e.id === order.employeeId)?.nama || order.namaKurir}
-                      </span>
-                      <span className="text-[10px] text-stone-500 italic">
-                        {employees.find(e => e.id === order.employeeId)?.division || '-'}
-                      </span>
-                    </div>
+                <div 
+                  onClick={() => {
+                    const store = stores.find(s => s.namaToko.toLowerCase() === order.namaLokasi.toLowerCase());
+                    if (store) {
+                      setSelectedStore(store);
+                      setSelectedOrderForModal(order);
+                    } else {
+                      alert(`Data toko "${order.namaLokasi}" tidak ditemukan di database toko.`);
+                    }
+                  }}
+                  className="flex-1 cursor-pointer group active:scale-[0.98] transition-all"
+                >
+                  <div className="text-xs font-black text-stone-400 uppercase tracking-wider mb-1">{formatDate(order.tanggal)}</div>
+                  <div className="text-base font-black text-stone-800 uppercase leading-tight mb-1 group-hover:text-primary transition-colors">
+                    {order.namaLokasi}
                   </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-bold text-primary uppercase">
+                      {employees.find(e => e.id === order.employeeId)?.nama || order.namaKurir}
+                    </span>
+                    <span className="text-[10px] text-stone-500 italic">
+                      {employees.find(e => e.id === order.employeeId)?.division || '-'}
+                    </span>
+                  </div>
+                </div>
                   <div className="flex flex-col items-end gap-2">
                     <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
                       order.status === 'Approved' ? 'bg-green-100 text-green-700' :

@@ -488,16 +488,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                     </span>
                   </div>
                   
-                  <div className="mb-4">
-                    <button 
-                      onClick={() => {
-                        const store = stores.find(s => s.namaToko === order.namaLokasi);
-                        if (store) setSelectedStoreForDetail(store);
-                      }}
-                      className="text-left block group"
-                    >
-                      <h4 className="text-sm font-black text-stone-800 uppercase tracking-tight leading-short group-active:text-primary transition-colors">{order.namaLokasi}</h4>
-                    </button>
+                  <div 
+                    onClick={() => {
+                      const store = stores.find(s => s.namaToko === order.namaLokasi);
+                      if (store) setSelectedStoreForDetail(store);
+                    }}
+                    className="mb-4 cursor-pointer active:scale-[0.98] transition-all group"
+                  >
+                    <h4 className="text-sm font-black text-stone-800 uppercase tracking-tight leading-short group-active:text-primary transition-colors">{order.namaLokasi}</h4>
                     <span className="text-[10px] font-bold text-primary uppercase block mt-0.5">{order.namaKurir}</span>
                     <span className="text-[8px] text-stone-400 italic block">Sikepal Delivery</span>
                   </div>
