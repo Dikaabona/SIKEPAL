@@ -281,12 +281,16 @@ export interface BillingRecord {
 export interface CourierCashRecord {
   id: string;
   tanggal: string;
-  namaKurir: string;
+  nama_kurir: string;
   tipe: 'Masuk' | 'Keluar';
   jumlah: number;
   keterangan: string;
+  jurnal?: string;
+  debit_account?: string;
+  credit_account?: string;
+  bukti_url?: string;
   company: string;
-  createdAt: string;
+  created_at: string;
 }
 
 export interface COAAccount {

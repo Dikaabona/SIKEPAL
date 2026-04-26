@@ -499,8 +499,8 @@ export default function App() {
 
     const fetchCourierCash = async () => {
       try {
-        const data = await fetchAllData('courier_cash');
-        setCourierCashRecords(data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+        const data = await fetchAllData('courier_cash_records');
+        setCourierCashRecords(data.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
       } catch (e) {
         console.warn('Courier cash table might not exist yet');
         setCourierCashRecords([]);
@@ -1024,7 +1024,7 @@ export default function App() {
 
   const handleSaveCourierCash = async (record: CourierCashRecord) => {
     try {
-      const { error } = await supabase.from('courier_cash').upsert(record);
+      const { error } = await supabase.from('courier_cash_records').upsert(record);
       if (error) throw error;
       
       setCourierCashRecords(prev => {
@@ -1049,7 +1049,7 @@ export default function App() {
         const journal: AccountingJournal = {
           id: `journal_cc_${record.id}`,
           date: record.tanggal,
-          description: `Kas Kurir (${record.tipe}) - ${record.namaKurir}: ${record.keterangan}`,
+          description: `Kas Kurir (${record.tipe}) - ${record.nama_kurir}: ${record.keterangan}`,
           reference: `CC-${record.id.substring(0, 4)}`,
           company: record.company,
           createdAt: new Date().toISOString(),
@@ -1076,8 +1076,8 @@ export default function App() {
 
   const handleDeleteCourierCash = async (id: string) => {
     try {
-      // Delete from courier_cash
-      const { error } = await supabase.from('courier_cash').delete().eq('id', id);
+      // Delete from courier_cash_records
+      const { error } = await supabase.from('courier_cash_records').delete().eq('id', id);
       if (error) throw error;
       
       setCourierCashRecords(prev => prev.filter(r => r.id !== id));
@@ -1668,6 +1668,7 @@ export default function App() {
           <CourierCashModule
             records={courierCashRecords}
             employees={employees}
+            coaAccounts={coaAccounts}
             company={userCompany}
             userRole={userRole}
             onSave={handleSaveCourierCash}

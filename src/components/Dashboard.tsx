@@ -384,7 +384,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               {/* Sisa Metric (Mobile - NEW) */}
               <div className="bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border border-stone-100">
                 <div className="w-6 h-6 rounded-full bg-orange-50 flex items-center justify-center text-orange-600">
-                  <span className="material-symbols-outlined text-[12px]">inventory_2</span>
+                   <span className="material-symbols-outlined text-[12px]">inventory_2</span>
                 </div>
                 <div className="text-center">
                   <p className="text-[5.5px] font-black text-stone-400 uppercase leading-none mb-1">SISA</p>
@@ -394,6 +394,22 @@ const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                 </div>
               </div>
+
+              {/* Kas Kurir Metric (Mobile - NEW) */}
+              <button 
+                onClick={() => onNavigate('courier_cash')}
+                className="bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border border-stone-100 active:scale-95 transition-all"
+              >
+                <div className="w-6 h-6 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
+                  <span className="material-symbols-outlined text-[12px]">payments</span>
+                </div>
+                <div className="text-center">
+                  <p className="text-[5.5px] font-black text-stone-400 uppercase leading-none mb-1">KAS KURIR</p>
+                  <div className="flex items-baseline justify-center gap-0.5 leading-none">
+                    <span className="text-[8px] font-black uppercase text-indigo-700">MODUL</span>
+                  </div>
+                </div>
+              </button>
             </div>
 
             {/* Payment Methods Full Width (Mobile) */}
