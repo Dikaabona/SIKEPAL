@@ -23,6 +23,8 @@ interface DashboardProps {
   stores: Store[];
   deliveries: DeliveryRecord[];
   billingReports: BillingRecord[];
+  preselectedStoreId?: string | null;
+  onPreselectionHandled?: () => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ 
@@ -36,7 +38,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   userRole,
   stores,
   deliveries,
-  billingReports
+  billingReports,
+  preselectedStoreId,
+  onPreselectionHandled
 }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentDistance, setCurrentDistance] = useState<number | null>(null);
@@ -118,13 +122,16 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const orderSummary = useMemo(() => {
     return filteredOrders.reduce((acc, order) => {
-      acc.tunaPedes += (Number(order.tunaPedes) || 0);
-      acc.tunaMayo += (Number(order.tunaMayo) || 0);
-      acc.ayamMayo += (Number(order.ayamMayo) || 0);
-      acc.ayamPedes += (Number(order.ayamPedes) || 0);
-      acc.menuBulanan += (Number(order.menuBulanan) || 0);
-      acc.jumlahKirim += (Number(order.jumlahKirim) || 0);
-      acc.sisa += (Number(order.sisa) || 0);
+      // Only include Approved orders in the summary
+      if (order.status === 'Approved') {
+        acc.tunaPedes += (Number(order.tunaPedes) || 0);
+        acc.tunaMayo += (Number(order.tunaMayo) || 0);
+        acc.ayamMayo += (Number(order.ayamMayo) || 0);
+        acc.ayamPedes += (Number(order.ayamPedes) || 0);
+        acc.menuBulanan += (Number(order.menuBulanan) || 0);
+        acc.jumlahKirim += (Number(order.jumlahKirim) || 0);
+        acc.sisa += (Number(order.sisa) || 0);
+      }
       return acc;
     }, {
       tunaPedes: 0,
@@ -170,6 +177,16 @@ const Dashboard: React.FC<DashboardProps> = ({
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (preselectedStoreId && stores.length > 0) {
+      const store = stores.find(s => s.id === preselectedStoreId);
+      if (store) {
+        setSelectedStoreForDetail(store);
+        onPreselectionHandled?.();
+      }
+    }
+  }, [preselectedStoreId, stores, onPreselectionHandled]);
 
   useEffect(() => {
     if ("geolocation" in navigator && assignedLocation) {

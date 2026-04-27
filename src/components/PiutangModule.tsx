@@ -24,7 +24,8 @@ const PiutangModule: React.FC<PiutangModuleProps> = ({ orders, onNavigate, compa
     return orders
       .filter(order => 
         order.company === company && 
-        order.pembayaran?.toUpperCase() === 'FALSE'
+        order.pembayaran?.toUpperCase() === 'FALSE' &&
+        order.status === 'Approved'
       )
       .map(order => {
         const orderDate = parseIndoDate(order.tanggal);

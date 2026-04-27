@@ -19,7 +19,7 @@ const ClientMonitor: React.FC<ClientMonitorProps> = ({ stores, orders, company }
 
   const clientData = useMemo(() => {
     return stores.map(store => {
-      const storeOrders = orders.filter(o => o.namaLokasi === store.namaToko);
+      const storeOrders = orders.filter(o => o.namaLokasi === store.namaToko && o.status === 'Approved');
       
       // Pengiriman terakhir
       const lastOrder = storeOrders.length > 0 

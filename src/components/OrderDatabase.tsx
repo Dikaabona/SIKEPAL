@@ -317,13 +317,16 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
 
   const summary = useMemo(() => {
     return filteredOrders.reduce((acc, order) => {
-      acc.tunaPedes += order.tunaPedes;
-      acc.tunaMayo += order.tunaMayo;
-      acc.ayamMayo += order.ayamMayo;
-      acc.ayamPedes += order.ayamPedes;
-      acc.menuBulanan += order.menuBulanan;
-      acc.jumlahKirim += order.jumlahKirim;
-      acc.sisa += order.sisa;
+      // Only include Approved orders in the summary as requested
+      if (order.status === 'Approved') {
+        acc.tunaPedes += order.tunaPedes;
+        acc.tunaMayo += order.tunaMayo;
+        acc.ayamMayo += order.ayamMayo;
+        acc.ayamPedes += order.ayamPedes;
+        acc.menuBulanan += order.menuBulanan;
+        acc.jumlahKirim += order.jumlahKirim;
+        acc.sisa += order.sisa;
+      }
       return acc;
     }, {
       tunaPedes: 0,

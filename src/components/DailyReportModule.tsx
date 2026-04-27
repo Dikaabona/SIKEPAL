@@ -34,6 +34,8 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
 
     const filteredOrders = orders.filter(o => {
       if (o.company !== company) return false;
+      // Only include Approved orders in the report
+      if (o.status !== 'Approved') return false;
       const orderDate = parseIndoDate(o.tanggal);
       if (!orderDate) return false;
       return (!start || orderDate >= start) && (!end || orderDate <= end);

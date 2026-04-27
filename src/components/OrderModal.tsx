@@ -42,6 +42,19 @@ const OrderModal: React.FC<OrderModalProps> = ({
     setLokasiSearch(newFormData.namaLokasi || '');
   }, [order, isOpen, currentUserEmployee]);
 
+  // Auto-calculate jumlahKirim
+  useEffect(() => {
+    const total = (Number(formData.tunaPedes) || 0) + 
+                  (Number(formData.tunaMayo) || 0) + 
+                  (Number(formData.ayamMayo) || 0) + 
+                  (Number(formData.ayamPedes) || 0) + 
+                  (Number(formData.menuBulanan) || 0);
+    
+    if (total !== formData.jumlahKirim) {
+      setFormData(prev => ({ ...prev, jumlahKirim: total }));
+    }
+  }, [formData.tunaPedes, formData.tunaMayo, formData.ayamMayo, formData.ayamPedes, formData.menuBulanan]);
+
   const handleSave = async () => {
     if (!formData.namaLokasi || !formData.tanggal) {
       alert('Nama Lokasi dan Tanggal wajib diisi');
@@ -270,8 +283,8 @@ const OrderModal: React.FC<OrderModalProps> = ({
                   <input 
                     type="number" 
                     value={formData.jumlahKirim}
-                    onChange={(e) => setFormData({...formData, jumlahKirim: parseInt(e.target.value) || 0})}
-                    className="w-full px-4 py-2 bg-primary/5 border border-primary/20 rounded-xl text-sm font-bold text-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    readOnly
+                    className="w-full px-4 py-2 bg-primary/5 border border-primary/20 rounded-xl text-sm font-bold text-primary focus:ring-0 outline-none transition-all cursor-not-allowed"
                   />
                 </div>
               </div>

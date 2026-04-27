@@ -285,6 +285,7 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [prefillData, setPrefillData] = useState<{ location: string; type: 'delivery' | 'billing'; courier?: string } | null>(null);
   const [returnStoreId, setReturnStoreId] = useState<string | null>(null);
+  const [preselectedStoreId, setPreselectedStoreId] = useState<string | null>(null);
 
   const [isDataMissing, setIsDataMissing] = useState(false);
 
@@ -1378,7 +1379,16 @@ export default function App() {
 
   const handlePrefillRequest = (location: string, type: 'delivery' | 'billing', courier?: string, storeId?: string) => {
     setPrefillData({ location, type, courier });
-    setReturnStoreId(storeId || null);
+    // If we have a storeId, use it for return navigation
+    if (storeId) {
+      setReturnStoreId(storeId);
+    } else {
+      // Find store ID for the location if storeId wasn't provided
+      const store = stores.find(s => s.namaToko === location);
+      if (store) {
+        setReturnStoreId(store.id);
+      }
+    }
     setActiveTab(type === 'delivery' ? 'delivery' : 'billing_report');
   };
 
@@ -1387,6 +1397,7 @@ export default function App() {
       handlePrefillRequest(prefill.location, prefill.type, prefill.courier);
       return;
     }
+    setReturnStoreId(null);
     if (typeof tab === 'object' && tab.tab === 'order_database' && tab.storeId) {
       setReturnStoreId(tab.storeId);
       setActiveTab('order_database');
@@ -1419,6 +1430,8 @@ export default function App() {
             stores={stores}
             deliveries={deliveries}
             billingReports={billingReports}
+            preselectedStoreId={preselectedStoreId}
+            onPreselectionHandled={() => setPreselectedStoreId(null)}
           />
         );
       case 'attendance':
@@ -1604,7 +1617,10 @@ export default function App() {
             onPrefillHandled={() => setPrefillData(null)}
             onCancel={() => {
               if (returnStoreId) {
-                setActiveTab('order_database');
+                setPreselectedStoreId(returnStoreId);
+                setActiveTab('home');
+              } else {
+                setActiveTab('home');
               }
             }}
           />
@@ -1654,7 +1670,10 @@ export default function App() {
             onPrefillHandled={() => setPrefillData(null)}
             onCancel={() => {
               if (returnStoreId) {
-                setActiveTab('order_database');
+                setPreselectedStoreId(returnStoreId);
+                setActiveTab('home');
+              } else {
+                setActiveTab('home');
               }
             }}
           />

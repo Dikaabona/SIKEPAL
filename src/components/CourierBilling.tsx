@@ -28,6 +28,8 @@ const CourierBilling: React.FC<CourierBillingProps> = ({ orders, employees, comp
 
     // Filter orders by date range
     const filteredOrders = orders.filter(order => {
+      // Only include Approved orders in billing stats
+      if (order.status !== 'Approved') return false;
       const orderDate = order.tanggal;
       return orderDate >= startDate && orderDate <= endDate;
     });

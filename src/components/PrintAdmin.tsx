@@ -73,6 +73,7 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
     const uniqueCouriers = Array.from(new Set(
       orders
         .filter(o => {
+          if (o.status !== 'Approved') return false;
           const orderDate = parseIndoDate(o.tanggal);
           return orderDate && orderDate.getTime() === targetTime;
         })
@@ -89,6 +90,7 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
     const uniqueLocations = Array.from(new Set(
       orders
         .filter(o => {
+          if (o.status !== 'Approved') return false;
           const orderDate = parseIndoDate(o.tanggal);
           return orderDate && orderDate.getTime() === targetTime && 
                  (o.namaKurir === selectedCourier || selectedCourier === '');
@@ -104,6 +106,8 @@ const PrintAdmin: React.FC<PrintAdminProps> = ({ orders }) => {
     const targetTime = targetDate.getTime();
 
     return orders.filter(o => {
+      // Only include Approved orders
+      if (o.status !== 'Approved') return false;
       const orderDate = parseIndoDate(o.tanggal);
       return orderDate && orderDate.getTime() === targetTime && 
              (selectedCourier === '' || o.namaKurir === selectedCourier) &&

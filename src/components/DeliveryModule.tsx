@@ -218,6 +218,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<number | 'all'>(10);
+  const wasPrefilled = useRef(false);
 
   // States for Editing Order from Delivery Report
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
@@ -230,14 +231,24 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
     currentUserDivision?.toLowerCase() === 'kurir' ? currentUserName || '' : ''
   );
   const [filterDate, setFilterDate] = useState(getLocalDateString());
+  const [filterEndDate, setFilterEndDate] = useState('');
 
   const filteredDeliveries = useMemo(() => {
     return deliveries.filter(d => {
       const matchesCourier = !filterCourier || d.namaKurir === filterCourier;
-      const matchesDate = !filterDate || d.tanggal === filterDate;
+      
+      let matchesDate = true;
+      if (filterDate && filterEndDate) {
+        matchesDate = d.tanggal >= filterDate && d.tanggal <= filterEndDate;
+      } else if (filterDate) {
+        matchesDate = d.tanggal === filterDate;
+      } else if (filterEndDate) {
+        matchesDate = d.tanggal <= filterEndDate;
+      }
+
       return matchesCourier && matchesDate;
     });
-  }, [deliveries, filterCourier, filterDate]);
+  }, [deliveries, filterCourier, filterDate, filterEndDate]);
 
   const summary = useMemo(() => {
     if (title === "Billing Report") {
@@ -362,6 +373,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   // Handle prefill from props
   React.useEffect(() => {
     if (initialPrefillLocation) {
+      wasPrefilled.current = true;
       setFormData(prev => ({
         ...prev,
         namaLokasi: initialPrefillLocation,
@@ -533,7 +545,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
     setIsModalOpen(true);
   };
 
-  const closeModal = () => {
+  const closeModal = (shouldTriggerCancel: boolean = false) => {
     setIsModalOpen(false);
     setIsPiutangModalOpen(false);
     setEditingId(null);
@@ -560,6 +572,12 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       tanggalPiutang: '',
       jumlahKirim: 0
     });
+    if (shouldTriggerCancel && wasPrefilled.current) {
+      wasPrefilled.current = false;
+      onCancel?.();
+    }
+    // Always reset prefilled flag if closing
+    wasPrefilled.current = false;
   };
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -697,15 +715,38 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                     ))}
                   </select>
                 </div>
-                <div className="relative min-w-[180px]">
-                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 text-lg">calendar_today</span>
-                  <input
-                    type="date"
-                    value={filterDate}
-                    onChange={(e) => setFilterDate(e.target.value)}
-                    placeholder="DD/MM/YYYY"
-                    className="w-full pl-11 pr-4 py-2.5 rounded-full bg-stone-50 border border-stone-100 focus:ring-2 focus:ring-stone-200 focus:bg-white outline-none transition-all text-[11px] font-black text-stone-800 uppercase tracking-wider shadow-sm cursor-pointer"
-                  />
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative min-w-[140px] flex-1 md:flex-none">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">calendar_today</span>
+                    <input
+                      type="date"
+                      value={filterDate}
+                      onChange={(e) => setFilterDate(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 rounded-full bg-stone-50 border border-stone-100 focus:ring-2 focus:ring-stone-200 focus:bg-white outline-none transition-all text-[10px] font-black text-stone-800 uppercase tracking-wider shadow-sm cursor-pointer"
+                    />
+                  </div>
+                  {title === "Billing Report" && (
+                    <>
+                      <span className="text-stone-400 font-bold text-[10px]">-</span>
+                      <div className="relative min-w-[140px] flex-1 md:flex-none">
+                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">calendar_today</span>
+                        <input
+                          type="date"
+                          value={filterEndDate}
+                          onChange={(e) => setFilterEndDate(e.target.value)}
+                          className="w-full pl-9 pr-3 py-2 rounded-full bg-stone-50 border border-stone-100 focus:ring-2 focus:ring-stone-200 focus:bg-white outline-none transition-all text-[10px] font-black text-stone-800 uppercase tracking-wider shadow-sm cursor-pointer"
+                        />
+                        {filterEndDate && (
+                          <button 
+                            onClick={() => setFilterEndDate('')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-300 hover:text-stone-600"
+                          >
+                            <span className="material-symbols-outlined text-sm">close</span>
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               </>
             )}
@@ -1705,10 +1746,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                 )}
               </div>
               <button 
-                onClick={() => {
-                  closeModal();
-                  onCancel?.();
-                }}
+                onClick={() => closeModal(true)}
                 className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white border border-stone-100 flex items-center justify-center text-stone-400 hover:text-stone-900 transition-colors shadow-sm"
               >
                 <span className="material-symbols-outlined text-sm md:text-base">close</span>
@@ -2205,10 +2243,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                 <div className="p-6 md:p-8 pt-4 pb-12 md:pb-8 border-t border-stone-50 flex gap-3 md:gap-4 bg-white flex-shrink-0">
                 <button
                   type="button"
-                  onClick={() => {
-                    closeModal();
-                    onCancel?.();
-                  }}
+                  onClick={() => closeModal(true)}
                   className="flex-1 px-4 py-3 md:px-6 md:py-4 rounded-xl md:rounded-2xl bg-stone-100 text-stone-600 text-xs md:text-sm font-bold hover:bg-stone-200 transition-all"
                 >
                   Batal
@@ -2319,14 +2354,15 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                               formData.selectedOrderId === order.id ? 'bg-orange-50/50' : 'hover:bg-stone-50/50'
                             }`}
                             onClick={() => {
+                              const grossValue = (order.jumlahKirim || 0) * (order.hargaSikepal || 0);
                               setFormData({
                                 ...formData,
                                 namaKurir: order.namaKurir,
                                 namaLokasi: order.namaLokasi,
                                 qtyPengiriman: order.jumlahUang,
-                                originalNilai: order.jumlahUang,
+                                originalNilai: grossValue,
                                 hargaSikepal: order.hargaSikepal || 0,
-                                sisa: '' as any,
+                                sisa: order.sisa || 0,
                                 selectedOrderId: order.id,
                                 tanggalPiutang: order.tanggal,
                                 jumlahKirim: order.jumlahKirim
@@ -2378,14 +2414,15 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                       <div 
                         key={order.id}
                         onClick={() => {
+                          const grossValue = (order.jumlahKirim || 0) * (order.hargaSikepal || 0);
                           setFormData({
                             ...formData,
                             namaKurir: order.namaKurir,
                             namaLokasi: order.namaLokasi,
                             qtyPengiriman: order.jumlahUang,
-                            originalNilai: order.jumlahUang,
+                            originalNilai: grossValue,
                             hargaSikepal: order.hargaSikepal || 0,
-                            sisa: '' as any,
+                            sisa: order.sisa || 0,
                             selectedOrderId: order.id,
                             tanggalPiutang: order.tanggal,
                             jumlahKirim: order.jumlahKirim
