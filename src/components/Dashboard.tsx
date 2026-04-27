@@ -42,9 +42,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [currentDistance, setCurrentDistance] = useState<number | null>(null);
   const [selectedSumDate, setSelectedSumDate] = useState(getLocalDateString());
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const [selectedStoreForDetail, setSelectedStoreForDetail] = useState<Store | null>(null);
+  const [showPiutangList, setShowPiutangList] = useState(false);
 
   // Date normalization helper for robust comparisons
   const normalizeDateString = (dateStr: string) => {
@@ -151,13 +152,19 @@ const Dashboard: React.FC<DashboardProps> = ({
   const paginatedOrders = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredOrders.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredOrders, currentPage]);
+  }, [filteredOrders, currentPage, itemsPerPage]);
 
   const assignedLocation = branchLocations.find(loc => loc.id === currentUserEmployee?.branchLocationId);
 
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedSumDate]);
+
+  useEffect(() => {
+    if (!selectedStoreForDetail) {
+      setShowPiutangList(false);
+    }
+  }, [selectedStoreForDetail]);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -308,7 +315,10 @@ const Dashboard: React.FC<DashboardProps> = ({
             {/* Top Metrics Grid (One Row - Mobile) */}
             <div className="grid grid-cols-4 gap-1.5">
               {/* Delivery Locations */}
-              <div className="bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border border-stone-100">
+              <button 
+                onClick={() => onNavigate('delivery')}
+                className="bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border border-stone-100 active:scale-95 transition-all text-left"
+              >
                 <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
                   <span className="material-symbols-outlined text-[12px]">storefront</span>
                 </div>
@@ -319,10 +329,13 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <span className="text-[6px] font-bold text-stone-400 uppercase">TITIK</span>
                   </div>
                 </div>
-              </div>
+              </button>
 
               {/* Delivery Total Qty */}
-              <div className="bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border border-stone-100">
+              <button 
+                onClick={() => onNavigate('delivery')}
+                className="bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border border-stone-100 active:scale-95 transition-all text-left"
+              >
                 <div className="w-6 h-6 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
                   <span className="material-symbols-outlined text-[12px]">package_2</span>
                 </div>
@@ -333,10 +346,13 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <span className="text-[6px] font-bold text-stone-400 uppercase">PCS</span>
                   </div>
                 </div>
-              </div>
+              </button>
 
               {/* Billing Locations */}
-              <div className="bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border border-stone-100">
+              <button 
+                onClick={() => onNavigate('billing_report')}
+                className="bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border border-stone-100 active:scale-95 transition-all text-left"
+              >
                 <div className="w-6 h-6 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
                   <span className="material-symbols-outlined text-[12px]">storefront</span>
                 </div>
@@ -347,10 +363,13 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <span className="text-[6px] font-bold text-stone-400 uppercase">TITIK</span>
                   </div>
                 </div>
-              </div>
+              </button>
 
               {/* Billing Count */}
-              <div className="bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border border-stone-100">
+              <button 
+                onClick={() => onNavigate('billing_report')}
+                className="bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border border-stone-100 active:scale-95 transition-all text-left"
+              >
                 <div className="w-6 h-6 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
                   <span className="material-symbols-outlined text-[12px]">receipt_long</span>
                 </div>
@@ -361,7 +380,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <span className="text-[6px] font-bold text-stone-400 uppercase">DATA</span>
                   </div>
                 </div>
-              </div>
+              </button>
 
               {/* Absensi Metric (Mobile - NEW) */}
               <button 
@@ -541,31 +560,88 @@ const Dashboard: React.FC<DashboardProps> = ({
             )}
           </div>
 
-          {/* Pagination Controls (Mobile) */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between pt-4 pb-2 px-2">
-              <button 
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="w-10 h-10 rounded-full flex items-center justify-center border border-stone-200 bg-white disabled:opacity-30 disabled:bg-stone-50 transition-all active:scale-90"
-              >
-                <span className="material-symbols-outlined text-stone-600">chevron_left</span>
-              </button>
-              
-              <div className="flex flex-col items-center">
-                <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest">Halaman</span>
-                <span className="text-sm font-black text-stone-800">{currentPage} <span className="text-stone-300 font-medium">/</span> {totalPages}</span>
+          {/* Rows Per Page & Pagination (Mobile) */}
+          <div className="flex flex-col gap-6 pt-4">
+            <div className="flex flex-col gap-2 px-2">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-bold text-stone-500">
+                  Menampilkan {filteredOrders.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} sampai {Math.min(currentPage * itemsPerPage, filteredOrders.length)} dari {filteredOrders.length} data
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Tampilkan:</span>
+                  <div className="relative">
+                    <select
+                      value={itemsPerPage}
+                      onChange={(e) => {
+                        setItemsPerPage(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      className="appearance-none bg-white border border-stone-200 rounded-xl px-4 py-1.5 pr-8 text-[11px] font-black text-stone-700 outline-none shadow-sm focus:ring-2 focus:ring-orange-100 transition-all"
+                    >
+                      {[10, 30, 50, 100].map(num => (
+                        <option key={num} value={num}>{num}</option>
+                      ))}
+                    </select>
+                    <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 text-sm pointer-events-none">expand_more</span>
+                  </div>
+                </div>
               </div>
-
-              <button 
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="w-10 h-10 rounded-full flex items-center justify-center border border-stone-200 bg-white disabled:opacity-30 disabled:bg-stone-50 transition-all active:scale-90"
-              >
-                <span className="material-symbols-outlined text-stone-600">chevron_right</span>
-              </button>
             </div>
-          )}
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 pb-4 px-2">
+                <button 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="w-10 h-10 rounded-full flex items-center justify-center border border-stone-200 bg-white disabled:opacity-30 disabled:bg-stone-50 transition-all active:scale-90"
+                >
+                  <span className="material-symbols-outlined text-stone-600 text-lg">chevron_left</span>
+                </button>
+                
+                <div className="flex items-center gap-1.5">
+                  {(() => {
+                    const pages = [];
+                    if (totalPages <= 4) {
+                      for (let i = 1; i <= totalPages; i++) pages.push(i);
+                    } else {
+                      if (currentPage <= 2) {
+                        pages.push(1, 2, '...', totalPages);
+                      } else if (currentPage >= totalPages - 1) {
+                        pages.push(1, '...', totalPages - 1, totalPages);
+                      } else {
+                        pages.push(1, '...', currentPage, '...', totalPages);
+                      }
+                    }
+                    return pages.map((p, idx) => (
+                      p === '...' ? (
+                        <span key={`dots-${idx}`} className="text-stone-400 font-bold px-1">...</span>
+                      ) : (
+                        <button
+                          key={p}
+                          onClick={() => setCurrentPage(Number(p))}
+                          className={`w-9 h-9 rounded-xl text-xs font-black transition-all active:scale-95 ${
+                            currentPage === p 
+                              ? 'bg-[#915F07] text-white shadow-md shadow-orange-200' 
+                              : 'bg-white border border-stone-100 text-stone-600'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      )
+                    ));
+                  })()}
+                </div>
+
+                <button 
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="w-10 h-10 rounded-full flex items-center justify-center border border-stone-200 bg-white disabled:opacity-30 disabled:bg-stone-50 transition-all active:scale-90"
+                >
+                  <span className="material-symbols-outlined text-stone-600 text-lg">chevron_right</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Bottom spacers for scrolling comfort */}
@@ -641,32 +717,74 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>
 
               {/* Piutang Section in Modal (Matching provided design) */}
-              <div className="bg-orange-50/30 rounded-[32px] border border-orange-100/50 p-5 mb-4 relative overflow-hidden">
-                <div className="flex justify-between items-center mb-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-black text-orange-600 uppercase tracking-widest">PIUTANG</span>
-                    <span className="material-symbols-outlined text-orange-500 text-lg">arrow_forward</span>
+              {!showPiutangList ? (
+                <div 
+                  onClick={() => setShowPiutangList(true)}
+                  className="bg-orange-50/30 rounded-[32px] border border-orange-100/50 p-5 mb-4 relative overflow-hidden cursor-pointer active:scale-[0.98] transition-all"
+                >
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-black text-orange-600 uppercase tracking-widest">PIUTANG</span>
+                      <span className="material-symbols-outlined text-orange-500 text-lg">arrow_forward</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-orange-400 tracking-wider">
+                      {getLocalDateString()}
+                    </span>
                   </div>
-                  <span className="text-[10px] font-bold text-orange-400 tracking-wider">
-                    {getLocalDateString()}
-                  </span>
-                </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-white/80 backdrop-blur-sm p-4 rounded-[24px] border border-orange-100 shadow-sm">
-                    <span className="text-[8px] font-black text-orange-500 uppercase tracking-tight block mb-1">TOTAL PIUTANG (QTY)</span>
-                    <div className="text-lg font-black text-stone-800 leading-none">
-                      {orders.filter(o => o.namaLokasi === selectedStoreForDetail.namaToko && o.pembayaran === 'FALSE').length}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-white/80 backdrop-blur-sm p-4 rounded-[24px] border border-orange-100 shadow-sm">
+                      <span className="text-[8px] font-black text-orange-500 uppercase tracking-tight block mb-1">TOTAL PIUTANG (QTY)</span>
+                      <div className="text-lg font-black text-stone-800 leading-none">
+                        {orders.filter(o => o.namaLokasi === selectedStoreForDetail.namaToko && o.pembayaran === 'FALSE').length}
+                      </div>
                     </div>
-                  </div>
-                  <div className="bg-white/80 backdrop-blur-sm p-4 rounded-[24px] border border-orange-100 shadow-sm">
-                    <span className="text-[8px] font-black text-orange-500 uppercase tracking-tight block mb-1">JUMLAH PIUTANG (RP)</span>
-                    <div className="text-lg font-black text-stone-800 leading-none">
-                      {formatCurrency(orders.filter(o => o.namaLokasi === selectedStoreForDetail.namaToko && o.pembayaran === 'FALSE').reduce((sum, o) => sum + (o.jumlahUang || 0), 0))}
+                    <div className="bg-white/80 backdrop-blur-sm p-4 rounded-[24px] border border-orange-100 shadow-sm">
+                      <span className="text-[8px] font-black text-orange-500 uppercase tracking-tight block mb-1">JUMLAH PIUTANG (RP)</span>
+                      <div className="text-lg font-black text-stone-800 leading-none">
+                        {formatCurrency(orders.filter(o => o.namaLokasi === selectedStoreForDetail.namaToko && o.pembayaran === 'FALSE').reduce((sum, o) => sum + (o.jumlahUang || 0), 0))}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="bg-white rounded-[32px] border border-stone-100 p-5 mb-4 shadow-sm h-[320px] flex flex-col">
+                  <div className="flex justify-between items-center mb-4">
+                    <button 
+                      onClick={() => setShowPiutangList(false)}
+                      className="flex items-center gap-1 text-orange-600 active:scale-95 transition-all"
+                    >
+                      <span className="material-symbols-outlined text-lg">arrow_back</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest">Kembali</span>
+                    </button>
+                    <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest">Detail Piutang</span>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto pr-1 space-y-2 custom-scrollbar">
+                    {orders
+                      .filter(o => o.namaLokasi === selectedStoreForDetail.namaToko && o.pembayaran === 'FALSE')
+                      .sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime())
+                      .map((p, idx) => (
+                        <div key={idx} className="bg-stone-50/50 p-3 rounded-2xl border border-stone-100 flex items-center justify-between">
+                          <div className="flex flex-col">
+                            <span className="text-[8px] font-bold text-stone-400 uppercase tracking-widest leading-none mb-1">{p.tanggal}</span>
+                            <span className="text-[10px] font-black text-stone-700 uppercase leading-none">{p.namaKurir}</span>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-[11px] font-black text-orange-600 leading-none mb-0.5">{formatCurrency(p.jumlahUang || 0)}</div>
+                            <div className="text-[8px] font-bold text-stone-400 uppercase tracking-tight">{p.jumlahKirim} PCS</div>
+                          </div>
+                        </div>
+                      ))}
+                    {orders.filter(o => o.namaLokasi === selectedStoreForDetail.namaToko && o.pembayaran === 'FALSE').length === 0 && (
+                      <div className="flex flex-col items-center justify-center h-full opacity-20">
+                        <span className="material-symbols-outlined text-4xl mb-1 text-stone-400">payments</span>
+                        <p className="text-[9px] font-black uppercase tracking-widest">Tidak ada piutang</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3 mb-6">
                 <button 

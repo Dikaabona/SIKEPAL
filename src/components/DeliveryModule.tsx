@@ -65,6 +65,8 @@ interface DeliveryModuleProps {
   deliveries: DeliveryRecord[];
   userRole: UserRole;
   employees: Employee[]; // Add employees to props
+  currentUserName?: string;
+  currentUserDivision?: string;
   onSaveDelivery: (delivery: DeliveryRecord) => Promise<void>;
   onDeleteDelivery: (id: string) => Promise<void>;
   onBulkDelete?: (ids: string[]) => Promise<void>;
@@ -85,6 +87,8 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   deliveries, 
   userRole,
   employees = [], // Default to empty array
+  currentUserName,
+  currentUserDivision,
   onSaveDelivery,
   onDeleteDelivery,
   onBulkDelete,
@@ -103,7 +107,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   }, [orders]);
 
   const [formData, setFormData] = useState({
-    namaKurir: '',
+    namaKurir: currentUserDivision?.toLowerCase() === 'kurir' && title === "Billing Report" ? currentUserName || '' : '',
     tanggal: getLocalDateString(),
     namaLokasi: '',
     fotoBukti: '',
@@ -221,9 +225,11 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   const [orderLokasiSearch, setOrderLokasiSearch] = useState('');
   const [showOrderLokasiDropdown, setShowOrderLokasiDropdown] = useState(false);
 
-  // Filters for Billing Report
-  const [filterCourier, setFilterCourier] = useState('');
-  const [filterDate, setFilterDate] = useState('');
+  // Filters for Billing/Delivery Report
+  const [filterCourier, setFilterCourier] = useState(() => 
+    currentUserDivision?.toLowerCase() === 'kurir' ? currentUserName || '' : ''
+  );
+  const [filterDate, setFilterDate] = useState(getLocalDateString());
 
   const filteredDeliveries = useMemo(() => {
     return deliveries.filter(d => {

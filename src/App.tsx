@@ -1593,6 +1593,8 @@ export default function App() {
             deliveries={deliveries}
             employees={employees}
             userRole={userRole}
+            currentUserName={currentUserEmployee?.nama}
+            currentUserDivision={currentUserEmployee?.division}
             onSaveDelivery={handleSaveDelivery}
             onDeleteDelivery={handleDeleteDelivery}
             onBulkDelete={handleBulkDeleteDelivery}
@@ -1641,6 +1643,9 @@ export default function App() {
             stores={stores} 
             deliveries={billingReports as any}
             userRole={userRole}
+            employees={employees}
+            currentUserName={currentUserEmployee?.nama}
+            currentUserDivision={currentUserEmployee?.division}
             onSaveDelivery={handleSaveBillingReport as any}
             onDeleteDelivery={handleDeleteBillingReport}
             onBulkDelete={handleBulkDeleteBillingReport}
