@@ -10,6 +10,8 @@ interface CourierCashModuleProps {
   coaAccounts: COAAccount[];
   company: string;
   userRole: UserRole;
+  currentUserName?: string;
+  currentUserDivision?: string;
   onSave: (record: CourierCashRecord) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }
@@ -22,16 +24,15 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
   coaAccounts,
   company, 
   userRole,
+  currentUserName,
+  currentUserDivision,
   onSave, 
   onDelete 
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
-  });
+  const [startDate, setStartDate] = useState(getLocalDateString());
   const [endDate, setEndDate] = useState(getLocalDateString());
   const [filterKurir, setFilterKurir] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,7 +40,7 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
 
   const [formData, setFormData] = useState<Partial<CourierCashRecord>>({
     tanggal: getLocalDateString(),
-    nama_kurir: '',
+    nama_kurir: currentUserDivision?.toLowerCase() === 'kurir' ? currentUserName : '',
     tipe: 'Masuk',
     jumlah: 0,
     keterangan: '',
@@ -150,7 +151,7 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
   const resetForm = () => {
     setFormData({
       tanggal: getLocalDateString(),
-      nama_kurir: '',
+      nama_kurir: currentUserDivision?.toLowerCase() === 'kurir' ? currentUserName : '',
       tipe: 'Masuk',
       jumlah: 0,
       keterangan: '',

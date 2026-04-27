@@ -1671,6 +1671,8 @@ export default function App() {
             coaAccounts={coaAccounts}
             company={userCompany}
             userRole={userRole}
+            currentUserName={currentUserEmployee?.nama}
+            currentUserDivision={currentUserEmployee?.division}
             onSave={handleSaveCourierCash}
             onDelete={handleDeleteCourierCash}
           />
