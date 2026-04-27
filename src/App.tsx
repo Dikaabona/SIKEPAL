@@ -4,8 +4,9 @@ import { supabase } from './lib/supabase';
 import StoreDatabase from './components/StoreDatabase';
 import OrderDatabase from './components/OrderDatabase';
 import PiutangModule from './components/PiutangModule';
-import { ActiveTab, Employee, AttendanceRecord, Submission, Broadcast, LiveSchedule, Shift, ShiftAssignment, Store, Order, UserRole, DeliveryRecord, BillingRecord, CourierCashRecord, COAAccount, AccountingJournal, Division, Position, BranchLocation } from './types';
+import { ActiveTab, Employee, AttendanceRecord, Submission, Broadcast, LiveSchedule, Shift, ShiftAssignment, Store, Order, UserRole, DeliveryRecord, BillingRecord, CourierCashRecord, COAAccount, AccountingJournal, Division, Position, BranchLocation, SalesReportEntry } from './types';
 import { Icons, DEFAULT_SHIFTS } from './constants';
+import { getLocalDateString } from './lib/utils';
 import Dashboard from './components/Dashboard';
 import AttendanceModule from './components/AttendanceModule';
 import EmployeeForm from './components/EmployeeForm';
@@ -255,6 +256,7 @@ export default function App() {
   const [expandedMenus, setExpandedMenus] = useState<string[]>(['attendance', 'database', 'report']);
   const [stores, setStores] = useState<Store[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [salesReports, setSalesReports] = useState<SalesReportEntry[]>([]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileQuickMenuOpen, setIsMobileQuickMenuOpen] = useState(false);
@@ -280,8 +282,8 @@ export default function App() {
   const [userCompany, setUserCompany] = useState('Sikepal');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(getLocalDateString());
+  const [endDate, setEndDate] = useState(getLocalDateString());
   const [session, setSession] = useState<Session | null>(null);
   const [prefillData, setPrefillData] = useState<{ location: string; type: 'delivery' | 'billing'; courier?: string } | null>(null);
   const [returnStoreId, setReturnStoreId] = useState<string | null>(null);
@@ -319,6 +321,58 @@ export default function App() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const fetchSalesReports = async () => {
+    try {
+      const allData: any[] = [];
+      let from = 0;
+      let to = 999;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('sales_reports')
+          .select('*')
+          .range(from, to);
+        
+        if (error) throw error;
+        if (data && data.length > 0) {
+          allData.push(...data);
+          if (data.length < 1000) hasMore = false;
+          else { from += 1000; to += 1000; }
+        } else {
+          hasMore = false;
+        }
+      }
+      setSalesReports(allData.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
+    } catch (e) {
+      console.warn('Sales reports table might not exist yet');
+      setSalesReports([]);
+    }
+  };
+
+  const handleSaveSalesReport = async (report: SalesReportEntry) => {
+    try {
+      const { error } = await supabase.from('sales_reports').upsert(report);
+      if (error) throw error;
+      await fetchSalesReports(); // Refresh local state
+    } catch (error: any) {
+      console.error('Error saving sales report:', error);
+      alert('Gagal menyimpan sales report: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const handleDeleteSalesReport = async (id: string) => {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus sales report ini?')) return;
+    try {
+      const { error } = await supabase.from('sales_reports').delete().eq('id', id);
+      if (error) throw error;
+      await fetchSalesReports(); // Refresh local state
+    } catch (error: any) {
+      console.error('Error deleting sales report:', error);
+      alert('Gagal menghapus sales report: ' + (error.message || 'Unknown error'));
+    }
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -526,6 +580,10 @@ export default function App() {
       }
     };
 
+    const fetchSalesReportsInternal = async () => {
+      await fetchSalesReports();
+    };
+
     const fetchStaticData = async () => {
       try {
         const { data: divData } = await supabase.from('divisions').select('*');
@@ -550,6 +608,7 @@ export default function App() {
       deliveries: fetchDeliveries,
       billing_reports: fetchBillingReports,
       courier_cash: fetchCourierCash,
+      sales_reports: fetchSalesReportsInternal,
       coa_accounts: fetchCOA,
       accounting_journals: fetchJournals,
       divisions: fetchStaticData,
@@ -589,6 +648,7 @@ export default function App() {
           fetchDeliveries(),
           fetchBillingReports(),
           fetchCourierCash(),
+          fetchSalesReports(),
           fetchCOA(),
           fetchJournals()
         ]).then((results) => {
@@ -1555,7 +1615,18 @@ export default function App() {
         );
       case 'report':
       case 'sales_report':
-        return <SalesReport company={userCompany} />;
+        return (
+          <SalesReport 
+            company={userCompany} 
+            reports={salesReports}
+            onSave={handleSaveSalesReport}
+            onDelete={handleDeleteSalesReport}
+            employees={employees}
+            stores={stores}
+            currentUser={currentUserEmployee}
+            authUserId={session?.user?.id}
+          />
+        );
       case 'print_admin':
         return <PrintAdmin company={userCompany} orders={orders} />;
       case 'report_order':
@@ -2160,6 +2231,7 @@ export default function App() {
                   { id: 'order_database', label: 'Data Orderan', icon: 'receipt_long', color: 'bg-emerald-500' },
                   { id: 'delivery', label: 'Delivery Report', icon: 'local_shipping', color: 'bg-blue-500' },
                   { id: 'billing_report', label: 'Billing Report', icon: 'payments', color: 'bg-purple-500' },
+                  { id: 'sales_report', label: 'Sales Report', icon: 'trending_up', color: 'bg-stone-500' },
                   { id: 'production', label: 'Produksi', icon: 'inventory', color: 'bg-orange-100', isImage: true, imageUrl: 'https://lh3.googleusercontent.com/d/1xnGnOOO6RvjqUW4MTVx9-u7yDTE-qBxl' }
                 ].map((menu) => (
                   <button

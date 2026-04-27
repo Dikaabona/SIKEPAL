@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { CourierCashRecord, Employee, UserRole, COAAccount } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
@@ -38,14 +38,97 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [zoomImage, setZoomImage] = useState<string | null>(null);
 
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  // Handle camera stream attachment when isCameraActive becomes true
+  useEffect(() => {
+    const enableCamera = async () => {
+      if (isCameraActive && videoRef.current) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: 'environment' } 
+          });
+          streamRef.current = stream;
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        } catch (err) {
+          console.error("Error accessing camera:", err);
+          alert("Tidak dapat mengakses kamera. Pastikan izin kamera telah diberikan.");
+          setIsCameraActive(false);
+        }
+      }
+    };
+
+    enableCamera();
+
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+    };
+  }, [isCameraActive]);
+
+  const startCamera = () => {
+    setIsCameraActive(true);
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      
+      // Draw to canvas with smaller dimensions for compression
+      const MAX_WIDTH = 800;
+      const MAX_HEIGHT = 600;
+      let width = video.videoWidth;
+      let height = video.videoHeight;
+
+      if (width > height) {
+        if (width > MAX_WIDTH) {
+          height *= MAX_WIDTH / width;
+          width = MAX_WIDTH;
+        }
+      } else {
+        if (height > MAX_HEIGHT) {
+          width *= MAX_HEIGHT / height;
+          height = MAX_HEIGHT;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d');
+      if (context) {
+        context.drawImage(video, 0, 0, width, height);
+        // Compress to 0.7 quality to save space
+        const photoData = canvas.toDataURL('image/jpeg', 0.7);
+        setFormData(prev => ({ ...prev, bukti_url: photoData }));
+        stopCamera();
+      }
+    }
+  };
+
   const [formData, setFormData] = useState<Partial<CourierCashRecord>>({
     tanggal: getLocalDateString(),
     nama_kurir: currentUserDivision?.toLowerCase() === 'kurir' ? currentUserName : '',
-    tipe: 'Masuk',
+    tipe: currentUserDivision?.toLowerCase() === 'kurir' ? 'Keluar' : 'Masuk',
     jumlah: 0,
     keterangan: '',
-    debit_account: 'Kas',
-    credit_account: ''
+    debit_account: currentUserDivision?.toLowerCase() === 'kurir' ? 'Biaya Pengiriman' : 'Kas',
+    credit_account: currentUserDivision?.toLowerCase() === 'kurir' ? 'Kas' : ''
   });
 
   const filteredCOA = useMemo(() => {
@@ -152,11 +235,11 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
     setFormData({
       tanggal: getLocalDateString(),
       nama_kurir: currentUserDivision?.toLowerCase() === 'kurir' ? currentUserName : '',
-      tipe: 'Masuk',
+      tipe: currentUserDivision?.toLowerCase() === 'kurir' ? 'Keluar' : 'Masuk',
       jumlah: 0,
       keterangan: '',
-      debit_account: 'Kas',
-      credit_account: ''
+      debit_account: currentUserDivision?.toLowerCase() === 'kurir' ? 'Biaya Pengiriman' : 'Kas',
+      credit_account: currentUserDivision?.toLowerCase() === 'kurir' ? 'Kas' : ''
     });
     setEditingId(null);
   };
@@ -626,29 +709,73 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
                   <div className="space-y-0.5 md:space-y-1">
                     <label className="text-[7px] md:text-[9px] font-black text-stone-400 uppercase tracking-widest ml-1">Upload Bukti</label>
                     <div className="flex items-center gap-1.5 md:gap-3">
-                      <label className="flex-1 cursor-pointer">
-                        <div className="border border-dashed border-stone-200 rounded-lg md:rounded-xl py-1.5 md:py-3 flex flex-col items-center justify-center bg-stone-50">
-                          <span className="material-symbols-outlined text-stone-400 text-xs md:text-sm">upload_file</span>
-                          <span className="text-[6px] md:text-[8px] font-black text-stone-400 uppercase tracking-tight">Upload</span>
+                      {isCameraActive ? (
+                        <div className="relative flex-1 group">
+                          <div className="relative aspect-video md:aspect-square bg-black rounded-lg md:rounded-xl overflow-hidden shadow-2xl ring-4 ring-white border border-stone-200">
+                            <video 
+                              ref={videoRef} 
+                              autoPlay 
+                              playsInline 
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-x-0 bottom-0 p-2 md:p-4 bg-gradient-to-t from-black/60 to-transparent flex justify-center gap-2">
+                              <button
+                                type="button"
+                                onClick={capturePhoto}
+                                className="w-8 h-8 md:w-12 md:h-12 bg-white rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-transform"
+                                title="Ambil Foto"
+                              >
+                                <span className="material-symbols-outlined text-stone-900 text-lg md:text-2xl">photo_camera</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={stopCamera}
+                                className="w-8 h-8 md:w-12 md:h-12 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-transform"
+                                title="Batal"
+                              >
+                                <span className="material-symbols-outlined text-lg md:text-2xl">close</span>
+                              </button>
+                            </div>
+                          </div>
+                          <canvas ref={canvasRef} className="hidden" />
                         </div>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleFileUpload}
-                          className="hidden"
-                        />
-                      </label>
-                      {formData.bukti_url && (
-                        <div className="relative w-8 h-8 md:w-14 md:h-14 rounded-lg md:rounded-xl overflow-hidden shadow-sm border border-stone-100">
-                          <img src={formData.bukti_url} alt="Preview" className="w-full h-full object-cover" />
-                          <button
-                            type="button"
-                            onClick={() => setFormData({ ...formData, bukti_url: undefined })}
-                            className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
-                          >
-                            <span className="material-symbols-outlined text-white text-[10px] md:text-sm">delete</span>
-                          </button>
-                        </div>
+                      ) : (
+                        <>
+                          <div className="flex flex-1 gap-1.5 md:gap-2">
+                            <label className="flex-1 cursor-pointer">
+                              <div className="border border-dashed border-stone-200 rounded-lg md:rounded-xl py-1.5 md:py-3 flex flex-col items-center justify-center bg-stone-50 hover:bg-stone-100 transition-colors">
+                                <span className="material-symbols-outlined text-stone-400 text-xs md:text-sm">upload_file</span>
+                                <span className="text-[6px] md:text-[8px] font-black text-stone-400 uppercase tracking-tight">Upload</span>
+                              </div>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleFileUpload}
+                                className="hidden"
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              onClick={startCamera}
+                              className="flex-1 border border-dashed border-stone-200 rounded-lg md:rounded-xl py-1.5 md:py-3 flex flex-col items-center justify-center bg-stone-50 hover:bg-stone-100 transition-colors"
+                            >
+                              <span className="material-symbols-outlined text-stone-400 text-xs md:text-sm">photo_camera</span>
+                              <span className="text-[6px] md:text-[8px] font-black text-stone-400 uppercase tracking-tight">Kamera</span>
+                            </button>
+                          </div>
+                          {formData.bukti_url && (
+                            <div className="relative w-8 h-8 md:w-14 md:h-14 rounded-lg md:rounded-xl overflow-hidden shadow-sm border border-stone-100">
+                              <img src={formData.bukti_url} alt="Preview" className="w-full h-full object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, bukti_url: undefined })}
+                                className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
+                              >
+                                <span className="material-symbols-outlined text-white text-[10px] md:text-sm">delete</span>
+                              </button>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>

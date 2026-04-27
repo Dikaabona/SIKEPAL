@@ -725,7 +725,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                       className="w-full pl-9 pr-3 py-2 rounded-full bg-stone-50 border border-stone-100 focus:ring-2 focus:ring-stone-200 focus:bg-white outline-none transition-all text-[10px] font-black text-stone-800 uppercase tracking-wider shadow-sm cursor-pointer"
                     />
                   </div>
-                  {title === "Billing Report" && (
+                  {(title === "Billing Report" || title === "Delivery Report") && (
                     <>
                       <span className="text-stone-400 font-bold text-[10px]">-</span>
                       <div className="relative min-w-[140px] flex-1 md:flex-none">
@@ -1005,7 +1005,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                                 <span className="material-symbols-outlined text-xs">check_circle</span>
                               </button>
                             )}
-                            {title === "Delivery Report" && associatedOrder && (userRole === 'admin' || userRole === 'owner') && (
+                            {title === "Delivery Report" && associatedOrder && (userRole === 'admin' || userRole === 'owner') && currentUserDivision?.toLowerCase() !== 'kurir' && (
                               <button
                                 onClick={() => {
                                   const orderDateObj = parseIndoDate(associatedOrder.tanggal);
@@ -1125,7 +1125,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                           <span className="material-symbols-outlined text-lg">check_circle</span>
                         </button>
                       )}
-                      {title === "Delivery Report" && associatedOrder && (userRole === 'admin' || userRole === 'owner') && (
+                      {title === "Delivery Report" && associatedOrder && (userRole === 'admin' || userRole === 'owner') && currentUserDivision?.toLowerCase() !== 'kurir' && (
                         <button
                           onClick={() => {
                             const orderDateObj = parseIndoDate(associatedOrder.tanggal);

@@ -2,6 +2,23 @@ import { LucideIcon } from 'lucide-react';
 
 export type UserRole = 'owner' | 'admin' | 'employee';
 
+export interface SalesReportEntry {
+  id: string;
+  tanggal: string;
+  namaPic: string;
+  namaToko: string;
+  noHp: string;
+  reportType: 'Bawa sample' | 'proposal' | 'isi manual';
+  reportVisit: string;
+  fotoTempat?: string;
+  fotoBukti?: string;
+  hasil: 'Reject' | 'Pending' | 'Approve';
+  keterangan: string;
+  company: string;
+  employeeId: string;
+  updatedAt: string;
+}
+
 export type ActiveTab = 
   | 'home' 
   | 'employee_database' 
