@@ -1106,7 +1106,7 @@ export default function App() {
           : a.category === 'Expense' || a.name.toLowerCase().includes('biaya') || a.name.toLowerCase().includes('beban')
       );
 
-      if (kasKurirAcc && balancingAcc) {
+      if (record.status === 'Approved' && kasKurirAcc && balancingAcc) {
         const journal: AccountingJournal = {
           id: `journal_cc_${record.id}`,
           date: record.tanggal,
@@ -1128,6 +1128,10 @@ export default function App() {
           ]
         };
         await handleSaveAccountingJournal(journal);
+      } else if (record.status !== 'Approved') {
+        // Delete linked journal entry if it was previously approved but now retracted/rejected
+        const journalId = `journal_cc_${record.id}`;
+        await handleDeleteAccountingJournal(journalId);
       }
     } catch (error: any) {
       console.error('Error saving courier cash:', error);
@@ -2233,7 +2237,12 @@ export default function App() {
                   { id: 'billing_report', label: 'Billing Report', icon: 'payments', color: 'bg-purple-500' },
                   { id: 'sales_report', label: 'Sales Report', icon: 'trending_up', color: 'bg-stone-500' },
                   { id: 'production', label: 'Produksi', icon: 'inventory', color: 'bg-orange-100', isImage: true, imageUrl: 'https://lh3.googleusercontent.com/d/1xnGnOOO6RvjqUW4MTVx9-u7yDTE-qBxl' }
-                ].map((menu) => (
+                ].filter(menu => {
+                  if (currentUserEmployee?.division?.toLowerCase() === 'kurir') {
+                    return !['sales_report', 'production'].includes(menu.id);
+                  }
+                  return true;
+                }).map((menu) => (
                   <button
                     key={menu.id}
                     onClick={() => {

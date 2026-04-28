@@ -100,6 +100,11 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
 }) => {
   // Extract unique courier names from orders
   const courierOptions = useMemo(() => {
+    // SECURITY: If kurir in Billing Report or Delivery Report, they can ONLY see their own name
+    if ((title === "Billing Report" || title === "Delivery Report") && currentUserDivision?.toLowerCase() === 'kurir') {
+      return [currentUserName || ''].filter(Boolean);
+    }
+
     const names = orders
       .map(order => order.namaKurir)
       .filter((name): name is string => !!name && name.trim() !== '');
@@ -107,7 +112,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   }, [orders]);
 
   const [formData, setFormData] = useState({
-    namaKurir: currentUserDivision?.toLowerCase() === 'kurir' && title === "Billing Report" ? currentUserName || '' : '',
+    namaKurir: currentUserDivision?.toLowerCase() === 'kurir' && (title === "Billing Report" || title === "Delivery Report") ? currentUserName || '' : '',
     tanggal: getLocalDateString(),
     namaLokasi: '',
     fotoBukti: '',
@@ -235,6 +240,11 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
 
   const filteredDeliveries = useMemo(() => {
     return deliveries.filter(d => {
+      // SECURITY: If kurir in Billing Report or Delivery Report, they can ONLY see their own data
+      if ((title === "Billing Report" || title === "Delivery Report") && currentUserDivision?.toLowerCase() === 'kurir') {
+        if (d.namaKurir !== currentUserName) return false;
+      }
+
       const matchesCourier = !filterCourier || d.namaKurir === filterCourier;
       
       let matchesDate = true;
@@ -702,19 +712,21 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
           <div className="flex flex-wrap items-center gap-3">
             {(title === "Billing Report" || title === "Delivery Report") && (
               <>
-                <div className="relative min-w-[160px]">
-                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 text-lg">person</span>
-                  <select
-                    value={filterCourier}
-                    onChange={(e) => setFilterCourier(e.target.value)}
-                    className="w-full pl-11 pr-8 py-2.5 rounded-full bg-stone-50 border border-stone-100 focus:ring-2 focus:ring-stone-200 focus:bg-white outline-none transition-all text-[11px] font-black text-stone-800 uppercase appearance-none cursor-pointer tracking-wider shadow-sm"
-                  >
-                    <option value="">Semua Kurir</option>
-                    {courierOptions.map(name => (
-                      <option key={name} value={name}>{name}</option>
-                    ))}
-                  </select>
-                </div>
+                {!((title === "Billing Report" || title === "Delivery Report") && currentUserDivision?.toLowerCase() === 'kurir') && (
+                  <div className="relative min-w-[160px]">
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 text-lg">person</span>
+                    <select
+                      value={filterCourier}
+                      onChange={(e) => setFilterCourier(e.target.value)}
+                      className="w-full pl-11 pr-8 py-2.5 rounded-full bg-stone-50 border border-stone-100 focus:ring-2 focus:ring-stone-200 focus:bg-white outline-none transition-all text-[11px] font-black text-stone-800 uppercase appearance-none cursor-pointer tracking-wider shadow-sm"
+                    >
+                      <option value="">Semua Kurir</option>
+                      {courierOptions.map(name => (
+                        <option key={name} value={name}>{name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="relative min-w-[140px] flex-1 md:flex-none">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">calendar_today</span>
@@ -1760,9 +1772,10 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                       <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nama Kurir</label>
                       <select
                         required
+                        disabled={(title === "Billing Report" || title === "Delivery Report") && currentUserDivision?.toLowerCase() === 'kurir'}
                         value={formData.namaKurir}
                         onChange={(e) => setFormData({...formData, namaKurir: e.target.value})}
-                        className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium appearance-none cursor-pointer"
+                        className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-medium appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <option value="" disabled>Pilih Kurir</option>
                         {courierOptions.length > 0 ? (

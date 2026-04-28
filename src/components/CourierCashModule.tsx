@@ -16,8 +16,6 @@ interface CourierCashModuleProps {
   onDelete: (id: string) => Promise<void>;
 }
 
-const ITEMS_PER_PAGE = 10;
-
 const CourierCashModule: React.FC<CourierCashModuleProps> = ({ 
   records, 
   employees, 
@@ -32,6 +30,7 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [startDate, setStartDate] = useState(getLocalDateString());
   const [endDate, setEndDate] = useState(getLocalDateString());
   const [filterKurir, setFilterKurir] = useState('');
@@ -139,6 +138,12 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
     return records
       .filter(r => {
         const matchesCompany = r.company === company;
+        
+        // SECURITY: If kurir, ONLY see own data
+        if (currentUserDivision?.toLowerCase() === 'kurir' && r.nama_kurir !== currentUserName) {
+          return false;
+        }
+
         const matchesDate = r.tanggal >= startDate && r.tanggal <= endDate;
         const matchesKurir = !filterKurir || r.nama_kurir === filterKurir;
         const matchesSearch = !searchQuery || 
@@ -151,24 +156,36 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
       })
       .sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime() || 
                        new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [records, company, startDate, endDate, filterKurir, searchQuery]);
+  }, [records, company, startDate, endDate, filterKurir, searchQuery, currentUserDivision, currentUserName]);
 
   const couriers = useMemo(() => {
+    if (currentUserDivision?.toLowerCase() === 'kurir') {
+      return [currentUserName].filter(Boolean) as string[];
+    }
     return employees
       .filter(e => e.division?.toLowerCase() === 'kurir' || e.jabatan?.toLowerCase() === 'kurir')
       .map(e => e.nama)
       .sort();
-  }, [employees]);
+  }, [employees, currentUserDivision, currentUserName]);
 
   useEffect(() => {
     if (!editingId) {
+      const isKurir = currentUserDivision?.toLowerCase() === 'kurir';
       if (formData.tipe === 'Masuk') {
-        setFormData(prev => ({ ...prev, debit_account: 'Kas', credit_account: '' }));
+        setFormData(prev => ({ 
+          ...prev, 
+          debit_account: 'Kas', 
+          credit_account: isKurir ? 'Pendapatan' : '' 
+        }));
       } else {
-        setFormData(prev => ({ ...prev, debit_account: '', credit_account: 'Kas' }));
+        setFormData(prev => ({ 
+          ...prev, 
+          debit_account: isKurir ? 'Biaya Pengiriman' : '', 
+          credit_account: 'Kas' 
+        }));
       }
     }
-  }, [formData.tipe, editingId]);
+  }, [formData.tipe, editingId, currentUserDivision]);
 
   const stats = useMemo(() => {
     return filteredRecords.reduce((acc, curr) => {
@@ -210,7 +227,7 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
       return;
     }
 
-    const recordToSave: any = {
+    const recordToSave: CourierCashRecord = {
       id: editingId || `cash_${Date.now()}`,
       tanggal: formData.tanggal!,
       nama_kurir: formData.nama_kurir!,
@@ -219,6 +236,9 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
       keterangan: formData.keterangan || '',
       jurnal: `${formData.debit_account} / ${formData.credit_account}`,
       bukti_url: formData.bukti_url,
+      status: editingId 
+        ? (records.find(r => r.id === editingId)?.status || 'Approved')
+        : (currentUserDivision?.toLowerCase() === 'kurir' ? 'Pending' : 'Approved'),
       company,
       created_at: editingId ? (records.find(r => r.id === editingId)?.created_at || new Date().toISOString()) : new Date().toISOString()
     };
@@ -232,20 +252,33 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
   };
 
   const resetForm = () => {
+    const isKurir = currentUserDivision?.toLowerCase() === 'kurir';
+    const isMasuk = !isKurir; // Default to Masuk for non-kurir, Keluar for kurir
+    
     setFormData({
       tanggal: getLocalDateString(),
-      nama_kurir: currentUserDivision?.toLowerCase() === 'kurir' ? currentUserName : '',
-      tipe: currentUserDivision?.toLowerCase() === 'kurir' ? 'Keluar' : 'Masuk',
+      nama_kurir: isKurir ? currentUserName : '',
+      tipe: isKurir ? 'Keluar' : 'Masuk',
       jumlah: 0,
       keterangan: '',
-      debit_account: currentUserDivision?.toLowerCase() === 'kurir' ? 'Biaya Pengiriman' : 'Kas',
-      credit_account: currentUserDivision?.toLowerCase() === 'kurir' ? 'Kas' : ''
+      debit_account: isKurir ? 'Biaya Pengiriman' : (isMasuk ? 'Kas' : ''),
+      credit_account: isKurir ? 'Kas' : (isMasuk ? '' : 'Kas')
     });
     setEditingId(null);
   };
 
-  const paginatedData = filteredRecords.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-  const totalPages = Math.ceil(filteredRecords.length / ITEMS_PER_PAGE);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [startDate, endDate, filterKurir, searchQuery]);
+
+  const paginatedData = useMemo(() => {
+    return filteredRecords.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  }, [filteredRecords, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
+
+  const startIdx = filteredRecords.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+  const endIdx = Math.min(currentPage * itemsPerPage, filteredRecords.length);
 
   return (
     <div className="space-y-6">
@@ -327,17 +360,19 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
               />
             </div>
           </div>
-          <div className="w-full md:w-[200px]">
-            <label className="text-[8px] md:text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Kurir</label>
-            <select
-              value={filterKurir}
-              onChange={(e) => setFilterKurir(e.target.value)}
-              className="w-full mt-1 px-3 py-2 md:py-3 bg-stone-50 border border-stone-100 rounded-xl md:rounded-2xl text-[10px] md:text-sm font-bold focus:outline-none appearance-none"
-            >
-              <option value="">Semua Kurir</option>
-              {couriers.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
+          {currentUserDivision?.toLowerCase() !== 'kurir' && (
+            <div className="w-full md:w-[200px]">
+              <label className="text-[8px] md:text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Kurir</label>
+              <select
+                value={filterKurir}
+                onChange={(e) => setFilterKurir(e.target.value)}
+                className="w-full mt-1 px-3 py-2 md:py-3 bg-stone-50 border border-stone-100 rounded-xl md:rounded-2xl text-[10px] md:text-sm font-bold focus:outline-none appearance-none"
+              >
+                <option value="">Semua Kurir</option>
+                {couriers.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 
@@ -354,6 +389,7 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
                 <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">Kredit</th>
                 <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">Tipe</th>
                 <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">Jumlah</th>
+                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">Status</th>
                 <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest">Keterangan</th>
                 <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center">Bukti Foto</th>
                 <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-right">Aksi</th>
@@ -396,6 +432,15 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
                       {record.tipe === 'Masuk' ? '+' : '-'} Rp {record.jumlah.toLocaleString('id-ID')}
                     </span>
                   </td>
+                  <td className="px-6 py-4 text-center">
+                    <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase ${
+                      record.status === 'Approved' ? 'bg-emerald-100 text-emerald-600' :
+                      record.status === 'Rejected' ? 'bg-red-100 text-red-600' :
+                      'bg-amber-100 text-amber-600'
+                    }`}>
+                      {record.status || 'Approved'}
+                    </span>
+                  </td>
                   <td className="px-6 py-4">
                     <span className="text-xs text-stone-500 font-medium">{record.keterangan || '-'}</span>
                   </td>
@@ -428,6 +473,24 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2 text-stone-400">
+                      {(userRole === 'owner' || userRole === 'admin') && record.status === 'Pending' && (
+                        <>
+                          <button
+                            onClick={() => onSave({ ...record, status: 'Approved' })}
+                            className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                            title="Approve"
+                          >
+                            <span className="material-symbols-outlined text-lg">check_circle</span>
+                          </button>
+                          <button
+                            onClick={() => onSave({ ...record, status: 'Rejected' })}
+                            className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                            title="Reject"
+                          >
+                            <span className="material-symbols-outlined text-lg">cancel</span>
+                          </button>
+                        </>
+                      )}
                       <button
                         onClick={() => handleEdit(record)}
                         className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
@@ -477,9 +540,18 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
               <div className="flex items-center justify-between py-3 border-y border-stone-50">
                 <div className="flex flex-col">
                   <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest mb-1">JUMLAH</span>
-                  <span className={`text-lg font-black ${record.tipe === 'Masuk' ? 'text-green-600' : 'text-red-600'}`}>
-                    {record.tipe === 'Masuk' ? '+' : '-'} Rp {record.jumlah.toLocaleString('id-ID')}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-lg font-black ${record.tipe === 'Masuk' ? 'text-green-600' : 'text-red-600'}`}>
+                      {record.tipe === 'Masuk' ? '+' : '-'} Rp {record.jumlah.toLocaleString('id-ID')}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${
+                      record.status === 'Approved' ? 'bg-emerald-100 text-emerald-600' :
+                      record.status === 'Rejected' ? 'bg-red-100 text-red-600' :
+                      'bg-amber-100 text-amber-600'
+                    }`}>
+                      {record.status || 'Approved'}
+                    </span>
+                  </div>
                 </div>
                 {record.bukti_url && (
                   <button 
@@ -516,6 +588,24 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
               )}
 
               <div className="flex gap-2 pt-2">
+                {(userRole === 'owner' || userRole === 'admin') && record.status === 'Pending' && (
+                  <>
+                    <button
+                      onClick={() => onSave({ ...record, status: 'Approved' })}
+                      className="flex-1 py-3 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2"
+                    >
+                      <span className="material-symbols-outlined text-sm">check_circle</span>
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => onSave({ ...record, status: 'Rejected' })}
+                      className="flex-1 py-3 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2"
+                    >
+                      <span className="material-symbols-outlined text-sm">cancel</span>
+                      Reject
+                    </button>
+                  </>
+                )}
                 <button
                   onClick={() => handleEdit(record)}
                   className="flex-1 py-3 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2"
@@ -542,16 +632,34 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
         )}
 
         {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="px-6 py-4 bg-stone-50 border-t border-stone-100 flex items-center justify-between">
-            <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">
-              Showing <span className="text-stone-900">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="text-stone-900">{Math.min(currentPage * ITEMS_PER_PAGE, filteredRecords.length)}</span> of <span className="text-stone-900">{filteredRecords.length}</span> results
+        <div className="px-6 py-4 bg-stone-50 border-t border-stone-100 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest leading-none">
+              MENAMPILKAN {startIdx} SAMPAI {endIdx} DARI {filteredRecords.length} DATA
             </p>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest leading-none">TAMPILKAN:</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="bg-white border border-stone-200 rounded-lg px-2 py-1 text-[10px] font-black text-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-200"
+              >
+                {[10, 30, 50, 100].map(val => (
+                  <option key={val} value={val}>{val}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {totalPages > 1 && (
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="p-1.5 rounded-xl hover:bg-white disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                className="p-1.5 rounded-xl hover:bg-white disabled:opacity-30 disabled:hover:bg-transparent transition-all border border-stone-200 bg-white"
               >
                 <span className="material-symbols-outlined text-stone-600 text-sm">chevron_left</span>
               </button>
@@ -564,7 +672,7 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
                     className={`w-7 h-7 rounded-lg text-[10px] font-black transition-all ${
                       currentPage === page 
                         ? 'bg-stone-900 text-white shadow-lg shadow-stone-900/20' 
-                        : 'text-stone-400 hover:bg-white hover:text-stone-600'
+                        : 'text-stone-400 hover:bg-white hover:text-stone-600 border border-transparent'
                     }`}
                   >
                     {page}
@@ -574,13 +682,13 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="p-1.5 rounded-xl hover:bg-white disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                className="p-1.5 rounded-xl hover:bg-white disabled:opacity-30 disabled:hover:bg-transparent transition-all border border-stone-200 bg-white"
               >
                 <span className="material-symbols-outlined text-stone-600 text-sm">chevron_right</span>
               </button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Modal */}
@@ -677,9 +785,10 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
                     <label className="text-[7px] md:text-[9px] font-black text-stone-400 uppercase tracking-widest ml-1">Kurir</label>
                     <select
                       required
+                      disabled={currentUserDivision?.toLowerCase() === 'kurir'}
                       value={formData.nama_kurir}
                       onChange={(e) => setFormData({ ...formData, nama_kurir: e.target.value })}
-                      className="w-full px-2 py-1.5 md:px-4 md:py-2.5 bg-stone-50 border border-stone-100 rounded-lg md:rounded-xl text-[10px] md:text-sm font-bold focus:outline-none appearance-none"
+                      className="w-full px-2 py-1.5 md:px-4 md:py-2.5 bg-stone-50 border border-stone-100 rounded-lg md:rounded-xl text-[10px] md:text-sm font-bold focus:outline-none appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <option value="">Pilih</option>
                       {couriers.map(c => <option key={c} value={c}>{c}</option>)}

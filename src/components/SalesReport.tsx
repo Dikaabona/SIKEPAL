@@ -38,7 +38,7 @@ const SalesReport: React.FC<SalesReportProps> = ({
     namaPic: '',
     namaToko: '',
     noHp: '',
-    reportType: 'Bawa sample',
+    reportType: '',
     reportVisit: '',
     hasil: 'Pending',
     keterangan: '',
@@ -131,8 +131,9 @@ const SalesReport: React.FC<SalesReportProps> = ({
       namaPic: '',
       namaToko: '',
       noHp: '',
-      reportType: 'Bawa sample',
+      reportType: '',
       reportVisit: '',
+      jumlahSample: undefined,
       hasil: 'Pending',
       keterangan: '',
       fotoTempat: undefined,
@@ -165,8 +166,9 @@ const SalesReport: React.FC<SalesReportProps> = ({
       namaPic: formData.namaPic || '',
       namaToko: formData.namaToko || '',
       noHp: formData.noHp || '',
-      reportType: formData.reportType || 'Bawa sample',
+      reportType: formData.reportType || '',
       reportVisit: formData.reportVisit || '',
+      jumlahSample: formData.jumlahSample,
       fotoTempat: formData.fotoTempat,
       fotoBukti: formData.fotoBukti,
       hasil: formData.hasil || 'Pending',
@@ -257,7 +259,18 @@ const SalesReport: React.FC<SalesReportProps> = ({
             
             <div className="bg-stone-50 p-3 rounded-2xl space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-[8px] font-black text-stone-400 uppercase tracking-widest">{report.reportType}</span>
+                <div className="flex flex-wrap gap-1">
+                  {(report.reportType || '').split(',').map(s => s.trim()).filter(Boolean).map((type, idx) => (
+                    <span key={idx} className="bg-stone-100 text-stone-400 px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest">
+                      {type === 'Bawa sample' ? 'Sample' : type}
+                    </span>
+                  ))}
+                  {report.reportType?.includes('Sample') && report.jumlahSample && (
+                    <span className="bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest">
+                      {report.jumlahSample.toLocaleString('id-ID')} PCS
+                    </span>
+                  )}
+                </div>
                 <div className="flex gap-1.5">
                   {report.fotoTempat && (
                     <div className="w-8 h-8 rounded-lg overflow-hidden border border-stone-200" onClick={() => setZoomImage(report.fotoTempat || null)}>
@@ -331,9 +344,18 @@ const SalesReport: React.FC<SalesReportProps> = ({
                   </td>
                   <td className="px-6 py-5 text-xs font-bold text-stone-600">{report.noHp}</td>
                   <td className="px-6 py-5">
-                    <span className="px-2 py-1 bg-stone-100 text-stone-600 rounded-lg text-[9px] font-black uppercase tracking-widest">
-                      {report.reportType}
-                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {(report.reportType || '').split(',').map(s => s.trim()).filter(Boolean).map((type, idx) => (
+                        <span key={idx} className="px-2 py-0.5 bg-stone-100 text-stone-600 rounded-md text-[8px] font-black uppercase tracking-widest whitespace-nowrap">
+                          {type === 'Bawa sample' ? 'Sample' : type}
+                        </span>
+                      ))}
+                      {report.reportType?.includes('Sample') && report.jumlahSample && (
+                        <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-md text-[8px] font-black uppercase tracking-widest whitespace-nowrap">
+                          {report.jumlahSample.toLocaleString('id-ID')} PCS
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-5 min-w-[200px]">
                     <p className="text-[11px] text-stone-500 leading-relaxed italic">{report.reportVisit}</p>
@@ -449,23 +471,10 @@ const SalesReport: React.FC<SalesReportProps> = ({
                     <label className="text-[9px] md:text-[10px] font-black text-stone-400 uppercase ml-1">Nama Toko</label>
                     <input
                       type="text"
-                      list="store-suggestions"
                       value={formData.namaToko}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        const store = stores.find(s => s.namaToko === val);
-                        setFormData({ 
-                          ...formData, 
-                          namaToko: val,
-                          namaPic: store?.namaPic || formData.namaPic,
-                          noHp: store?.nomorPIC || formData.noHp
-                        });
-                      }}
+                      onChange={(e) => setFormData({ ...formData, namaToko: e.target.value })}
                       className="w-full px-3 md:px-4 py-2 md:py-3 bg-stone-50 border border-stone-100 rounded-xl md:rounded-2xl text-[11px] md:text-xs font-bold focus:ring-2 focus:ring-stone-200 outline-none"
                     />
-                    <datalist id="store-suggestions">
-                      {stores.map(s => <option key={s.id} value={s.namaToko} />)}
-                    </datalist>
                   </div>
                   <div className="space-y-0.5 md:space-y-1">
                     <label className="text-[9px] md:text-[10px] font-black text-stone-400 uppercase ml-1">Nama PIC</label>
@@ -490,17 +499,57 @@ const SalesReport: React.FC<SalesReportProps> = ({
                   </div>
                   <div className="space-y-0.5 md:space-y-1">
                     <label className="text-[9px] md:text-[10px] font-black text-stone-400 uppercase ml-1">Tipe Laporan</label>
-                    <select
-                      value={formData.reportType}
-                      onChange={(e) => setFormData({ ...formData, reportType: e.target.value as any })}
-                      className="w-full px-3 md:px-4 py-2 md:py-3 bg-stone-50 border border-stone-100 rounded-xl md:rounded-2xl text-[11px] md:text-xs font-bold focus:ring-2 focus:ring-stone-200 outline-none"
-                    >
-                      <option value="Bawa sample">Sample</option>
-                      <option value="proposal">Proposal</option>
-                      <option value="isi manual">Manual</option>
-                    </select>
+                    <div className="flex flex-wrap gap-2 p-1 bg-stone-50 rounded-xl md:rounded-2xl border border-stone-100 min-h-[44px] md:min-h-[52px] items-center px-3">
+                      {['Sample', 'Proposal'].map((type) => {
+                        const isSelected = (formData.reportType || '').split(',').map(s => s.trim()).includes(type);
+                        return (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => {
+                              const currentTypes = (formData.reportType || '').split(',').map(s => s.trim()).filter(Boolean);
+                              const newTypes = isSelected 
+                                ? currentTypes.filter(t => t !== type)
+                                : [...currentTypes, type];
+                              setFormData({ ...formData, reportType: newTypes.join(', ') });
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all border ${
+                              isSelected 
+                                ? 'bg-stone-900 text-white border-stone-900 shadow-sm' 
+                                : 'bg-white text-stone-400 border-stone-200 hover:border-stone-400'
+                            }`}
+                          >
+                            {type}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
+
+                {/* Dynamic Sample Field */}
+                {formData.reportType?.includes('Sample') && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-0.5 md:space-y-1"
+                  >
+                    <label className="text-[9px] md:text-[10px] font-black text-stone-400 uppercase ml-1">Sample Yang Dibawa (PCS)</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={formData.jumlahSample?.toLocaleString('id-ID') || ''}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          setFormData({ ...formData, jumlahSample: val ? parseInt(val) : undefined });
+                        }}
+                        placeholder="0"
+                        className="w-full px-3 md:px-4 py-2 md:py-3 bg-stone-50 border border-stone-100 rounded-xl md:rounded-2xl text-[11px] md:text-xs font-black text-stone-900 focus:ring-2 focus:ring-stone-200 outline-none"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-stone-300 uppercase tracking-widest">PCS</span>
+                    </div>
+                  </motion.div>
+                )}
 
                 <div className="space-y-0.5 md:space-y-1">
                   <label className="text-[9px] md:text-[10px] font-black text-stone-400 uppercase ml-1">Report Visit</label>

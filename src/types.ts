@@ -8,8 +8,9 @@ export interface SalesReportEntry {
   namaPic: string;
   namaToko: string;
   noHp: string;
-  reportType: 'Bawa sample' | 'proposal' | 'isi manual';
+  reportType: string;
   reportVisit: string;
+  jumlahSample?: number;
   fotoTempat?: string;
   fotoBukti?: string;
   hasil: 'Reject' | 'Pending' | 'Approve';
@@ -306,6 +307,7 @@ export interface CourierCashRecord {
   debit_account?: string;
   credit_account?: string;
   bukti_url?: string;
+  status?: 'Pending' | 'Approved' | 'Rejected';
   company: string;
   created_at: string;
 }
