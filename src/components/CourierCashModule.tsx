@@ -169,23 +169,42 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
   }, [employees, currentUserDivision, currentUserName]);
 
   useEffect(() => {
-    if (!editingId) {
+    if (!editingId && filteredCOA.length > 0) {
       const isKurir = currentUserDivision?.toLowerCase() === 'kurir';
+      
+      const kasAccount = filteredCOA.find(acc => acc.name.toLowerCase() === 'kas') || 
+                        filteredCOA.find(acc => acc.name.toLowerCase().includes('kas'));
+      
+      const biayaAccount = filteredCOA.find(acc => acc.name.toLowerCase().includes('biaya pengiriman')) ||
+                          filteredCOA.find(acc => acc.name.toLowerCase().includes('pengiriman'));
+
+      const pendapatanAccount = filteredCOA.find(acc => acc.name.toLowerCase().includes('pendapatan'));
+
       if (formData.tipe === 'Masuk') {
-        setFormData(prev => ({ 
-          ...prev, 
-          debit_account: 'Kas', 
-          credit_account: isKurir ? 'Pendapatan' : '' 
-        }));
+        const newDebit = kasAccount?.name || 'Kas';
+        const newCredit = isKurir ? (pendapatanAccount?.name || 'Pendapatan') : '';
+        
+        if (formData.debit_account !== newDebit || formData.credit_account !== newCredit) {
+          setFormData(prev => ({ 
+            ...prev, 
+            debit_account: newDebit, 
+            credit_account: newCredit 
+          }));
+        }
       } else {
-        setFormData(prev => ({ 
-          ...prev, 
-          debit_account: isKurir ? 'Biaya Pengiriman' : '', 
-          credit_account: 'Kas' 
-        }));
+        const newDebit = isKurir ? (biayaAccount?.name || 'Biaya Pengiriman') : '';
+        const newCredit = kasAccount?.name || 'Kas';
+
+        if (formData.debit_account !== newDebit || formData.credit_account !== newCredit) {
+          setFormData(prev => ({ 
+            ...prev, 
+            debit_account: newDebit, 
+            credit_account: newCredit 
+          }));
+        }
       }
     }
-  }, [formData.tipe, editingId, currentUserDivision]);
+  }, [formData.tipe, editingId, currentUserDivision, filteredCOA]);
 
   const stats = useMemo(() => {
     return filteredRecords.reduce((acc, curr) => {
@@ -254,15 +273,32 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
   const resetForm = () => {
     const isKurir = currentUserDivision?.toLowerCase() === 'kurir';
     const isMasuk = !isKurir; // Default to Masuk for non-kurir, Keluar for kurir
+    const tipe = isKurir ? 'Keluar' : 'Masuk';
+
+    const kasAccount = filteredCOA.find(acc => acc.name.toLowerCase() === 'kas') || 
+                      filteredCOA.find(acc => acc.name.toLowerCase().includes('kas'));
+    
+    const biayaAccount = filteredCOA.find(acc => acc.name.toLowerCase().includes('biaya pengiriman')) ||
+                        filteredCOA.find(acc => acc.name.toLowerCase().includes('pengiriman'));
+
+    const pendapatanAccount = filteredCOA.find(acc => acc.name.toLowerCase().includes('pendapatan'));
+
+    const debitAcc = tipe === 'Masuk' 
+      ? (kasAccount?.name || 'Kas')
+      : (isKurir ? (biayaAccount?.name || 'Biaya Pengiriman') : '');
+    
+    const creditAcc = tipe === 'Masuk'
+      ? (isKurir ? (pendapatanAccount?.name || 'Pendapatan') : '')
+      : (kasAccount?.name || 'Kas');
     
     setFormData({
       tanggal: getLocalDateString(),
       nama_kurir: isKurir ? currentUserName : '',
-      tipe: isKurir ? 'Keluar' : 'Masuk',
+      tipe: tipe,
       jumlah: 0,
       keterangan: '',
-      debit_account: isKurir ? 'Biaya Pengiriman' : (isMasuk ? 'Kas' : ''),
-      credit_account: isKurir ? 'Kas' : (isMasuk ? '' : 'Kas')
+      debit_account: debitAcc,
+      credit_account: creditAcc
     });
     setEditingId(null);
   };
