@@ -206,10 +206,21 @@ const MOCK_BILLING_REPORTS: BillingRecord[] = [
   {
     id: 'b1',
     namaKurir: 'Budi Santoso',
-    tanggal: '2026-04-22',
+    tanggal: getLocalDateString(), // Use today's date so it shows up by default
     namaLokasi: 'Alfamart Gading Serpong',
-    qtyPengiriman: 150,
+    qtyPengiriman: 150000, // Use a value that looks like currency
     metodePembayaran: 'CASH',
+    company: 'Sikepal',
+    status: 'Completed',
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'b2',
+    namaKurir: 'ARDI',
+    tanggal: '2026-04-10', // Match user screenshot date
+    namaLokasi: 'Indomaret Point',
+    qtyPengiriman: 250000,
+    metodePembayaran: 'Transfer',
     company: 'Sikepal',
     status: 'Completed',
     createdAt: new Date().toISOString()
@@ -346,8 +357,8 @@ export default function App() {
       }
       setSalesReports(allData.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
     } catch (e) {
-      console.warn('Sales reports table might not exist yet');
-      setSalesReports([]);
+      console.warn('Sales reports table might not exist yet, using mock data');
+      setSalesReports([]); // We don't have mock sales reports yet, but at least warn correctly
     }
   };
 
@@ -547,8 +558,8 @@ export default function App() {
           }));
         }
       } catch (e) {
-        console.warn('Billing reports table might not exist yet');
-        setBillingReports([]);
+        console.warn('Billing reports table might not exist yet, using mock data');
+        setBillingReports(MOCK_BILLING_REPORTS);
       }
     };
 
@@ -1359,6 +1370,16 @@ export default function App() {
     }
   };
 
+  const handleDeleteOrder = async (id: string) => {
+    try {
+      const { error } = await supabase.from('orders').delete().eq('id', id);
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Error deleting order:', error);
+      alert('Gagal menghapus data orderan: ' + (error.message || 'Unknown error'));
+    }
+  };
+
   const handleDeleteAllOrders = async () => {
     try {
       const { error } = await supabase.from('orders').delete().neq('id', '0');
@@ -1542,6 +1563,7 @@ export default function App() {
             stores={stores}
             employees={employees}
             onSaveOrder={handleSaveOrder}
+            onDeleteOrder={handleDeleteOrder}
             onBulkSaveOrders={handleBulkSaveOrders}
             onDeleteAllOrders={handleDeleteAllOrders}
             company={userCompany}

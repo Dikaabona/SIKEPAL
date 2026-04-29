@@ -10,6 +10,7 @@ interface OrderDatabaseProps {
   stores: Store[];
   employees: Employee[];
   onSaveOrder: (order: Order) => Promise<void>;
+  onDeleteOrder: (id: string) => Promise<void>;
   onBulkSaveOrders?: (orders: Order[]) => Promise<void>;
   onDeleteAllOrders: () => Promise<void>;
   company: string;
@@ -26,6 +27,7 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
   stores,
   employees,
   onSaveOrder, 
+  onDeleteOrder,
   onBulkSaveOrders,
   onDeleteAllOrders,
   company,
@@ -1075,6 +1077,17 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                           >
                             <span className="material-symbols-outlined text-lg">edit</span>
                           </button>
+                        <button 
+                          onClick={() => {
+                            if (confirm('Apakah Anda yakin ingin menghapus data orderan ini?')) {
+                              onDeleteOrder(order.id);
+                            }
+                          }}
+                          className="text-stone-400 hover:text-red-500 transition-colors"
+                          title="Hapus"
+                        >
+                          <span className="material-symbols-outlined text-lg">delete</span>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -1162,6 +1175,16 @@ const OrderDatabase: React.FC<OrderDatabaseProps> = ({
                         className="w-10 h-10 rounded-xl bg-stone-50 text-stone-400 flex items-center justify-center border border-stone-100"
                       >
                         <span className="material-symbols-outlined text-lg">edit</span>
+                      </button>
+                      <button 
+                        onClick={() => {
+                          if (confirm('Apakah Anda yakin ingin menghapus data orderan ini?')) {
+                            onDeleteOrder(order.id);
+                          }
+                        }}
+                        className="w-10 h-10 rounded-xl bg-red-50 text-red-400 flex items-center justify-center border border-red-100"
+                      >
+                        <span className="material-symbols-outlined text-lg">delete</span>
                       </button>
                     </div>
                   </div>
