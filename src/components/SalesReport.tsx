@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { SalesReportEntry, Employee, Store, UserRole } from '../types';
+import { compressImage } from '../utils/imageUtils';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import { getLocalDateString } from '../lib/utils';
@@ -76,7 +77,7 @@ const SalesReport: React.FC<SalesReportProps> = ({
     };
   }, [isCameraActive]);
 
-  const capturePhoto = () => {
+  const capturePhoto = async () => {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
@@ -96,8 +97,14 @@ const SalesReport: React.FC<SalesReportProps> = ({
       const context = canvas.getContext('2d');
       if (context) {
         context.drawImage(video, 0, 0, width, height);
-        const photoData = canvas.toDataURL('image/jpeg', 0.7);
-        setFormData(prev => ({ ...prev, [cameraTarget]: photoData }));
+        const photoData = canvas.toDataURL('image/jpeg', 0.8);
+        try {
+          const compressed = await compressImage(photoData);
+          setFormData(prev => ({ ...prev, [cameraTarget]: compressed }));
+        } catch (err) {
+          console.error('Compression error:', err);
+          setFormData(prev => ({ ...prev, [cameraTarget]: photoData }));
+        }
         setIsCameraActive(false);
       }
     }
@@ -107,8 +114,14 @@ const SalesReport: React.FC<SalesReportProps> = ({
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, [target]: reader.result as string }));
+      reader.onloadend = async () => {
+        try {
+          const compressed = await compressImage(reader.result as string);
+          setFormData(prev => ({ ...prev, [target]: compressed }));
+        } catch (err) {
+          console.error('Compression error:', err);
+          setFormData(prev => ({ ...prev, [target]: reader.result as string }));
+        }
       };
       reader.readAsDataURL(file);
     }

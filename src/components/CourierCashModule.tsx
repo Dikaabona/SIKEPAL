@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { CourierCashRecord, Employee, UserRole, COAAccount } from '../types';
+import { compressImage } from '../utils/imageUtils';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import { getLocalDateString, getPaginationRange } from '../lib/utils';
@@ -232,8 +233,14 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData({ ...formData, bukti_url: reader.result as string });
+      reader.onloadend = async () => {
+        try {
+          const compressed = await compressImage(reader.result as string);
+          setFormData({ ...formData, bukti_url: compressed });
+        } catch (err) {
+          console.error('Compression error:', err);
+          setFormData({ ...formData, bukti_url: reader.result as string });
+        }
       };
       reader.readAsDataURL(file);
     }

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Employee, UserRole, Division, Position, BranchLocation } from '../types';
+import { compressImage } from '../utils/imageUtils';
 
 interface EmployeeFormProps {
   employees: Employee[];
@@ -64,8 +65,14 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ initialData, userCompany, o
                     const file = e.target.files?.[0];
                     if (file) {
                       const reader = new FileReader();
-                      reader.onloadend = () => {
-                        setFormData({ ...formData, photo_url: reader.result as string });
+                      reader.onloadend = async () => {
+                        try {
+                          const compressed = await compressImage(reader.result as string);
+                          setFormData({ ...formData, photo_url: compressed });
+                        } catch (err) {
+                          console.error('Compression error:', err);
+                          setFormData({ ...formData, photo_url: reader.result as string });
+                        }
                       };
                       reader.readAsDataURL(file);
                     }

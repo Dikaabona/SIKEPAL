@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Order, DeliveryRecord, BillingRecord } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Order, DeliveryRecord, BillingRecord, CourierCashRecord } from '../types';
 import { motion } from 'motion/react';
 import { parseIndoDate, formatDate, getLocalDateString, getPaginationRange } from '../lib/utils';
 
@@ -7,13 +7,21 @@ interface DailyReportModuleProps {
   orders: Order[];
   deliveries: DeliveryRecord[];
   billingReports: BillingRecord[];
+  courierCash: CourierCashRecord[];
   company: string;
   searchQuery?: string;
 }
 
 const ITEMS_PER_PAGE = 10;
 
-const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliveries, billingReports, company, searchQuery = '' }) => {
+const DailyReportModule: React.FC<DailyReportModuleProps> = ({ 
+  orders, 
+  deliveries, 
+  billingReports, 
+  courierCash,
+  company, 
+  searchQuery = '' 
+}) => {
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
@@ -21,6 +29,15 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
   const [endDate, setEndDate] = useState(getLocalDateString());
   const [currentPage, setCurrentPage] = useState(1);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'tanggal', direction: 'desc' });
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
+
+  // Debounce search query to improve input responsiveness
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
   const normalizeDate = (dateStr: string) => {
     const d = parseIndoDate(dateStr);
@@ -28,13 +45,13 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
     return getLocalDateString(d);
   };
 
-  const combinedReportData = useMemo(() => {
+  // 1. Heavy Data Aggregation (Depends on data and date filters only)
+  const aggregatedReportData = useMemo(() => {
     const start = parseIndoDate(startDate);
     const end = parseIndoDate(endDate);
 
     const filteredOrders = orders.filter(o => {
       if (o.company !== company) return false;
-      // Only include Approved orders in the report
       if (o.status !== 'Approved') return false;
       const orderDate = parseIndoDate(o.tanggal);
       if (!orderDate) return false;
@@ -55,52 +72,102 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
       return (!start || targetDate >= start) && (!end || targetDate <= end);
     });
 
-    const pairs = new Set<string>();
-    filteredOrders.forEach(o => pairs.add(`${normalizeDate(o.tanggal)}|${o.namaKurir}`));
-    filteredDeliveries.forEach(d => pairs.add(`${normalizeDate(d.tanggal)}|${d.namaKurir}`));
-    filteredBilling.forEach(b => pairs.add(`${normalizeDate(b.tanggal)}|${b.namaKurir}`));
+    const filteredCourierCash = courierCash.filter(c => {
+      if (c.company !== company) return false;
+      const targetDate = parseIndoDate(c.tanggal);
+      if (!targetDate) return false;
+      return (!start || targetDate >= start) && (!end || targetDate <= end);
+    });
 
-    return Array.from(pairs)
-      .map(pair => {
-        const [tanggalNormalized, namaKurir] = pair.split('|');
-        
-        const dayOrders = filteredOrders.filter(o => normalizeDate(o.tanggal) === tanggalNormalized && o.namaKurir === namaKurir);
-        const dayDeliveries = filteredDeliveries.filter(d => normalizeDate(d.tanggal) === tanggalNormalized && d.namaKurir === namaKurir);
-        const dayBilling = filteredBilling.filter(b => normalizeDate(b.tanggal) === tanggalNormalized && b.namaKurir === namaKurir);
+    // Use a Record to pre-group data for O(N) lookup instead of nested filtering
+    const groupedData: Record<string, {
+      orders: Order[],
+      deliveries: DeliveryRecord[],
+      billing: BillingRecord[],
+      cash: CourierCashRecord[]
+    }> = {};
 
-        const jumlahLokasi = new Set(dayOrders.map(o => o.namaLokasi)).size;
-        const jumlahKurirVisit = new Set(dayDeliveries.map(d => d.namaLokasi)).size;
-        
-        const totalKiriman = dayOrders.reduce((sum, o) => 
-          sum + (o.tunaPedes || 0) + (o.tunaMayo || 0) + (o.ayamMayo || 0) + (o.ayamPedes || 0) + (o.menuBulanan || 0), 0);
-        const totalKirimanKurir = dayDeliveries.reduce((sum, d) => sum + (d.qtyPengiriman || 0), 0);
-        
-        const totalTagihan = dayOrders.reduce((sum, o) => sum + (o.jumlahUang || 0), 0);
-        const totalSetoran = dayBilling.reduce((sum, b) => sum + (b.qtyPengiriman || 0), 0);
+    filteredOrders.forEach(o => {
+      const key = `${normalizeDate(o.tanggal)}|${o.namaKurir}`;
+      if (!groupedData[key]) groupedData[key] = { orders: [], deliveries: [], billing: [], cash: [] };
+      groupedData[key].orders.push(o);
+    });
 
-        return { 
-          tanggal: tanggalNormalized, 
-          namaKurir, 
-          jumlahLokasi, 
-          jumlahKurirVisit, 
-          selisihLokasi: jumlahKurirVisit - jumlahLokasi,
-          totalKiriman, 
-          totalKirimanKurir,
-          selisihQty: totalKirimanKurir - totalKiriman,
-          totalTagihan,
-          totalSetoran,
-          selisihRp: totalSetoran - totalTagihan
-        };
-      })
-      .filter(row => {
-        if (!searchQuery) return true;
-        return row.namaKurir.toLowerCase().includes(searchQuery.toLowerCase());
-      })
-      .sort((a, b) => {
-      if (sortConfig) {
-        const { key, direction } = sortConfig;
+    filteredDeliveries.forEach(d => {
+      const key = `${normalizeDate(d.tanggal)}|${d.namaKurir}`;
+      if (!groupedData[key]) groupedData[key] = { orders: [], deliveries: [], billing: [], cash: [] };
+      groupedData[key].deliveries.push(d);
+    });
+
+    filteredBilling.forEach(b => {
+      const key = `${normalizeDate(b.tanggal)}|${b.namaKurir}`;
+      if (!groupedData[key]) groupedData[key] = { orders: [], deliveries: [], billing: [], cash: [] };
+      groupedData[key].billing.push(b);
+    });
+
+    filteredCourierCash.forEach(c => {
+      const key = `${normalizeDate(c.tanggal)}|${c.nama_kurir}`;
+      if (!groupedData[key]) groupedData[key] = { orders: [], deliveries: [], billing: [], cash: [] };
+      groupedData[key].cash.push(c);
+    });
+
+    return Object.entries(groupedData).map(([key, data]) => {
+      const [tanggalNormalized, namaKurir] = key.split('|');
+      const { orders: dayOrders, deliveries: dayDeliveries, billing: dayBilling, cash: dayCash } = data;
+
+      const jumlahLokasi = new Set(dayOrders.map(o => o.namaLokasi)).size;
+      const jumlahKurirVisit = new Set(dayDeliveries.map(d => d.namaLokasi)).size;
+      
+      const totalKiriman = dayOrders.reduce((sum, o) => 
+        sum + (o.tunaPedes || 0) + (o.tunaMayo || 0) + (o.ayamMayo || 0) + (o.ayamPedes || 0) + (o.menuBulanan || 0), 0);
+      const totalKirimanKurir = dayDeliveries.reduce((sum, d) => sum + (d.qtyPengiriman || 0), 0);
+      
+      const cashAmount = dayBilling
+        .filter(b => b.metodePembayaran?.toUpperCase() === 'CASH')
+        .reduce((sum, b) => sum + (b.qtyPengiriman || 0), 0);
+      const transferAmount = dayBilling
+        .filter(b => b.metodePembayaran?.toUpperCase() === 'TRANSFER')
+        .reduce((sum, b) => sum + (b.qtyPengiriman || 0), 0);
+      
+      const kasMasukAmount = dayCash
+        .filter(c => c.tipe === 'Masuk' && (c.status === 'Approved' || !c.status))
+        .reduce((sum, c) => sum + (c.jumlah || 0), 0);
+      
+      const omzetAmount = cashAmount + transferAmount;
+      const totalTagihan = dayOrders.reduce((sum, o) => sum + (o.jumlahUang || 0), 0);
+
+      return { 
+        tanggal: tanggalNormalized, 
+        namaKurir, 
+        jumlahLokasi, 
+        jumlahKurirVisit, 
+        selisihLokasi: jumlahKurirVisit - jumlahLokasi,
+        totalKiriman, 
+        totalKirimanKurir,
+        selisihQty: totalKirimanKurir - totalKiriman,
+        cashAmount,
+        transferAmount,
+        kasMasukAmount,
+        totalTagihan,
+        omzetAmount,
+        selisihRp: cashAmount - kasMasukAmount
+      };
+    });
+  }, [orders, deliveries, billingReports, courierCash, company, startDate, endDate]);
+
+  // 2. Search and Sort (Lightweight processing)
+  const combinedReportData = useMemo(() => {
+    let result = [...aggregatedReportData];
+
+    if (debouncedSearchQuery) {
+      const term = debouncedSearchQuery.toLowerCase();
+      result = result.filter(row => row.namaKurir.toLowerCase().includes(term));
+    }
+
+    if (sortConfig) {
+      const { key, direction } = sortConfig;
+      result.sort((a, b) => {
         let comparison = 0;
-
         if (key === 'tanggal') {
           const dateA = parseIndoDate(a.tanggal)?.getTime() || 0;
           const dateB = parseIndoDate(b.tanggal)?.getTime() || 0;
@@ -110,15 +177,19 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
         } else {
           comparison = (a as any)[key] - (b as any)[key];
         }
-
         return direction === 'asc' ? comparison : -comparison;
-      }
+      });
+    } else {
+      result.sort((a, b) => {
+        const dateA = parseIndoDate(a.tanggal);
+        const dateB = parseIndoDate(b.tanggal);
+        return (dateB?.getTime() || 0) - (dateA?.getTime() || 0) || a.namaKurir.localeCompare(b.namaKurir);
+      });
+    }
 
-      const dateA = parseIndoDate(a.tanggal);
-      const dateB = parseIndoDate(b.tanggal);
-      return (dateB?.getTime() || 0) - (dateA?.getTime() || 0) || a.namaKurir.localeCompare(b.namaKurir);
-    });
-  }, [orders, deliveries, billingReports, company, startDate, endDate, sortConfig, searchQuery]);
+    return result;
+  }, [aggregatedReportData, debouncedSearchQuery, sortConfig]);
+
 
   const requestSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -183,7 +254,7 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
               <tr className="bg-stone-50 border-b border-stone-100">
                 <th 
                   onClick={() => requestSort('tanggal')}
-                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest cursor-pointer hover:bg-stone-100 transition-colors"
+                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest cursor-pointer hover:bg-stone-100 transition-colors whitespace-nowrap"
                 >
                   <div className="flex items-center">
                     Tanggal {getSortIcon('tanggal')}
@@ -191,7 +262,7 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
                 </th>
                 <th 
                   onClick={() => requestSort('namaKurir')}
-                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest cursor-pointer hover:bg-stone-100 transition-colors"
+                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest cursor-pointer hover:bg-stone-100 transition-colors whitespace-nowrap"
                 >
                   <div className="flex items-center">
                     Nama Kurir {getSortIcon('namaKurir')}
@@ -199,7 +270,7 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
                 </th>
                 <th 
                   onClick={() => requestSort('jumlahKurirVisit')}
-                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center cursor-pointer hover:bg-stone-100 transition-colors"
+                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center cursor-pointer hover:bg-stone-100 transition-colors whitespace-nowrap"
                 >
                   <div className="flex items-center justify-center">
                     Lokasi (Plan/Visit) {getSortIcon('jumlahKurirVisit')}
@@ -207,7 +278,7 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
                 </th>
                 <th 
                   onClick={() => requestSort('selisihLokasi')}
-                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center cursor-pointer hover:bg-stone-100 transition-colors"
+                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center cursor-pointer hover:bg-stone-100 transition-colors whitespace-nowrap"
                 >
                   <div className="flex items-center justify-center">
                     Selisih Lokasi {getSortIcon('selisihLokasi')}
@@ -215,7 +286,7 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
                 </th>
                 <th 
                   onClick={() => requestSort('totalKirimanKurir')}
-                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center cursor-pointer hover:bg-stone-100 transition-colors"
+                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center cursor-pointer hover:bg-stone-100 transition-colors whitespace-nowrap"
                 >
                   <div className="flex items-center justify-center">
                     Qty (Plan/Real) {getSortIcon('totalKirimanKurir')}
@@ -223,23 +294,47 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
                 </th>
                 <th 
                   onClick={() => requestSort('selisihQty')}
-                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center cursor-pointer hover:bg-stone-100 transition-colors"
+                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center cursor-pointer hover:bg-stone-100 transition-colors whitespace-nowrap"
                 >
                   <div className="flex items-center justify-center">
                     Selisih Qty {getSortIcon('selisihQty')}
                   </div>
                 </th>
                 <th 
-                  onClick={() => requestSort('totalSetoran')}
-                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center cursor-pointer hover:bg-stone-100 transition-colors"
+                  onClick={() => requestSort('omzetAmount')}
+                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center cursor-pointer hover:bg-stone-100 transition-colors whitespace-nowrap"
                 >
                   <div className="flex items-center justify-center">
-                    Setoran {getSortIcon('totalSetoran')}
+                    Omzet {getSortIcon('omzetAmount')}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => requestSort('transferAmount')}
+                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center cursor-pointer hover:bg-stone-100 transition-colors whitespace-nowrap"
+                >
+                  <div className="flex items-center justify-center">
+                    Transfer {getSortIcon('transferAmount')}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => requestSort('cashAmount')}
+                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center cursor-pointer hover:bg-stone-100 transition-colors whitespace-nowrap"
+                >
+                  <div className="flex items-center justify-center">
+                    Cash {getSortIcon('cashAmount')}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => requestSort('kasMasukAmount')}
+                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center cursor-pointer hover:bg-stone-100 transition-colors whitespace-nowrap"
+                >
+                  <div className="flex items-center justify-center">
+                    Kas Masuk {getSortIcon('kasMasukAmount')}
                   </div>
                 </th>
                 <th 
                   onClick={() => requestSort('selisihRp')}
-                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center cursor-pointer hover:bg-stone-100 transition-colors"
+                  className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest text-center cursor-pointer hover:bg-stone-100 transition-colors whitespace-nowrap"
                 >
                   <div className="flex items-center justify-center">
                     Selisih Rp {getSortIcon('selisihRp')}
@@ -263,7 +358,7 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
                       className="hover:bg-stone-50/50 transition-colors"
                     >
                       <td className="px-6 py-4 text-xs font-bold text-stone-600 whitespace-nowrap">{formatDate(row.tanggal)}</td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-[10px]">
                             {row.namaKurir.charAt(0)}
@@ -271,10 +366,10 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
                           <span className="font-bold text-stone-900 text-xs">{row.namaKurir}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-6 py-4 text-center whitespace-nowrap">
                         <span className="text-xs font-black text-stone-700">{row.jumlahLokasi} / {row.jumlahKurirVisit}</span>
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-6 py-4 text-center whitespace-nowrap">
                         <span className={`px-2 py-0.5 rounded-md font-black text-[10px] ${
                           selisihLokasi === 0 ? 'bg-green-100 text-green-600' : 
                           selisihLokasi > 0 ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'
@@ -282,10 +377,10 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
                           {selisihLokasi > 0 ? `+${selisihLokasi}` : selisihLokasi}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-6 py-4 text-center whitespace-nowrap">
                         <span className="text-xs font-black text-stone-700">{row.totalKiriman} / {row.totalKirimanKurir}</span>
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-6 py-4 text-center whitespace-nowrap">
                         <span className={`px-2 py-0.5 rounded-md font-black text-[10px] ${
                           selisihQty === 0 ? 'bg-green-100 text-green-600' : 
                           selisihQty > 0 ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'
@@ -293,10 +388,19 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
                           {selisihQty > 0 ? `+${selisihQty}` : selisihQty}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-center text-xs font-black text-stone-600">
-                        Rp {row.totalSetoran.toLocaleString('id-ID')}
+                      <td className="px-6 py-4 text-center text-xs font-black text-stone-600 whitespace-nowrap">
+                        Rp {row.omzetAmount.toLocaleString('id-ID')}
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-6 py-4 text-center text-xs font-black text-stone-600 whitespace-nowrap">
+                        {row.transferAmount > 0 ? `Rp ${row.transferAmount.toLocaleString('id-ID')}` : '-'}
+                      </td>
+                      <td className="px-6 py-4 text-center text-xs font-black text-stone-600 whitespace-nowrap">
+                        {row.cashAmount > 0 ? `Rp ${row.cashAmount.toLocaleString('id-ID')}` : '-'}
+                      </td>
+                      <td className="px-6 py-4 text-center text-xs font-black text-stone-600 whitespace-nowrap">
+                        {row.kasMasukAmount > 0 ? `Rp ${row.kasMasukAmount.toLocaleString('id-ID')}` : '-'}
+                      </td>
+                      <td className="px-6 py-4 text-center whitespace-nowrap">
                         <span className={`px-2 py-0.5 rounded-md font-black text-[10px] ${
                           selisihRp === 0 ? 'bg-green-100 text-green-600' : 
                           selisihRp > 0 ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'
@@ -309,7 +413,7 @@ const DailyReportModule: React.FC<DailyReportModuleProps> = ({ orders, deliverie
                 })
               ) : (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-stone-400 font-bold">
+                  <td colSpan={11} className="px-6 py-12 text-center text-stone-400 font-bold">
                     Tidak ada data untuk periode ini
                   </td>
                 </tr>

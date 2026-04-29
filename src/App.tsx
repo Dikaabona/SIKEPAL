@@ -1742,6 +1742,7 @@ export default function App() {
             orders={orders}
             deliveries={deliveries}
             billingReports={billingReports}
+            courierCash={courierCashRecords}
             company={userCompany}
             searchQuery={searchQuery}
           />

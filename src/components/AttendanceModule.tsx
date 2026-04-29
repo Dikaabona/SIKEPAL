@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Employee, AttendanceRecord, UserRole, Shift, BranchLocation } from '../types';
+import { compressImage } from '../utils/imageUtils';
 import { getLocalDateString } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
@@ -124,20 +125,31 @@ const AttendanceModule: React.FC<AttendanceModuleProps> = ({
     }
   };
 
-  const capturePhoto = () => {
+  const capturePhoto = async () => {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       const context = canvas.getContext('2d');
       if (context) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        // Mirror the image for the capture as well
+        // Limit captured resolution to save space initially
+        const maxWidth = 800;
+        const scale = Math.min(1, maxWidth / video.videoWidth);
+        canvas.width = video.videoWidth * scale;
+        canvas.height = video.videoHeight * scale;
+        
+        // Mirror the image for the capture
         context.translate(canvas.width, 0);
         context.scale(-1, 1);
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const photoData = canvas.toDataURL('image/jpeg');
-        handleAttendance(photoData);
+        
+        const photoData = canvas.toDataURL('image/jpeg', 0.8);
+        try {
+          const compressed = await compressImage(photoData);
+          handleAttendance(compressed);
+        } catch (err) {
+          console.error('Compression error:', err);
+          handleAttendance(photoData);
+        }
       }
     }
   };

@@ -47,9 +47,13 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [selectedSumDate, setSelectedSumDate] = useState(getLocalDateString());
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const [selectedStoreForDetail, setSelectedStoreForDetail] = useState<Store | null>(null);
   const [showPiutangList, setShowPiutangList] = useState(false);
+  const [piutangSearchTerm, setPiutangSearchTerm] = useState('');
+  const [piutangFilterCourier, setPiutangFilterCourier] = useState('');
+  const [selectedPiutangIds, setSelectedPiutangIds] = useState<string[]>([]);
 
   // Date normalization helper for robust comparisons
   const normalizeDateString = (dateStr: string) => {
@@ -146,6 +150,15 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const percentageSisa = orderSummary.jumlahKirim > 0 ? (orderSummary.sisa / orderSummary.jumlahKirim) * 100 : 0;
 
+  const searchedOrders = useMemo(() => {
+    if (!searchTerm) return filteredOrders;
+    const term = searchTerm.toLowerCase();
+    return filteredOrders.filter(o => 
+      o.namaLokasi.toLowerCase().includes(term) || 
+      (o.namaKurir && o.namaKurir.toLowerCase().includes(term))
+    );
+  }, [filteredOrders, searchTerm]);
+
   const attendanceStatus = useMemo(() => {
     if (!currentUserEmployee) return null;
     const record = attendanceRecords.find(r => 
@@ -155,21 +168,24 @@ const Dashboard: React.FC<DashboardProps> = ({
     return record;
   }, [attendanceRecords, currentUserEmployee, normalizeDateString, selectedSumDate]);
 
-  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+  const totalPages = Math.ceil(searchedOrders.length / itemsPerPage);
   const paginatedOrders = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredOrders.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredOrders, currentPage, itemsPerPage]);
+    return searchedOrders.slice(startIndex, startIndex + itemsPerPage);
+  }, [searchedOrders, currentPage, itemsPerPage]);
 
   const assignedLocation = branchLocations.find(loc => loc.id === currentUserEmployee?.branchLocationId);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedSumDate]);
+  }, [selectedSumDate, searchTerm]);
 
   useEffect(() => {
     if (!selectedStoreForDetail) {
       setShowPiutangList(false);
+      setPiutangSearchTerm('');
+      setPiutangFilterCourier('');
+      setSelectedPiutangIds([]);
     }
   }, [selectedStoreForDetail]);
 
@@ -519,7 +535,22 @@ const Dashboard: React.FC<DashboardProps> = ({
 
         {/* Data Orderan List (Mobile) */}
         <div className="px-4 py-4 space-y-4">
-          <p className="text-[10px] font-black text-stone-400 uppercase tracking-[0.2em] mb-1">Data Orderan Hari Ini</p>
+          <div className="flex flex-col gap-3">
+            <p className="text-[10px] font-black text-stone-400 uppercase tracking-[0.2em]">Data Orderan Hari Ini</p>
+            
+            {/* Search Input */}
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-2.5 text-stone-400 text-sm">search</span>
+              <input 
+                type="text" 
+                placeholder="Cari lokasi atau kurir..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-white border border-stone-200 rounded-2xl text-[11px] font-bold text-stone-700 outline-none shadow-sm focus:ring-2 focus:ring-orange-100 transition-all placeholder:text-stone-300"
+              />
+            </div>
+          </div>
+
           <div className="space-y-4">
             {paginatedOrders.length > 0 ? (
               paginatedOrders.map((order) => (
@@ -582,7 +613,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             <div className="flex flex-col gap-2 px-2">
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-bold text-stone-500">
-                  Menampilkan {filteredOrders.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} sampai {Math.min(currentPage * itemsPerPage, filteredOrders.length)} dari {filteredOrders.length} data
+                  Menampilkan {searchedOrders.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} sampai {Math.min(currentPage * itemsPerPage, searchedOrders.length)} dari {searchedOrders.length} data
                 </p>
                 <div className="flex items-center gap-2">
                   <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest">Tampilkan:</span>
@@ -751,24 +782,27 @@ const Dashboard: React.FC<DashboardProps> = ({
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-white/80 backdrop-blur-sm p-4 rounded-[24px] border border-orange-100 shadow-sm">
-                      <span className="text-[8px] font-black text-orange-500 uppercase tracking-tight block mb-1">TOTAL PIUTANG (QTY)</span>
-                      <div className="text-lg font-black text-stone-800 leading-none">
+                      <span className="text-[7.5px] font-black text-orange-500 uppercase tracking-tight block mb-1 whitespace-nowrap">TOTAL PIUTANG (QTY)</span>
+                      <div className="text-lg font-black text-stone-800 leading-none whitespace-nowrap">
                         {orders.filter(o => o.namaLokasi === selectedStoreForDetail.namaToko && o.pembayaran === 'FALSE').length}
                       </div>
                     </div>
                     <div className="bg-white/80 backdrop-blur-sm p-4 rounded-[24px] border border-orange-100 shadow-sm">
-                      <span className="text-[8px] font-black text-orange-500 uppercase tracking-tight block mb-1">JUMLAH PIUTANG (RP)</span>
-                      <div className="text-lg font-black text-stone-800 leading-none">
+                      <span className="text-[7.5px] font-black text-orange-500 uppercase tracking-tight block mb-1 whitespace-nowrap">JUMLAH PIUTANG (RP)</span>
+                      <div className="text-lg font-black text-stone-800 leading-none whitespace-nowrap">
                         {formatCurrency(orders.filter(o => o.namaLokasi === selectedStoreForDetail.namaToko && o.pembayaran === 'FALSE').reduce((sum, o) => sum + (o.jumlahUang || 0), 0))}
                       </div>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="bg-white rounded-[32px] border border-stone-100 p-5 mb-4 shadow-sm h-[320px] flex flex-col">
+                <div className="bg-white rounded-[32px] border border-stone-100 p-5 mb-4 shadow-sm h-[400px] flex flex-col">
                   <div className="flex justify-between items-center mb-4">
                     <button 
-                      onClick={() => setShowPiutangList(false)}
+                      onClick={() => {
+                        setShowPiutangList(false);
+                        setSelectedPiutangIds([]);
+                      }}
                       className="flex items-center gap-1 text-orange-600 active:scale-95 transition-all"
                     >
                       <span className="material-symbols-outlined text-lg">arrow_back</span>
@@ -777,15 +811,71 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest">Detail Piutang</span>
                   </div>
 
+                  {/* Search & Courier Filter */}
+                  <div className="space-y-2 mb-4">
+                    <div className="relative">
+                      <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">search</span>
+                      <input 
+                        type="text"
+                        placeholder="Cari lokasi..."
+                        value={piutangSearchTerm}
+                        onChange={(e) => setPiutangSearchTerm(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl text-[11px] font-bold text-stone-700 outline-none focus:ring-2 focus:ring-orange-100 transition-all placeholder:text-stone-300"
+                      />
+                    </div>
+                    <div className="relative">
+                      <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">person</span>
+                      <select
+                        value={piutangFilterCourier}
+                        onChange={(e) => setPiutangFilterCourier(e.target.value)}
+                        className="w-full pl-9 pr-10 py-2 bg-stone-50 border border-stone-200 rounded-xl text-[11px] font-bold text-stone-700 outline-none focus:ring-2 focus:ring-orange-100 appearance-none transition-all"
+                      >
+                        <option value="">Semua Kurir</option>
+                        {Array.from(new Set(orders.map(o => o.namaKurir).filter(Boolean))).map(courier => (
+                          <option key={courier} value={courier || ''}>{courier}</option>
+                        ))}
+                      </select>
+                      <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm pointer-events-none">expand_more</span>
+                    </div>
+                  </div>
+
                   <div className="flex-1 overflow-y-auto pr-1 space-y-2 custom-scrollbar">
                     {orders
-                      .filter(o => o.namaLokasi === selectedStoreForDetail.namaToko && o.pembayaran === 'FALSE')
+                      .filter(o => 
+                        o.namaLokasi === selectedStoreForDetail.namaToko && 
+                        o.pembayaran === 'FALSE' &&
+                        (piutangSearchTerm === '' || o.namaLokasi.toLowerCase().includes(piutangSearchTerm.toLowerCase())) &&
+                        (piutangFilterCourier === '' || o.namaKurir === piutangFilterCourier)
+                      )
                       .sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime())
                       .map((p, idx) => (
-                        <div key={idx} className="bg-stone-50/50 p-3 rounded-2xl border border-stone-100 flex items-center justify-between">
-                          <div className="flex flex-col">
-                            <span className="text-[8px] font-bold text-stone-400 uppercase tracking-widest leading-none mb-1">{p.tanggal}</span>
-                            <span className="text-[10px] font-black text-stone-700 uppercase leading-none">{p.namaKurir}</span>
+                        <div 
+                          key={p.id || idx} 
+                          onClick={() => {
+                            setSelectedPiutangIds(prev => 
+                              prev.includes(p.id) 
+                                ? prev.filter(id => id !== p.id) 
+                                : [...prev, p.id]
+                            );
+                          }}
+                          className={`p-3 rounded-2xl border transition-all flex items-center justify-between cursor-pointer ${
+                            selectedPiutangIds.includes(p.id) 
+                              ? 'bg-orange-50 border-orange-200 shadow-sm' 
+                              : 'bg-stone-50/50 border-stone-100 hover:border-stone-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                              selectedPiutangIds.includes(p.id)
+                                ? 'bg-orange-500 border-orange-500 text-white'
+                                : 'bg-white border-stone-200'
+                            }`}>
+                              {selectedPiutangIds.includes(p.id) && <span className="material-symbols-outlined text-[14px]">check</span>}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-[8px] font-bold text-stone-400 uppercase tracking-widest leading-none mb-1">{p.tanggal}</span>
+                              <span className="text-[10px] font-black text-stone-700 uppercase leading-none">{p.namaKurir}</span>
+                            </div>
                           </div>
                           <div className="text-right">
                             <div className="text-[11px] font-black text-orange-600 leading-none mb-0.5">{formatCurrency(p.jumlahUang || 0)}</div>
@@ -800,6 +890,26 @@ const Dashboard: React.FC<DashboardProps> = ({
                       </div>
                     )}
                   </div>
+
+                  {selectedPiutangIds.length > 0 && (
+                    <div className="mt-4 pt-3 border-t border-stone-100">
+                      <button 
+                        onClick={() => {
+                          onNavigate('billing_report', { 
+                            location: selectedStoreForDetail.namaToko, 
+                            type: 'billing',
+                            // In a real app, you'd pass all IDs. For now, we'll prefill the store.
+                            courier: piutangFilterCourier || (selectedPiutangIds.length === 1 ? orders.find(o => o.id === selectedPiutangIds[0])?.namaKurir : undefined)
+                          });
+                          setSelectedStoreForDetail(null);
+                        }}
+                        className="w-full py-3 bg-orange-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-orange-200 active:scale-95 transition-all flex items-center justify-center gap-2"
+                      >
+                        <span className="material-symbols-outlined text-sm">playlist_add_check</span>
+                        Proses {selectedPiutangIds.length} Terpilih
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 

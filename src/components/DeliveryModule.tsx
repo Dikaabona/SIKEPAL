@@ -1,5 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { compressImage } from '../utils/imageUtils';
 import { Icons } from '../constants';
 import { DeliveryRecord, Order, Store, UserRole, Employee } from '../types';
 import { formatDate, getLocalDateString, parseIndoDate } from '../lib/utils';
@@ -436,44 +437,54 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       const context = canvas.getContext('2d');
       if (context) {
         context.drawImage(video, 0, 0, width, height);
-        // Compress to 0.7 quality to save space in Supabase
-        const photoData = canvas.toDataURL('image/jpeg', 0.7);
+        const photoData = canvas.toDataURL('image/jpeg', 0.8);
         
-        // Get current time
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
-        
-        // Get current location
-        if (navigator.geolocation && cameraTarget === 'fotoBukti') {
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              const { latitude, longitude } = position.coords;
-              setFormData(prev => ({
-                ...prev,
-                [cameraTarget]: photoData,
-                lokasiBukti: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
-                jamBukti: timeStr
-              }));
-              stopCamera();
-            },
-            (error) => {
-              console.error("Error getting location:", error);
-              setFormData(prev => ({
-                ...prev,
-                [cameraTarget]: photoData,
-                jamBukti: timeStr
-              }));
-              stopCamera();
-            }
-          );
-        } else {
-          setFormData(prev => ({
-            ...prev,
-            [cameraTarget]: photoData,
-            ...(cameraTarget === 'fotoBukti' ? { jamBukti: timeStr } : {})
-          }));
-          stopCamera();
-        }
+        const processPhoto = async () => {
+          let finalData = photoData;
+          try {
+            finalData = await compressImage(photoData);
+          } catch (err) {
+            console.error('Compression error:', err);
+          }
+
+          // Get current time
+          const now = new Date();
+          const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
+          
+          // Get current location
+          if (navigator.geolocation && cameraTarget === 'fotoBukti') {
+            navigator.geolocation.getCurrentPosition(
+              (position) => {
+                const { latitude, longitude } = position.coords;
+                setFormData(prev => ({
+                  ...prev,
+                  [cameraTarget]: finalData,
+                  lokasiBukti: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+                  jamBukti: timeStr
+                }));
+                stopCamera();
+              },
+              (error) => {
+                console.error("Error getting location:", error);
+                setFormData(prev => ({
+                  ...prev,
+                  [cameraTarget]: finalData,
+                  jamBukti: timeStr
+                }));
+                stopCamera();
+              }
+            );
+          } else {
+            setFormData(prev => ({
+              ...prev,
+              [cameraTarget]: finalData,
+              ...(cameraTarget === 'fotoBukti' ? { jamBukti: timeStr } : {})
+            }));
+            stopCamera();
+          }
+        };
+
+        processPhoto();
       }
     }
   };
@@ -2062,8 +2073,14 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                               const file = e.target.files?.[0];
                               if (file) {
                                 const reader = new FileReader();
-                                reader.onloadend = () => {
-                                  setFormData({ ...formData, buktiTransfer: reader.result as string });
+                                reader.onloadend = async () => {
+                                  try {
+                                    const compressed = await compressImage(reader.result as string);
+                                    setFormData({ ...formData, buktiTransfer: compressed });
+                                  } catch (err) {
+                                    console.error('Compression error:', err);
+                                    setFormData({ ...formData, buktiTransfer: reader.result as string });
+                                  }
                                 };
                                 reader.readAsDataURL(file);
                               }
@@ -2141,8 +2158,14 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                                 const file = e.target.files?.[0];
                                 if (file) {
                                   const reader = new FileReader();
-                                  reader.onloadend = () => {
-                                    setFormData({ ...formData, buktiSisa: reader.result as string });
+                                  reader.onloadend = async () => {
+                                    try {
+                                      const compressed = await compressImage(reader.result as string);
+                                      setFormData({ ...formData, buktiSisa: compressed });
+                                    } catch (err) {
+                                      console.error('Compression error:', err);
+                                      setFormData({ ...formData, buktiSisa: reader.result as string });
+                                    }
                                   };
                                   reader.readAsDataURL(file);
                                 }
