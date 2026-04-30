@@ -30,6 +30,8 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [startDate, setStartDate] = useState(getLocalDateString());
@@ -253,6 +255,9 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
       return;
     }
 
+    setIsSubmitting(true);
+    setSaveError(null);
+
     const recordToSave: CourierCashRecord = {
       id: editingId || `cash_${Date.now()}`,
       tanggal: formData.tanggal!,
@@ -269,12 +274,20 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
       created_at: editingId ? (records.find(r => r.id === editingId)?.created_at || new Date().toISOString()) : new Date().toISOString()
     };
 
-    // Only include split columns if they were specifically requested and handled by the database
-    // For now, we use 'jurnal' column which we know exists and is required.
-    // If the database supports these, we can re-add them to the type and payload.
-    await onSave(recordToSave as CourierCashRecord);
-    setIsModalOpen(false);
-    resetForm();
+    try {
+      // Only include split columns if they were specifically requested and handled by the database
+      // For now, we use 'jurnal' column which we know exists and is required.
+      // If the database supports these, we can re-add them to the type and payload.
+      await onSave(recordToSave as CourierCashRecord);
+      setIsModalOpen(false);
+      resetForm();
+    } catch (err: any) {
+      console.error('Save error:', err);
+      // Construct exact error message similar to the screenshot
+      setSaveError(`Gagal menyimpan kas kurir: ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const resetForm = () => {
@@ -947,12 +960,57 @@ const CourierCashModule: React.FC<CourierCashModuleProps> = ({
                 <div className="pt-1">
                   <button
                     type="submit"
-                    className="w-full py-2.5 md:py-4 bg-stone-900 text-white rounded-lg md:rounded-2xl text-[8px] md:text-[10px] font-black uppercase tracking-[0.15em] md:tracking-[0.3em] shadow-lg shadow-stone-200 hover:bg-stone-800 transition-all"
+                    disabled={isSubmitting}
+                    className={`w-full py-2.5 md:py-4 rounded-lg md:rounded-2xl text-[8px] md:text-[10px] font-black uppercase tracking-[0.15em] md:tracking-[0.3em] transition-all shadow-lg ${
+                      isSubmitting 
+                        ? 'bg-stone-400 cursor-not-allowed shadow-none' 
+                        : 'bg-stone-900 text-white hover:bg-stone-800 shadow-stone-200 active:scale-95'
+                    }`}
                   >
-                    {editingId ? 'Update Transaksi' : 'Simpan Transaksi'}
+                    {isSubmitting ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        MEMPROSES...
+                      </div>
+                    ) : (editingId ? 'Update Transaksi' : 'Simpan Transaksi')}
                   </button>
                 </div>
               </form>
+
+              {/* Error Popup (Overlay) */}
+              <AnimatePresence>
+                {saveError && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 z-[60] flex items-center justify-center p-6 bg-stone-900/40 backdrop-blur-[2px]"
+                  >
+                    <motion.div
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.9, opacity: 0 }}
+                      className="bg-white rounded-[24px] p-6 shadow-2xl max-w-sm w-full border border-stone-100 flex flex-col"
+                    >
+                      <div className="text-stone-700 text-sm font-bold mb-8 leading-relaxed text-center px-2">
+                        {saveError}
+                      </div>
+                      <div className="flex justify-end mt-auto">
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setSaveError(null);
+                          }}
+                          className="px-6 py-2 text-[#007AFF] font-black text-xs uppercase tracking-widest hover:bg-stone-50 rounded-xl transition-all border border-stone-100/50"
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           </div>
         )}

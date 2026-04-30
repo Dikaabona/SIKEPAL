@@ -1146,7 +1146,7 @@ export default function App() {
       }
     } catch (error: any) {
       console.error('Error saving courier cash:', error);
-      alert('Gagal menyimpan kas kurir: ' + (error.message || 'Unknown error'));
+      throw error;
     }
   };
 
