@@ -238,6 +238,18 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   );
   const [filterDate, setFilterDate] = useState(getLocalDateString());
   const [filterEndDate, setFilterEndDate] = useState('');
+  const [printData, setPrintData] = useState<{ delivery: DeliveryRecord; order?: Order } | null>(null);
+
+  // Print effect
+  React.useEffect(() => {
+    if (printData) {
+      const timer = setTimeout(() => {
+        window.print();
+        setPrintData(null);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [printData]);
 
   const filteredDeliveries = useMemo(() => {
     return deliveries.filter(d => {
@@ -1043,6 +1055,23 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                                 <span className="material-symbols-outlined text-xs">receipt_long</span>
                               </button>
                             )}
+                            {title === "Delivery Report" && (
+                              <button
+                                onClick={() => {
+                                  const associatedOrder = orders.find(o => {
+                                    const orderDateObj = parseIndoDate(o.tanggal);
+                                    const orderDateStr = orderDateObj ? getLocalDateString(orderDateObj) : o.tanggal;
+                                    return (delivery.orderId && o.id === delivery.orderId) ||
+                                           (o.namaLokasi === delivery.namaLokasi && orderDateStr === delivery.tanggal);
+                                  });
+                                  setPrintData({ delivery, order: associatedOrder });
+                                }}
+                                className="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center hover:bg-orange-100 transition-all border border-orange-100 shadow-sm"
+                                title="Print Preview"
+                              >
+                                <span className="material-symbols-outlined text-xs">print</span>
+                              </button>
+                            )}
                             <button
                                 onClick={() => handleEdit(delivery)}
                                 className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-all border border-blue-100 shadow-sm"
@@ -1139,6 +1168,15 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
 
                   {(userRole === 'owner' || userRole === 'admin') && (
                     <div className="flex items-center gap-2">
+                      {title === "Delivery Report" && (
+                        <button
+                          onClick={() => setPrintData({ delivery, order: associatedOrder })}
+                          className="w-9 h-9 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shadow-sm border border-orange-100 active:scale-90 transition-transform"
+                          title="Print"
+                        >
+                          <span className="material-symbols-outlined text-lg">print</span>
+                        </button>
+                      )}
                       {title === "Billing Report" && delivery.status !== 'Completed' && (
                         <button
                           onClick={() => onSaveDelivery({ ...delivery, status: 'Completed' })}
@@ -2520,6 +2558,161 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                 Tutup
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Printable Receipt (58mm Thermal) */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          @page {
+            size: 58mm auto;
+            margin: 0;
+          }
+          body {
+            margin: 0;
+            padding: 0;
+            background: white !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+          #root {
+            display: none !important;
+          }
+          #print-receipt-container {
+            display: block !important;
+            width: 58mm;
+            padding: 4mm;
+            margin: 0;
+            background: white;
+            color: black;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 11px;
+            line-height: 1.2;
+          }
+          .receipt-logo {
+            width: 35mm;
+            height: auto;
+            display: block;
+            margin: 0 auto 4mm;
+          }
+          .receipt-header {
+            text-align: center;
+            font-weight: 900;
+            margin-bottom: 3mm;
+            border-bottom: 1px dashed black;
+            padding-bottom: 2mm;
+            text-transform: uppercase;
+            font-size: 13px;
+          }
+          .receipt-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1mm;
+          }
+          .receipt-divider {
+            border-top: 1px dashed black;
+            margin: 2mm 0;
+          }
+          .receipt-section-title {
+            font-weight: 900;
+            text-transform: uppercase;
+            margin-bottom: 2mm;
+            text-decoration: underline;
+            text-align: center;
+          }
+          .receipt-total {
+            border-top: 1px solid black;
+            margin-top: 2mm;
+            padding-top: 1mm;
+            font-weight: 900;
+            font-size: 12px;
+          }
+          .receipt-footer {
+            margin-top: 5mm;
+            text-align: center;
+            font-style: italic;
+            font-size: 9px;
+            border-top: 1px dashed black;
+            padding-top: 2mm;
+          }
+        }
+        @media screen {
+          #print-receipt-container {
+            display: none;
+          }
+        }
+      `}} />
+
+      {printData && (
+        <div id="print-receipt-container">
+          <img 
+            src="https://lh3.googleusercontent.com/d/1b-hkPOsHZ8_rW1f9aqABu7R5bw_ZJM0y" 
+            alt="Sikepal Logo" 
+            className="receipt-logo"
+            referrerPolicy="no-referrer"
+          />
+          <div className="receipt-header">Bukti Pengiriman</div>
+          
+          <div className="receipt-details">
+            <div className="receipt-row">
+              <span style={{fontWeight: 900}}>Lokasi:</span>
+              <span style={{textAlign: 'right'}}>{printData.delivery.namaLokasi}</span>
+            </div>
+            <div className="receipt-row">
+              <span style={{fontWeight: 900}}>Kurir:</span>
+              <span>{printData.delivery.namaKurir}</span>
+            </div>
+            <div className="receipt-row">
+              <span style={{fontWeight: 900}}>Tgl:</span>
+              <span>{formatDate(printData.delivery.tanggal)}</span>
+            </div>
+            <div className="receipt-row">
+              <span style={{fontWeight: 900}}>Jam:</span>
+              <span>{printData.delivery.jamBukti || '-'}</span>
+            </div>
+          </div>
+
+          <div className="receipt-divider" />
+          <div className="receipt-section-title">Detail Varian</div>
+          
+          {printData.order ? (
+            <div className="receipt-variants">
+              {[
+                { label: 'Tuna Pedes', val: printData.order.tunaPedes },
+                { label: 'Tuna Mayo', val: printData.order.tunaMayo },
+                { label: 'Ayam Mayo', val: printData.order.ayamMayo },
+                { label: 'Ayam Pedes', val: printData.order.ayamPedes },
+                { label: 'Menu Bulanan', val: printData.order.menuBulanan },
+              ].filter(v => v.val > 0).map(v => (
+                <div key={v.label} className="receipt-row">
+                  <span>{v.label}</span>
+                  <span>{v.val}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="receipt-row">
+              <span>Qty Total</span>
+              <span>{printData.delivery.qtyPengiriman}</span>
+            </div>
+          )}
+
+          <div className="receipt-row receipt-total">
+            <span>TOTAL KIRIM</span>
+            <span>{printData.order?.jumlahKirim || printData.delivery.qtyPengiriman} Pcs</span>
+          </div>
+
+          {printData.delivery.keterangan && (
+            <div style={{marginTop: '3mm', fontStyle: 'italic', fontSize: '9px'}}>
+              Ket: {printData.delivery.keterangan}
+            </div>
+          )}
+
+          <div className="receipt-footer">
+            Terima kasih atas kerja kerasnya!<br/>
+            Sikepal Premium Nasi Kepal
           </div>
         </div>
       )}
