@@ -11,13 +11,13 @@ create table if not exists public.billing_reports (
     "metodePembayaran" text,
     "buktiTransfer" text,
     "buktiSisa" text,
-    waste numeric,
+    waste numeric default 0,
     "tanggalPiutang" text,
     keterangan text,
     company text,
-    status text check (status in ('Pending', 'Active', 'Completed')),
-    "createdAt" timestamp with time zone default now(),
-    "orderId" text references public.orders(id)
+    status text default 'Pending',
+    "orderId" text,
+    "createdAt" timestamp with time zone default now()
 );
 
 -- Enable RLS

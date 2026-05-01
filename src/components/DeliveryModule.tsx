@@ -220,6 +220,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedPiutangIds, setSelectedPiutangIds] = useState<string[]>([]);
   const [locationSearchQuery, setLocationSearchQuery] = useState('');
   const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -618,6 +619,65 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
     }
     // Always reset prefilled flag if closing
     wasPrefilled.current = false;
+  };
+
+  const handleBulkPiutangSave = async () => {
+    if (selectedPiutangIds.length === 0 || isSaving) return;
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    try {
+      setIsSaving(true);
+      const selectedOrders = orders.filter(o => selectedPiutangIds.includes(o.id));
+      
+      for (const order of selectedOrders) {
+        try {
+          const deliveryData: any = {
+            id: `BR-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+            namaKurir: order.namaKurir,
+            tanggal: getLocalDateString(),
+            namaLokasi: order.namaLokasi,
+            fotoBukti: null,
+            lokasiBukti: null,
+            jamBukti: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false }),
+            qtyPengiriman: order.jumlahUang,
+            sisa: order.sisa || 0,
+            hargaSikepal: order.hargaSikepal || 0,
+            metodePembayaran: 'Cash',
+            buktiTransfer: null,
+            buktiSisa: null,
+            waste: 0,
+            tanggalPiutang: order.tanggal,
+            keterangan: 'Proses Massal',
+            company,
+            status: 'Pending',
+            orderId: order.id,
+            createdAt: new Date().toISOString()
+          };
+          await onSaveDelivery(deliveryData);
+          successCount++;
+        } catch (err) {
+          console.error(`Failed to save order ${order.id}:`, err);
+          failCount++;
+        }
+      }
+      
+      if (failCount === 0) {
+        alert(`Berhasil memproses ${successCount} data billing report secara massal.`);
+      } else {
+        alert(`Selesai dengan catatan: ${successCount} berhasil, ${failCount} gagal. Pastikan tabel SQL sudah sesuai.`);
+      }
+      
+      setSelectedPiutangIds([]);
+      setIsPiutangModalOpen(false);
+      closeModal();
+    } catch (error) {
+      console.error('Error in handleBulkPiutangSave:', error);
+      alert('Terjadi kesalahan sistem saat proses massal.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2419,6 +2479,20 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-stone-50/50">
+                        <th className="px-4 py-3 w-10">
+                          <input 
+                            type="checkbox"
+                            checked={selectedPiutangIds.length === filteredPiutangOrders.length && filteredPiutangOrders.length > 0}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedPiutangIds(filteredPiutangOrders.map(o => o.id));
+                              } else {
+                                setSelectedPiutangIds([]);
+                              }
+                            }}
+                            className="w-4 h-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900"
+                          />
+                        </th>
                         <th className="px-4 py-3 text-[10px] font-black text-stone-400 uppercase tracking-widest">Tanggal</th>
                         <th className="px-4 py-3 text-[10px] font-black text-stone-400 uppercase tracking-widest">Nama Lokasi</th>
                         <th className="px-4 py-3 text-[10px] font-black text-stone-400 uppercase tracking-widest">Jumlah Uang</th>
@@ -2432,26 +2506,26 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                           <tr 
                             key={order.id} 
                             className={`group transition-colors cursor-pointer ${
-                              formData.selectedOrderId === order.id ? 'bg-orange-50/50' : 'hover:bg-stone-50/50'
+                              selectedPiutangIds.includes(order.id) ? 'bg-orange-50/50' : 'hover:bg-stone-50/50'
                             }`}
-                            onClick={() => {
-                              const grossValue = (order.jumlahKirim || 0) * (order.hargaSikepal || 0);
-                              setFormData({
-                                ...formData,
-                                namaKurir: order.namaKurir,
-                                namaLokasi: order.namaLokasi,
-                                qtyPengiriman: order.jumlahUang,
-                                originalNilai: grossValue,
-                                hargaSikepal: order.hargaSikepal || 0,
-                                sisa: order.sisa || 0,
-                                selectedOrderId: order.id,
-                                tanggalPiutang: order.tanggal,
-                                jumlahKirim: order.jumlahKirim
-                              });
-                              setIsPiutangModalOpen(false);
-                            }}
                           >
-                            <td className="px-4 py-3 text-xs font-bold text-stone-600">{formatDate(order.tanggal)}</td>
+                            <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                              <input 
+                                type="checkbox"
+                                checked={selectedPiutangIds.includes(order.id)}
+                                onChange={() => {
+                                  setSelectedPiutangIds(prev => 
+                                    prev.includes(order.id) ? prev.filter(id => id !== order.id) : [...prev, order.id]
+                                  );
+                                }}
+                                className="w-4 h-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900"
+                              />
+                            </td>
+                            <td className="px-4 py-3 text-xs font-bold text-stone-600" onClick={() => {
+                              setSelectedPiutangIds(prev => 
+                                prev.includes(order.id) ? prev.filter(id => id !== order.id) : [...prev, order.id]
+                              );
+                            }}>{formatDate(order.tanggal)}</td>
                             <td className="px-4 py-3 text-xs font-bold text-stone-900">
                               <div>{order.namaLokasi}</div>
                               <div className="text-[10px] text-stone-400 font-medium">{order.namaKurir}</div>
@@ -2466,7 +2540,26 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                               </span>
                             </td>
                             <td className="px-4 py-3 text-right">
-                              <button className="px-3 py-1.5 bg-stone-900 text-white text-[10px] font-black uppercase rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const grossValue = (order.jumlahKirim || 0) * (order.hargaSikepal || 0);
+                                  setFormData({
+                                    ...formData,
+                                    namaKurir: order.namaKurir,
+                                    namaLokasi: order.namaLokasi,
+                                    qtyPengiriman: order.jumlahUang,
+                                    originalNilai: grossValue,
+                                    hargaSikepal: order.hargaSikepal || 0,
+                                    sisa: order.sisa || 0,
+                                    selectedOrderId: order.id,
+                                    tanggalPiutang: order.tanggal,
+                                    jumlahKirim: order.jumlahKirim
+                                  });
+                                  setIsPiutangModalOpen(false);
+                                }}
+                                className="px-3 py-1.5 bg-stone-900 text-white text-[10px] font-black uppercase rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
                                 Pilih
                               </button>
                             </td>
@@ -2494,32 +2587,32 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                     filteredPiutangOrders.map((order) => (
                       <div 
                         key={order.id}
-                        onClick={() => {
-                          const grossValue = (order.jumlahKirim || 0) * (order.hargaSikepal || 0);
-                          setFormData({
-                            ...formData,
-                            namaKurir: order.namaKurir,
-                            namaLokasi: order.namaLokasi,
-                            qtyPengiriman: order.jumlahUang,
-                            originalNilai: grossValue,
-                            hargaSikepal: order.hargaSikepal || 0,
-                            sisa: order.sisa || 0,
-                            selectedOrderId: order.id,
-                            tanggalPiutang: order.tanggal,
-                            jumlahKirim: order.jumlahKirim
-                          });
-                          setIsPiutangModalOpen(false);
+                         onClick={() => {
+                          const isCurrentlySelected = selectedPiutangIds.includes(order.id);
+                          if (isCurrentlySelected) {
+                            setSelectedPiutangIds(prev => prev.filter(id => id !== order.id));
+                          } else {
+                            setSelectedPiutangIds(prev => [...prev, order.id]);
+                          }
                         }}
                         className={`p-4 rounded-2xl border transition-all cursor-pointer active:scale-[0.98] ${
-                          formData.selectedOrderId === order.id 
+                          selectedPiutangIds.includes(order.id) 
                             ? 'bg-orange-50 border-orange-200 shadow-sm' 
                             : 'bg-white border-stone-100 hover:border-stone-200'
                         }`}
                       >
                         <div className="flex justify-between items-start mb-2">
-                          <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
-                            {formatDate(order.tanggal)}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="checkbox"
+                              checked={selectedPiutangIds.includes(order.id)}
+                              onChange={() => {}} // Handled by div onClick
+                              className="w-4 h-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900"
+                            />
+                            <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
+                              {formatDate(order.tanggal)}
+                            </span>
+                          </div>
                           <span className="px-2 py-0.5 rounded-lg bg-red-50 text-red-600 text-[9px] font-black uppercase">
                             {order.pembayaran}
                           </span>
@@ -2557,13 +2650,32 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
               </div>
             </div>
             
-            <div className="p-6 border-t border-stone-50 bg-stone-50/30 flex justify-end">
-              <button 
-                onClick={() => setIsPiutangModalOpen(false)}
-                className="px-6 py-3 bg-stone-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-stone-800 transition-all"
-              >
-                Tutup
-              </button>
+            <div className="p-6 border-t border-stone-50 bg-stone-50/30 flex items-center justify-between">
+              <div className="text-[10px] font-black text-stone-400 uppercase tracking-widest">
+                {selectedPiutangIds.length} Terpilih
+              </div>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setIsPiutangModalOpen(false)}
+                  className="px-6 py-3 bg-stone-100 text-stone-600 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-stone-200 transition-all"
+                >
+                  Tutup
+                </button>
+                {selectedPiutangIds.length > 0 && (
+                  <button 
+                    onClick={handleBulkPiutangSave}
+                    disabled={isSaving}
+                    className="px-8 py-3 bg-stone-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-stone-800 transition-all shadow-lg flex items-center gap-2"
+                  >
+                    {isSaving ? (
+                      <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <span className="material-symbols-outlined text-sm">auto_fix_high</span>
+                    )}
+                    Proses Massal ({selectedPiutangIds.length})
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
