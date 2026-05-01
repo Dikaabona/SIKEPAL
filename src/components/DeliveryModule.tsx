@@ -547,6 +547,13 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       };
       
       await onSaveDelivery(deliveryData);
+      
+      // Auto-print after save if it's a new delivery
+      if (!editingId) {
+        const associatedOrder = orders.find(o => o.id === deliveryData.orderId);
+        setPrintData({ delivery: deliveryData, order: associatedOrder });
+      }
+
       closeModal();
     } catch (error) {
       console.error('Error in handleSubmit:', error);
@@ -2349,7 +2356,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                       Menyimpan...
                     </>
                   ) : (
-                    editingId ? 'Perbarui' : 'Simpan'
+                    editingId ? 'Perbarui' : 'Simpan & Print'
                   )}
                 </button>
               </div>
@@ -2672,6 +2679,10 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
               <span style={{fontWeight: 900}}>Jam:</span>
               <span>{printData.delivery.jamBukti || '-'}</span>
             </div>
+            <div className="receipt-row">
+              <span style={{fontWeight: 900}}>Loc:</span>
+              <span style={{fontSize: '7px', textAlign: 'right'}}>{printData.delivery.lokasiBukti || '-'}</span>
+            </div>
           </div>
 
           <div className="receipt-divider" />
@@ -2709,6 +2720,17 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
               Ket: {printData.delivery.keterangan}
             </div>
           )}
+
+          <div style={{ marginTop: '8mm', display: 'flex', justifyContent: 'space-between', padding: '0 2mm' }}>
+            <div style={{ textAlign: 'center', width: '22mm' }}>
+              <div style={{ fontSize: '8px', marginBottom: '8mm' }}>PENERIMA</div>
+              <div style={{ borderTop: '0.5px solid black', fontSize: '7px', paddingTop: '1mm' }}>Ttd & Nama</div>
+            </div>
+            <div style={{ textAlign: 'center', width: '22mm' }}>
+              <div style={{ fontSize: '8px', marginBottom: '8mm' }}>KURIR</div>
+              <div style={{ borderTop: '0.5px solid black', fontSize: '7px', paddingTop: '1mm', fontWeight: 900 }}>{printData.delivery.namaKurir}</div>
+            </div>
+          </div>
 
           <div className="receipt-footer">
             Terima kasih atas kerja kerasnya!<br/>
