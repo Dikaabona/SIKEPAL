@@ -481,38 +481,45 @@ export default function App() {
       }
     };
 
-    // Helper for fetching all data with pagination
-    const fetchAllData = async (table: string, limit: number = 20000) => {
-      let allData: any[] = [];
-      let from = 0;
-      let to = 999;
-      let hasMore = true;
-
-      while (hasMore && allData.length < limit) {
+    // Helper for fetching all data with pagination and sorting
+    const fetchAllData = async (table: string, orderCol: string = 'createdAt', limit: number = 2000) => {
+      try {
         const { data, error } = await supabase
           .from(table)
           .select('*')
-          .range(from, to);
+          .order(orderCol, { ascending: false })
+          .limit(limit);
         
-        if (error) throw error;
-        if (data && data.length > 0) {
-          allData = [...allData, ...data];
-          if (data.length < 1000) {
-            hasMore = false;
-          } else {
-            from += 1000;
-            to += 1000;
+        if (error) {
+          // If the specified order column doesn't exist, try a few common alternatives or just no order
+          const fallbackCols = ['created_at', 'tanggal', 'id'];
+          for (const col of fallbackCols) {
+            const { data: retryData, error: retryError } = await supabase
+              .from(table)
+              .select('*')
+              .order(col, { ascending: false })
+              .limit(limit);
+            if (!retryError) return retryData;
           }
-        } else {
-          hasMore = false;
+          
+          // No order if all else fails
+          const { data: simpleData, error: simpleError } = await supabase
+            .from(table)
+            .select('*')
+            .limit(limit);
+          if (simpleError) throw simpleError;
+          return simpleData;
         }
+        return data;
+      } catch (err) {
+        console.error(`Error in fetchAllData for ${table}:`, err);
+        return [];
       }
-      return allData.slice(0, limit);
     };
 
     const fetchOrders = async () => {
       try {
-        const data = await fetchAllData('orders');
+        const data = await fetchAllData('orders', 'tanggal', 2000);
         if (data && data.length === 0) {
           await supabase.from('orders').upsert(MOCK_ORDERS);
           setOrders(MOCK_ORDERS);
@@ -527,16 +534,12 @@ export default function App() {
 
     const fetchDeliveries = async () => {
       try {
-        const data = await fetchAllData('deliveries');
+        const data = await fetchAllData('deliveries', 'createdAt', 2000);
         if (data && data.length === 0) {
           await supabase.from('deliveries').upsert(MOCK_DELIVERIES);
           setDeliveries(MOCK_DELIVERIES);
         } else {
-          setDeliveries(data.sort((a, b) => {
-            const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-            const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-            return tB - tA;
-          }));
+          setDeliveries(data);
         }
       } catch (e) {
         console.warn('Deliveries table might not exist yet, using mock data');
@@ -546,16 +549,12 @@ export default function App() {
 
     const fetchBillingReports = async () => {
       try {
-        const data = await fetchAllData('billing_reports');
+        const data = await fetchAllData('billing_reports', 'createdAt', 2000);
         if (data && data.length === 0) {
           await supabase.from('billing_reports').upsert(MOCK_BILLING_REPORTS);
           setBillingReports(MOCK_BILLING_REPORTS);
         } else {
-          setBillingReports(data.sort((a, b) => {
-            const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-            const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-            return tB - tA;
-          }));
+          setBillingReports(data); // Already sorted by server
         }
       } catch (e) {
         console.warn('Billing reports table might not exist yet, using mock data');

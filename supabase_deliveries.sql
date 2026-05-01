@@ -20,6 +20,11 @@ create table if not exists public.deliveries (
     "orderId" text references public.orders(id)
 );
 
+-- Create indexes for performance
+create index if not exists deliveries_company_idx on public.deliveries (company);
+create index if not exists deliveries_createdAt_idx on public.deliveries ("createdAt" desc);
+create index if not exists deliveries_tanggal_idx on public.deliveries (tanggal desc);
+
 -- Enable RLS
 alter table public.deliveries enable row level security;
 
