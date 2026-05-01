@@ -2692,14 +2692,14 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
             margin: 0;
             padding: 0;
             background: white !important;
-          }
-          .no-print {
-            display: none !important;
-          }
-          #root {
-            display: none !important;
+            visibility: hidden;
+            -webkit-print-color-adjust: exact;
           }
           #print-receipt-container {
+            visibility: visible;
+            position: absolute;
+            left: 0;
+            top: 0;
             display: block !important;
             width: 58mm;
             padding: 4mm;
@@ -2709,6 +2709,12 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
             font-family: 'Courier New', Courier, monospace;
             font-size: 11px;
             line-height: 1.2;
+          }
+          #print-receipt-container * {
+            visibility: visible;
+          }
+          .no-print {
+            display: none !important;
           }
           .receipt-logo {
             width: 35mm;
