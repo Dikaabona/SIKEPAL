@@ -20,11 +20,6 @@ create table if not exists public.billing_reports (
     "createdAt" timestamp with time zone default now()
 );
 
--- Create indexes for performance
-create index if not exists billing_reports_company_idx on public.billing_reports (company);
-create index if not exists billing_reports_createdAt_idx on public.billing_reports ("createdAt" desc);
-create index if not exists billing_reports_tanggal_idx on public.billing_reports (tanggal desc);
-
 -- Enable RLS
 alter table public.billing_reports enable row level security;
 

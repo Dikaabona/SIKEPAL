@@ -22,11 +22,6 @@ create table if not exists public.orders (
     "updatedAt" timestamp with time zone default now()
 );
 
--- Create indexes for performance
-create index if not exists orders_company_idx on public.orders (company);
-create index if not exists orders_tanggal_idx on public.orders (tanggal desc);
-create index if not exists orders_pembayaran_idx on public.orders (pembayaran);
-
 -- Enable RLS
 alter table public.orders enable row level security;
 
