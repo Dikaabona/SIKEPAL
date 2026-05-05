@@ -349,7 +349,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       
       // Items
       addCmd(BOLD_ON);
-      addLine(`TOTAL KIRIM: ${data.order?.jumlahKirim || data.delivery.qtyPengiriman} Pcs`);
+      addLine(`TOTAL KIRIM: ${data.delivery.qtyPengiriman} Pcs`);
       addCmd(BOLD_OFF);
       
       if (data.delivery.keterangan) {
@@ -3283,7 +3283,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
 
           <div className="receipt-row receipt-total">
             <span>TOTAL KIRIM</span>
-            <span>{printData.order?.jumlahKirim || printData.delivery.qtyPengiriman} Pcs</span>
+            <span>{printData.delivery.qtyPengiriman} Pcs</span>
           </div>
 
           {printData.delivery.keterangan && (
