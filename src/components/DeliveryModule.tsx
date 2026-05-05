@@ -297,7 +297,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
     });
   };
 
-  const printViaBluetooth = async (data: { delivery: DeliveryRecord; order?: Order }) => {
+  const printViaBluetooth = async (data: { delivery: DeliveryRecord; order?: Order }, copyLabel?: string) => {
     if (!btCharacteristic) return false;
 
     try {
@@ -320,6 +320,14 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       // Header
       addCmd(INIT);
       addCmd(ALIGN_CENTER);
+
+      // Copy Label if provided
+      if (copyLabel) {
+        addCmd(BOLD_ON);
+        addLine(`*** ${copyLabel} ***`);
+        addCmd(BOLD_OFF);
+        addLine();
+      }
 
       // Logo SIKEPAL
       const logoUrl = 'https://lh3.googleusercontent.com/d/1b-hkPOsHZ8_rW1f9aqABu7R5bw_ZJM0y';
@@ -394,7 +402,15 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       if (printData) {
         // Try Bluetooth first if connected
         if (btCharacteristic) {
-          const success = await printViaBluetooth(printData);
+          // Print Customer Copy
+          await printViaBluetooth(printData, "CUSTOMER COPY");
+          
+          // Small delay between prints to avoid buffering issues
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Print Bukti Copy
+          const success = await printViaBluetooth(printData, "BUKTI PENERIMAAN");
+          
           if (success) {
             setPrintData(null);
             return;
@@ -3225,78 +3241,93 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
 
       {printData && (
         <div id="print-receipt-container">
-          <img 
-            src="https://lh3.googleusercontent.com/d/1b-hkPOsHZ8_rW1f9aqABu7R5bw_ZJM0y" 
-            alt="Sikepal Logo" 
-            className="receipt-logo"
-            referrerPolicy="no-referrer"
-          />
-          <div className="receipt-header">Bukti Pengiriman</div>
-          
-          <div className="receipt-details">
-            <div className="receipt-row">
-              <span style={{fontWeight: 900}}>Lokasi:</span>
-              <span style={{textAlign: 'right'}}>{printData.delivery.namaLokasi}</span>
-            </div>
-            <div className="receipt-row">
-              <span style={{fontWeight: 900}}>Kurir:</span>
-              <span>{printData.delivery.namaKurir}</span>
-            </div>
-            <div className="receipt-row">
-              <span style={{fontWeight: 900}}>Tgl:</span>
-              <span>{formatDate(printData.delivery.tanggal)}</span>
-            </div>
-            <div className="receipt-row">
-              <span style={{fontWeight: 900}}>Jam:</span>
-              <span>{printData.delivery.jamBukti || '-'}</span>
-            </div>
-            <div className="receipt-row">
-              <span style={{fontWeight: 900}}>Loc:</span>
-              <span style={{fontSize: '7px', textAlign: 'right'}}>{printData.delivery.lokasiBukti || '-'}</span>
-            </div>
-          </div>
-
-          <div className="receipt-divider" />
-          <div className="receipt-section-title">Detail Varian</div>
-          
-          {printData.order ? (
-            <div className="receipt-variants">
-              {[
-                { label: 'Tuna Pedes', val: printData.order.tunaPedes },
-                { label: 'Tuna Mayo', val: printData.order.tunaMayo },
-                { label: 'Ayam Mayo', val: printData.order.ayamMayo },
-                { label: 'Ayam Pedes', val: printData.order.ayamPedes },
-                { label: 'Menu Bulanan', val: printData.order.menuBulanan },
-              ].filter(v => v.val > 0).map(v => (
-                <div key={v.label} className="receipt-row">
-                  <span>{v.label}</span>
-                  <span>{v.val}</span>
+          {[
+            { label: 'CUSTOMER COPY', showDivider: true },
+            { label: 'BUKTI PENERIMAAN', showDivider: false }
+          ].map((copy, index) => (
+            <div key={index} className="receipt-copy-wrapper" style={{ 
+              marginBottom: index === 0 ? '15mm' : '0', 
+              paddingBottom: index === 0 ? '15mm' : '0',
+              borderBottom: index === 0 ? '1px dashed black' : 'none',
+              pageBreakInside: 'avoid'
+            }}>
+              <div style={{ textAlign: 'center', fontWeight: 900, marginBottom: '2mm', fontSize: '10px' }}>
+                *** {copy.label} ***
+              </div>
+              <img 
+                src="https://lh3.googleusercontent.com/d/1b-hkPOsHZ8_rW1f9aqABu7R5bw_ZJM0y" 
+                alt="Sikepal Logo" 
+                className="receipt-logo"
+                referrerPolicy="no-referrer"
+              />
+              <div className="receipt-header">Bukti Pengiriman</div>
+              
+              <div className="receipt-details">
+                <div className="receipt-row">
+                  <span style={{fontWeight: 900}}>Lokasi:</span>
+                  <span style={{textAlign: 'right'}}>{printData.delivery.namaLokasi}</span>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="receipt-row">
-              <span>Qty Total</span>
-              <span>{printData.delivery.qtyPengiriman}</span>
-            </div>
-          )}
+                <div className="receipt-row">
+                  <span style={{fontWeight: 900}}>Kurir:</span>
+                  <span>{printData.delivery.namaKurir}</span>
+                </div>
+                <div className="receipt-row">
+                  <span style={{fontWeight: 900}}>Tgl:</span>
+                  <span>{formatDate(printData.delivery.tanggal)}</span>
+                </div>
+                <div className="receipt-row">
+                  <span style={{fontWeight: 900}}>Jam:</span>
+                  <span>{printData.delivery.jamBukti || '-'}</span>
+                </div>
+                <div className="receipt-row">
+                  <span style={{fontWeight: 900}}>Loc:</span>
+                  <span style={{fontSize: '7px', textAlign: 'right'}}>{printData.delivery.lokasiBukti || '-'}</span>
+                </div>
+              </div>
 
-          <div className="receipt-row receipt-total">
-            <span>TOTAL KIRIM</span>
-            <span>{printData.delivery.qtyPengiriman} Pcs</span>
-          </div>
+              <div className="receipt-divider" />
+              <div className="receipt-section-title">Detail Varian</div>
+              
+              {printData.order ? (
+                <div className="receipt-variants">
+                  {[
+                    { label: 'Tuna Pedes', val: printData.order.tunaPedes },
+                    { label: 'Tuna Mayo', val: printData.order.tunaMayo },
+                    { label: 'Ayam Mayo', val: printData.order.ayamMayo },
+                    { label: 'Ayam Pedes', val: printData.order.ayamPedes },
+                    { label: 'Menu Bulanan', val: printData.order.menuBulanan },
+                  ].filter(v => v.val > 0).map(v => (
+                    <div key={v.label} className="receipt-row">
+                      <span>{v.label}</span>
+                      <span>{v.val}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="receipt-row">
+                  <span>Qty Total</span>
+                  <span>{printData.delivery.qtyPengiriman}</span>
+                </div>
+              )}
 
-          {printData.delivery.keterangan && (
-            <div style={{marginTop: '3mm', fontStyle: 'italic', fontSize: '9px'}}>
-              Ket: {printData.delivery.keterangan}
+              <div className="receipt-row receipt-total">
+                <span>TOTAL KIRIM</span>
+                <span>{printData.delivery.qtyPengiriman} Pcs</span>
+              </div>
+
+              {printData.delivery.keterangan && (
+                <div style={{marginTop: '3mm', fontStyle: 'italic', fontSize: '9px'}}>
+                  Ket: {printData.delivery.keterangan}
+                </div>
+              )}
+
+              {/* Receipt Footer inside each copy */}
+              <div className="receipt-footer">
+                Terima kasih atas kerja kerasnya!<br/>
+                Sikepal Premium Nasi Kepal
+              </div>
             </div>
-          )}
-
-      {/* Receipt Footer */}
-      <div className="receipt-footer">
-        Terima kasih atas kerja kerasnya!<br/>
-        Sikepal Premium Nasi Kepal
-      </div>
+          ))}
         </div>
       )}
     </div>
