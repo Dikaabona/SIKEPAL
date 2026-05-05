@@ -301,6 +301,9 @@ export default function App() {
   const [preselectedStoreId, setPreselectedStoreId] = useState<string | null>(null);
 
   const [isDataMissing, setIsDataMissing] = useState(false);
+  const [btCharacteristic, setBtCharacteristic] = useState<any>(null);
+  const [btDevice, setBtDevice] = useState<any>(null);
+  const [isBtConnecting, setIsBtConnecting] = useState(false);
 
   const userEmail = session?.user?.email?.toLowerCase().trim() || '';
   const currentUserEmployee = employees.find(e => e.email?.toLowerCase().trim() === userEmail) || null;
@@ -1396,6 +1399,70 @@ export default function App() {
     );
   };
 
+  const connectBluetooth = async () => {
+    if (btDevice && btDevice.gatt.connected) {
+      if (window.confirm('Putuskan koneksi printer?')) {
+        btDevice.gatt.disconnect();
+        setBtCharacteristic(null);
+        setBtDevice(null);
+        return;
+      }
+    }
+
+    try {
+      setIsBtConnecting(true);
+      // @ts-ignore
+      const device = await navigator.bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: [
+          '000018f0-0000-1000-8000-00805f9b34fb', 
+          '0000ff00-0000-1000-8000-00805f9b34fb',
+          '0000fff0-0000-1000-8000-00805f9b34fb',
+          '0000ae30-0000-1000-8000-00805f9b34fb'
+        ]
+      });
+
+      const server = await device.gatt?.connect();
+      setBtDevice(device);
+      
+      device.addEventListener('gattserverdisconnected', () => {
+        setBtCharacteristic(null);
+        setBtDevice(null);
+      });
+      
+      const serviceIds = [
+        '000018f0-0000-1000-8000-00805f9b34fb', 
+        '0000ff00-0000-1000-8000-00805f9b34fb',
+        '0000fff0-0000-1000-8000-00805f9b34fb',
+        '0000ae30-0000-1000-8000-00805f9b34fb'
+      ];
+      let characteristic = null;
+
+      for (const serviceId of serviceIds) {
+        try {
+          const service = await server?.getPrimaryService(serviceId);
+          const characteristics = await service?.getCharacteristics();
+          characteristic = characteristics?.find(c => c.properties.write || c.properties.writeWithoutResponse);
+          if (characteristic) break;
+        } catch (e) {
+          continue;
+        }
+      }
+
+      if (!characteristic) {
+        throw new Error('Printer tidak didukung (Write characteristic tidak ditemukan).');
+      }
+
+      setBtCharacteristic(characteristic);
+      alert('Printer Bluetooth Terhubung!');
+    } catch (error) {
+      console.error('Bluetooth connection error:', error);
+      alert('Gagal menghubungkan Bluetooth. Pastikan Bluetooth aktif.');
+    } finally {
+      setIsBtConnecting(false);
+    }
+  };
+
   const navItems = [
     { id: 'home', label: currentUserEmployee?.nama ? `Hi ${currentUserEmployee.nama.split(' ')[0]}` : 'Dashboard', icon: 'dashboard' },
     { 
@@ -1517,6 +1584,9 @@ export default function App() {
             billingReports={billingReports}
             preselectedStoreId={preselectedStoreId}
             onPreselectionHandled={() => setPreselectedStoreId(null)}
+            btCharacteristic={btCharacteristic}
+            isBtConnecting={isBtConnecting}
+            onConnectBluetooth={connectBluetooth}
           />
         );
       case 'attendance':
@@ -1712,6 +1782,9 @@ export default function App() {
             initialPrefillLocation={prefillData?.type === 'delivery' ? prefillData.location : undefined}
             initialPrefillCourier={prefillData?.type === 'delivery' ? prefillData.courier : undefined}
             onPrefillHandled={() => setPrefillData(null)}
+            btCharacteristic={btCharacteristic}
+            isBtConnecting={isBtConnecting}
+            onConnectBluetooth={connectBluetooth}
             onCancel={() => {
               if (returnStoreId) {
                 setPreselectedStoreId(returnStoreId);
@@ -1766,6 +1839,9 @@ export default function App() {
             initialPrefillLocation={prefillData?.type === 'billing' ? prefillData.location : undefined}
             initialPrefillCourier={prefillData?.type === 'billing' ? prefillData.courier : undefined}
             onPrefillHandled={() => setPrefillData(null)}
+            btCharacteristic={btCharacteristic}
+            isBtConnecting={isBtConnecting}
+            onConnectBluetooth={connectBluetooth}
             onCancel={() => {
               if (returnStoreId) {
                 setPreselectedStoreId(returnStoreId);
@@ -2152,7 +2228,25 @@ export default function App() {
               {activeTab === 'home' ? `Hi ${currentUserEmployee?.nama || 'User'}` : activeTab.replace('_', ' ')}
             </h2>
           </div>
-          <div className="flex items-center gap-3 md:gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
+            {/* Bluetooth Status Button */}
+            <button
+              onClick={connectBluetooth}
+              disabled={isBtConnecting}
+              className={`flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                btCharacteristic 
+                  ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-sm' 
+                  : 'bg-stone-50 text-stone-500 hover:bg-stone-100 border border-stone-100'
+              }`}
+            >
+              <span className={`material-symbols-outlined text-sm ${btCharacteristic ? 'animate-pulse' : ''} ${btCharacteristic ? 'text-emerald-500' : 'text-stone-400'}`}>
+                {btCharacteristic ? 'print' : 'bluetooth'}
+              </span>
+              <span className="hidden sm:inline">
+                {isBtConnecting ? 'Connecting...' : (btCharacteristic ? 'Printer Connected' : 'Connect Printer')}
+              </span>
+            </button>
+
             <div className="hidden sm:flex items-center bg-stone-100 rounded-full px-4 py-1.5 gap-2 border border-outline-variant/20 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
               <span className="material-symbols-outlined text-stone-400 text-sm">search</span>
               <input

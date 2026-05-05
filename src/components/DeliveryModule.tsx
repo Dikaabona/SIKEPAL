@@ -76,6 +76,9 @@ interface DeliveryModuleProps {
   initialPrefillCourier?: string;
   onPrefillHandled?: () => void;
   onCancel?: () => void;
+  btCharacteristic?: any;
+  isBtConnecting?: boolean;
+  onConnectBluetooth?: () => void;
 }
 
 const DeliveryModule: React.FC<DeliveryModuleProps> = ({ 
@@ -97,7 +100,10 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   initialPrefillLocation,
   initialPrefillCourier,
   onPrefillHandled,
-  onCancel
+  onCancel,
+  btCharacteristic,
+  isBtConnecting,
+  onConnectBluetooth
 }) => {
   // Extract unique courier names from orders
   const courierOptions = useMemo(() => {
@@ -221,6 +227,13 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedPiutangIds, setSelectedPiutangIds] = useState<string[]>([]);
+  const [isBulkPiutangFormOpen, setIsBulkPiutangFormOpen] = useState(false);
+  const [bulkPiutangFormData, setBulkPiutangFormData] = useState({
+    metodePembayaran: 'Cash',
+    fotoBukti: '',
+    buktiTransfer: '',
+    sisa: 0
+  });
   const [locationSearchQuery, setLocationSearchQuery] = useState('');
   const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -240,77 +253,6 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   const [filterDate, setFilterDate] = useState(getLocalDateString());
   const [filterEndDate, setFilterEndDate] = useState('');
   const [printData, setPrintData] = useState<{ delivery: DeliveryRecord; order?: Order } | null>(null);
-  const [btCharacteristic, setBtCharacteristic] = useState<any>(null);
-  const [btDevice, setBtDevice] = useState<any>(null);
-  const [isBtConnecting, setIsBtConnecting] = useState(false);
-
-  // Bluetooth Connect Function
-  const connectBluetooth = async () => {
-    if (btDevice && btDevice.gatt.connected) {
-      if (window.confirm('Putuskan koneksi printer?')) {
-        btDevice.gatt.disconnect();
-        setBtCharacteristic(null);
-        setBtDevice(null);
-        return;
-      }
-    }
-
-    try {
-      setIsBtConnecting(true);
-      // @ts-ignore
-      const device = await navigator.bluetooth.requestDevice({
-        acceptAllDevices: true,
-        optionalServices: [
-          '000018f0-0000-1000-8000-00805f9b34fb', 
-          '0000ff00-0000-1000-8000-00805f9b34fb',
-          '0000fff0-0000-1000-8000-00805f9b34fb',
-          '0000ae30-0000-1000-8000-00805f9b34fb'
-        ]
-      });
-
-      const server = await device.gatt?.connect();
-      setBtDevice(device);
-      
-      // Handle sudden disconnects
-      device.addEventListener('gattserverdisconnected', () => {
-        setBtCharacteristic(null);
-        setBtDevice(null);
-      });
-      
-      // Try common thermal printer service UUIDs
-      const serviceIds = [
-        '000018f0-0000-1000-8000-00805f9b34fb', 
-        '0000ff00-0000-1000-8000-00805f9b34fb',
-        '0000fff0-0000-1000-8000-00805f9b34fb',
-        '0000ae30-0000-1000-8000-00805f9b34fb'
-      ];
-      let characteristic = null;
-
-      for (const serviceId of serviceIds) {
-        try {
-          const service = await server?.getPrimaryService(serviceId);
-          const characteristics = await service?.getCharacteristics();
-          // Find the write characteristic
-          characteristic = characteristics?.find(c => c.properties.write || c.properties.writeWithoutResponse);
-          if (characteristic) break;
-        } catch (e) {
-          continue;
-        }
-      }
-
-      if (!characteristic) {
-        throw new Error('Could not find write characteristic. This printer might not be supported.');
-      }
-
-      setBtCharacteristic(characteristic);
-      alert('Printer Bluetooth Terhubung!');
-    } catch (error) {
-      console.error('Bluetooth connection error:', error);
-      alert('Gagal menghubungkan Bluetooth. Pastikan Bluetooth aktif dan pilih printer yang benar.');
-    } finally {
-      setIsBtConnecting(false);
-    }
-  };
 
   const printViaBluetooth = async (data: { delivery: DeliveryRecord; order?: Order }) => {
     if (!btCharacteristic) return false;
@@ -653,36 +595,44 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
           const now = new Date();
           const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
           
-          // Get current location
-          if (navigator.geolocation && cameraTarget === 'fotoBukti') {
-            navigator.geolocation.getCurrentPosition(
-              (position) => {
-                const { latitude, longitude } = position.coords;
-                setFormData(prev => ({
-                  ...prev,
-                  [cameraTarget]: finalData,
-                  lokasiBukti: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
-                  jamBukti: timeStr
-                }));
-                stopCamera();
-              },
-              (error) => {
-                console.error("Error getting location:", error);
-                setFormData(prev => ({
-                  ...prev,
-                  [cameraTarget]: finalData,
-                  jamBukti: timeStr
-                }));
-                stopCamera();
-              }
-            );
-          } else {
-            setFormData(prev => ({
+          if (isBulkPiutangFormOpen) {
+            setBulkPiutangFormData(prev => ({
               ...prev,
-              [cameraTarget]: finalData,
-              ...(cameraTarget === 'fotoBukti' ? { jamBukti: timeStr } : {})
+              [cameraTarget]: finalData
             }));
             stopCamera();
+          } else {
+            // Get current location
+            if (navigator.geolocation && cameraTarget === 'fotoBukti') {
+              navigator.geolocation.getCurrentPosition(
+                (position) => {
+                  const { latitude, longitude } = position.coords;
+                  setFormData(prev => ({
+                    ...prev,
+                    [cameraTarget]: finalData,
+                    lokasiBukti: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+                    jamBukti: timeStr
+                  }));
+                  stopCamera();
+                },
+                (error) => {
+                  console.error("Error getting location:", error);
+                  setFormData(prev => ({
+                    ...prev,
+                    [cameraTarget]: finalData,
+                    jamBukti: timeStr
+                  }));
+                  stopCamera();
+                }
+              );
+            } else {
+              setFormData(prev => ({
+                ...prev,
+                [cameraTarget]: finalData,
+                ...(cameraTarget === 'fotoBukti' ? { jamBukti: timeStr } : {})
+              }));
+              stopCamera();
+            }
           }
         };
 
@@ -740,11 +690,22 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       
       // Auto-print after save if it's a new delivery
       if (!editingId) {
-        const associatedOrder = orders.find(o => o.id === deliveryData.orderId);
+        // Find associated order more robustly
+        const associatedOrder = orders.find(o => {
+          if (deliveryData.orderId && o.id === deliveryData.orderId) return true;
+          // Fallback to location and date match if orderId is missing
+          const orderDateObj = parseIndoDate(o.tanggal);
+          const orderDateStr = orderDateObj ? getLocalDateString(orderDateObj) : o.tanggal;
+          return o.namaLokasi === deliveryData.namaLokasi && orderDateStr === deliveryData.tanggal;
+        });
+        
         setPrintData({ delivery: deliveryData, order: associatedOrder });
       }
 
-      closeModal();
+      // Small delay before closing to ensure state changes are processed
+      setTimeout(() => {
+        closeModal();
+      }, 100);
     } catch (error) {
       console.error('Error in handleSubmit:', error);
     } finally {
@@ -813,6 +774,24 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   const handleBulkPiutangSave = async () => {
     if (selectedPiutangIds.length === 0 || isSaving) return;
     
+    // If form is not open, open it first
+    if (!isBulkPiutangFormOpen) {
+      setIsBulkPiutangFormOpen(true);
+      return;
+    }
+
+    // Validation for bulk form
+    if (title === "Billing Report") {
+      if (!bulkPiutangFormData.fotoBukti) {
+        alert('Foto Bukti wajib diisi');
+        return;
+      }
+      if (bulkPiutangFormData.metodePembayaran === 'Transfer' && !bulkPiutangFormData.buktiTransfer) {
+        alert('Bukti Transfer wajib diisi untuk metode Transfer');
+        return;
+      }
+    }
+    
     let successCount = 0;
     let failCount = 0;
     
@@ -827,14 +806,14 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
             namaKurir: order.namaKurir,
             tanggal: getLocalDateString(),
             namaLokasi: order.namaLokasi,
-            fotoBukti: null,
+            fotoBukti: bulkPiutangFormData.fotoBukti || null,
             lokasiBukti: null,
             jamBukti: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false }),
             qtyPengiriman: order.jumlahUang,
-            sisa: order.sisa || 0,
+            sisa: bulkPiutangFormData.sisa || 0,
             hargaSikepal: order.hargaSikepal || 0,
-            metodePembayaran: 'Cash',
-            buktiTransfer: null,
+            metodePembayaran: bulkPiutangFormData.metodePembayaran || 'Cash',
+            buktiTransfer: bulkPiutangFormData.buktiTransfer || null,
             buktiSisa: null,
             waste: 0,
             tanggalPiutang: order.tanggal,
@@ -860,6 +839,13 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       
       setSelectedPiutangIds([]);
       setIsPiutangModalOpen(false);
+      setIsBulkPiutangFormOpen(false);
+      setBulkPiutangFormData({
+        metodePembayaran: 'Cash',
+        fotoBukti: '',
+        buktiTransfer: '',
+        sisa: 0
+      });
       closeModal();
     } catch (error) {
       console.error('Error in handleBulkPiutangSave:', error);
@@ -902,7 +888,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
 
         <div className="flex items-center gap-3">
           <button
-            onClick={connectBluetooth}
+            onClick={onConnectBluetooth}
             disabled={isBtConnecting}
             className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
               btCharacteristic 
@@ -2641,11 +2627,18 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
           <div className="bg-white rounded-[32px] w-full max-w-2xl max-h-[80vh] overflow-hidden shadow-2xl flex flex-col">
             <div className="p-6 md:p-8 border-b border-stone-50 flex items-center justify-between bg-stone-50/30">
               <div>
-                <h3 className="text-lg md:text-xl font-black text-stone-900 uppercase tracking-tight">Daftar Piutang</h3>
-                <p className="text-[10px] md:text-xs text-stone-500 font-medium uppercase tracking-widest">Data Orderan (Unpaid)</p>
+                <h3 className="text-lg md:text-xl font-black text-stone-900 uppercase tracking-tight">
+                  {isBulkPiutangFormOpen ? 'Lengkapi Data Massal' : 'Daftar Piutang'}
+                </h3>
+                <p className="text-[10px] md:text-xs text-stone-500 font-medium uppercase tracking-widest">
+                  {isBulkPiutangFormOpen ? `Mengisi untuk ${selectedPiutangIds.length} Data` : 'Data Orderan (Unpaid)'}
+                </p>
               </div>
               <button 
-                onClick={() => setIsPiutangModalOpen(false)}
+                onClick={() => {
+                  setIsPiutangModalOpen(false);
+                  setIsBulkPiutangFormOpen(false);
+                }}
                 className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white border border-stone-100 flex items-center justify-center text-stone-400 hover:text-stone-900 transition-colors shadow-sm"
               >
                 <span className="material-symbols-outlined text-sm md:text-base">close</span>
@@ -2653,8 +2646,90 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
             </div>
             
             <div className="flex-1 overflow-hidden flex flex-col">
-              {/* Search and Filter Bar */}
-              <div className="p-4 md:p-6 pb-2 border-b border-stone-50 bg-white space-y-4">
+              {isBulkPiutangFormOpen ? (
+                <div className="flex-1 overflow-auto p-6 md:p-8 space-y-6">
+                  {/* Bulk Form Fields */}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">Metode Pembayaran</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        {['Cash', 'Transfer'].map(method => (
+                          <button
+                            key={method}
+                            type="button"
+                            onClick={() => setBulkPiutangFormData({...bulkPiutangFormData, metodePembayaran: method})}
+                            className={`py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                              bulkPiutangFormData.metodePembayaran === method 
+                                ? 'bg-stone-900 text-white shadow-lg' 
+                                : 'bg-stone-50 text-stone-400 hover:bg-stone-100'
+                            }`}
+                          >
+                            {method}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">Sisa (Per Data)</label>
+                      <input
+                        type="number"
+                        value={bulkPiutangFormData.sisa}
+                        onChange={(e) => setBulkPiutangFormData({...bulkPiutangFormData, sisa: Number(e.target.value)})}
+                        placeholder="Masukkan nilai sisa jika ada..."
+                        className="w-full px-4 py-3 rounded-2xl bg-stone-50 border-none focus:ring-2 focus:ring-stone-900 transition-all text-sm font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2 flex justify-between items-center">
+                        Bukti Penagihan
+                        {bulkPiutangFormData.fotoBukti && <span className="text-emerald-500 flex items-center gap-1"><span className="material-symbols-outlined text-xs">check_circle</span> TERSEDIA</span>}
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => startCamera('fotoBukti')}
+                        className={`w-full py-6 rounded-[24px] border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all ${
+                          bulkPiutangFormData.fotoBukti ? 'border-emerald-200 bg-emerald-50/30' : 'border-stone-200 bg-stone-50 hover:bg-stone-100'
+                        }`}
+                      >
+                        <span className={`material-symbols-outlined text-3xl ${bulkPiutangFormData.fotoBukti ? 'text-emerald-500' : 'text-stone-300'}`}>
+                          {bulkPiutangFormData.fotoBukti ? 'image' : 'photo_camera'}
+                        </span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-stone-400">
+                          {bulkPiutangFormData.fotoBukti ? 'Ganti Foto' : 'Ambil Kamera'}
+                        </span>
+                      </button>
+                    </div>
+
+                    {bulkPiutangFormData.metodePembayaran === 'Transfer' && (
+                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                        <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2 flex justify-between items-center">
+                          Bukti Transfer
+                          {bulkPiutangFormData.buktiTransfer && <span className="text-emerald-500 flex items-center gap-1"><span className="material-symbols-outlined text-xs">check_circle</span> TERSEDIA</span>}
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => startCamera('buktiTransfer')}
+                          className={`w-full py-6 rounded-[24px] border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all ${
+                            bulkPiutangFormData.buktiTransfer ? 'border-emerald-200 bg-emerald-50/30' : 'border-stone-200 bg-stone-50 hover:bg-stone-100'
+                          }`}
+                        >
+                          <span className={`material-symbols-outlined text-3xl ${bulkPiutangFormData.buktiTransfer ? 'text-emerald-500' : 'text-stone-300'}`}>
+                            {bulkPiutangFormData.buktiTransfer ? 'image' : 'photo_camera'}
+                          </span>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-stone-400">
+                            {bulkPiutangFormData.buktiTransfer ? 'Ganti Foto' : 'Ambil Foto Transfer'}
+                          </span>
+                        </button>
+                      </motion.div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Search and Filter Bar */}
+                  <div className="p-4 md:p-6 pb-2 border-b border-stone-50 bg-white space-y-4">
                 <div className="flex flex-col md:flex-row gap-4">
                   <div className="flex-1 relative">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">search</span>
@@ -2858,31 +2933,41 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                   )}
                 </div>
               </div>
-            </div>
+            </>
+          )}
+        </div>
             
             <div className="p-6 border-t border-stone-50 bg-stone-50/30 flex items-center justify-between">
               <div className="text-[10px] font-black text-stone-400 uppercase tracking-widest">
-                {selectedPiutangIds.length} Terpilih
+                {isBulkPiutangFormOpen ? 'Total Tagihan' : `${selectedPiutangIds.length} Terpilih`}
               </div>
-              <div className="flex gap-3">
+              <div className="flex gap-2">
                 <button 
-                  onClick={() => setIsPiutangModalOpen(false)}
-                  className="px-6 py-3 bg-stone-100 text-stone-600 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-stone-200 transition-all"
+                  onClick={() => {
+                    if (isBulkPiutangFormOpen) {
+                      setIsBulkPiutangFormOpen(false);
+                    } else {
+                      setIsPiutangModalOpen(false);
+                    }
+                  }}
+                  className="px-4 py-2.5 bg-stone-100 text-stone-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-stone-200 transition-all"
                 >
-                  Tutup
+                  {isBulkPiutangFormOpen ? 'Kembali' : 'Tutup'}
                 </button>
                 {selectedPiutangIds.length > 0 && (
                   <button 
                     onClick={handleBulkPiutangSave}
                     disabled={isSaving}
-                    className="px-8 py-3 bg-stone-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-stone-800 transition-all shadow-lg flex items-center gap-2"
+                    className="px-5 py-2.5 bg-stone-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-stone-800 transition-all shadow-lg flex items-center gap-2"
                   >
                     {isSaving ? (
                       <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
-                      <span className="material-symbols-outlined text-sm">auto_fix_high</span>
+                      <span className="material-symbols-outlined text-[14px]">
+                        {isBulkPiutangFormOpen ? 'check_circle' : 'auto_fix_high'}
+                      </span>
                     )}
-                    Proses Massal ({selectedPiutangIds.length})
+                    {isBulkPiutangFormOpen ? 'Konfirmasi' : `Proses Massal (${selectedPiutangIds.length})`}
                   </button>
                 )}
               </div>

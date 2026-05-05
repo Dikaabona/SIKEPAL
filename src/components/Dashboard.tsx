@@ -25,6 +25,9 @@ interface DashboardProps {
   billingReports: BillingRecord[];
   preselectedStoreId?: string | null;
   onPreselectionHandled?: () => void;
+  btCharacteristic?: any;
+  isBtConnecting?: boolean;
+  onConnectBluetooth?: () => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ 
@@ -40,7 +43,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   deliveries,
   billingReports,
   preselectedStoreId,
-  onPreselectionHandled
+  onPreselectionHandled,
+  btCharacteristic,
+  isBtConnecting,
+  onConnectBluetooth
 }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentDistance, setCurrentDistance] = useState<number | null>(null);
@@ -340,6 +346,31 @@ const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                 ))}
               </div>
+            </motion.div>
+
+            {/* Bluetooth Connect Button (Home Screen Mobile) */}
+            <motion.div
+              variants={item}
+              className="mt-4 w-full"
+            >
+              <button
+                onClick={onConnectBluetooth}
+                disabled={isBtConnecting}
+                className={`w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm active:scale-95 ${
+                  btCharacteristic 
+                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' 
+                    : 'bg-stone-50 text-stone-600 border border-stone-100'
+                }`}
+              >
+                {isBtConnecting ? (
+                  <div className="w-3 h-3 border-2 border-stone-400 border-t-stone-900 rounded-full animate-spin" />
+                ) : (
+                  <span className="material-symbols-outlined text-sm">
+                    {btCharacteristic ? 'bluetooth_connected' : 'bluetooth'}
+                  </span>
+                )}
+                {btCharacteristic ? 'PRINTER VSC TERHUBUNG' : 'SAMBUNGKAN PRINTER VSC'}
+              </button>
             </motion.div>
           </motion.div>
 
