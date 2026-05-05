@@ -240,17 +240,174 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   const [filterDate, setFilterDate] = useState(getLocalDateString());
   const [filterEndDate, setFilterEndDate] = useState('');
   const [printData, setPrintData] = useState<{ delivery: DeliveryRecord; order?: Order } | null>(null);
+  const [btCharacteristic, setBtCharacteristic] = useState<any>(null);
+  const [isBtConnecting, setIsBtConnecting] = useState(false);
+
+  // Bluetooth Connect Function
+  const connectBluetooth = async () => {
+    try {
+      setIsBtConnecting(true);
+      // @ts-ignore
+      const device = await navigator.bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb', '0000ff00-0000-1000-8000-00805f9b34fb']
+      });
+
+      const server = await device.gatt?.connect();
+      
+      // Try common thermal printer service UUIDs
+      const serviceIds = ['000018f0-0000-1000-8000-00805f9b34fb', '0000ff00-0000-1000-8000-00805f9b34fb'];
+      let characteristic = null;
+
+      for (const serviceId of serviceIds) {
+        try {
+          const service = await server?.getPrimaryService(serviceId);
+          const characteristics = await service?.getCharacteristics();
+          // Find the write characteristic
+          characteristic = characteristics?.find(c => c.properties.write || c.properties.writeWithoutResponse);
+          if (characteristic) break;
+        } catch (e) {
+          continue;
+        }
+      }
+
+      if (!characteristic) {
+        throw new Error('Could not find write characteristic. This printer might not be supported.');
+      }
+
+      setBtCharacteristic(characteristic);
+      alert('Printer Bluetooth Terhubung!');
+    } catch (error) {
+      console.error('Bluetooth connection error:', error);
+      alert('Gagal menghubungkan Bluetooth. Pastikan Bluetooth aktif dan pilih printer yang benar.');
+    } finally {
+      setIsBtConnecting(false);
+    }
+  };
+
+  const printViaBluetooth = async (data: { delivery: DeliveryRecord; order?: Order }) => {
+    if (!btCharacteristic) return false;
+
+    try {
+      const encoder = new TextEncoder();
+      const commands = [];
+      
+      // ESC/POS Commands
+      const INIT = [0x1B, 0x40];
+      const ALIGN_CENTER = [0x1B, 0x61, 0x01];
+      const ALIGN_LEFT = [0x1B, 0x61, 0x00];
+      const BOLD_ON = [0x1B, 0x45, 0x01];
+      const BOLD_OFF = [0x1B, 0x45, 0x00];
+      const SIZE_LARGE = [0x1D, 0x21, 0x11]; // Double height and width
+      const SIZE_NORMAL = [0x1D, 0x21, 0x00];
+
+      const addText = (text: string) => commands.push(...Array.from(encoder.encode(text)));
+      const addLine = (text: string = '') => commands.push(...Array.from(encoder.encode(text + '\n')));
+      const addCmd = (cmd: number[]) => commands.push(...cmd);
+
+      // Header
+      addCmd(INIT);
+      addCmd(ALIGN_CENTER);
+      addLine('--------------------------------');
+      addCmd(BOLD_ON);
+      addCmd(SIZE_LARGE);
+      addLine('SIKEPAL');
+      addCmd(SIZE_NORMAL);
+      addLine('PREMIUM NASI KEPAL');
+      addCmd(BOLD_OFF);
+      addLine('Bukti Pengiriman');
+      addLine('--------------------------------');
+      
+      // Details
+      addCmd(ALIGN_LEFT);
+      addLine(`Lokasi: ${data.delivery.namaLokasi}`);
+      addLine(`Kurir : ${data.delivery.namaKurir}`);
+      addLine(`Tgl   : ${formatDate(data.delivery.tanggal)}`);
+      addLine(`Jam   : ${data.delivery.jamBukti || '-'}`);
+      addLine(`Loc   : ${data.delivery.lokasiBukti?.split(',')[0] || ''}`);
+      addLine(`        ${data.delivery.lokasiBukti?.split(',')[1] || ''}`);
+      addLine('--------------------------------');
+      
+      // Items
+      addCmd(BOLD_ON);
+      addLine('DETAIL VARIAN:');
+      addCmd(BOLD_OFF);
+      
+      if (data.order) {
+        const variants = [
+          { label: 'Tuna Pedes', val: data.order.tunaPedes },
+          { label: 'Tuna Mayo', val: data.order.tunaMayo },
+          { label: 'Ayam Mayo', val: data.order.ayamMayo },
+          { label: 'Ayam Pedes', val: data.order.ayamPedes },
+          { label: 'Menu Bulanan', val: data.order.menuBulanan },
+        ].filter(v => v.val > 0);
+
+        variants.forEach(v => {
+          addLine(`${v.label.padEnd(20)} ${v.val.toString().padStart(5)}`);
+        });
+      } else {
+        addLine(`Total Qty: ${data.delivery.qtyPengiriman}`);
+      }
+      
+      addLine('--------------------------------');
+      addCmd(BOLD_ON);
+      addLine(`TOTAL KIRIM: ${data.order?.jumlahKirim || data.delivery.qtyPengiriman} Pcs`);
+      addCmd(BOLD_OFF);
+      
+      if (data.delivery.keterangan) {
+        addLine('\nKet: ' + data.delivery.keterangan);
+      }
+
+      // Footer / Tanda Tangan
+      addLine('\n\n\n');
+      addLine('PENERIMA            KURIR');
+      addLine('\n\n\n');
+      addLine('.................  ' + data.delivery.namaKurir);
+      
+      addLine('\n--------------------------------');
+      addCmd(ALIGN_CENTER);
+      addLine('Terima kasih!');
+      addLine('\n\n\n\n'); // Extra feeds
+
+      // Chunk and write to characteristic
+      const dataArray = new Uint8Array(commands);
+      const chunkSize = 20; // Default MTU
+      for (let i = 0; i < dataArray.length; i += chunkSize) {
+        const chunk = dataArray.slice(i, i + chunkSize);
+        await btCharacteristic.writeValue(chunk);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Bluetooth print error:', error);
+      alert('Gagal mencetak via Bluetooth.');
+      return false;
+    }
+  };
 
   // Print effect
   React.useEffect(() => {
-    if (printData) {
-      const timer = setTimeout(() => {
-        window.print();
-        setPrintData(null);
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [printData]);
+    const handlePrint = async () => {
+      if (printData) {
+        // Try Bluetooth first if connected
+        if (btCharacteristic) {
+          const success = await printViaBluetooth(printData);
+          if (success) {
+            setPrintData(null);
+            return;
+          }
+        }
+
+        // Fallback to window.print if Bluetooth is not connected or failed
+        const timer = setTimeout(() => {
+          window.print();
+          setPrintData(null);
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    };
+    handlePrint();
+  }, [printData, btCharacteristic]);
 
   const filteredDeliveries = useMemo(() => {
     return deliveries.filter(d => {
@@ -709,6 +866,27 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
           <p className="text-xs md:text-sm text-stone-500 font-medium">
             {title === "Billing Report" ? `Laporan penagihan pengiriman untuk ${company}` : `Kelola dan pantau pengiriman Anda untuk ${company}`}
           </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={connectBluetooth}
+            disabled={isBtConnecting}
+            className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
+              btCharacteristic 
+                ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-sm' 
+                : 'bg-stone-100 text-stone-600 hover:bg-stone-200 border border-transparent'
+            }`}
+          >
+            {isBtConnecting ? (
+              <div className="w-3 h-3 border-2 border-stone-400 border-t-stone-900 rounded-full animate-spin" />
+            ) : (
+              <span className="material-symbols-outlined text-sm">
+                {btCharacteristic ? 'bluetooth_connected' : 'bluetooth'}
+              </span>
+            )}
+            {btCharacteristic ? 'Printer Terhubung' : 'Sambungkan VSC'}
+          </button>
         </div>
       </div>
 
