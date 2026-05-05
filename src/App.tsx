@@ -1464,11 +1464,11 @@ export default function App() {
   };
 
   const navItems = [
-    { id: 'home', label: currentUserEmployee?.nama ? `Hi ${currentUserEmployee.nama.split(' ')[0]}` : 'Dashboard', icon: 'dashboard' },
+    { id: 'home', label: currentUserEmployee?.nama ? `Hi ${currentUserEmployee.nama.split(' ')[0]}` : 'Dashboard', icon: 'https://lh3.googleusercontent.com/d/1EGN0qO_xzJumcMjgpbEe0_QUgfHKvBgJ' },
     { 
       id: 'attendance', 
       label: 'Attendance', 
-      icon: 'group',
+      icon: 'https://lh3.googleusercontent.com/d/1ynf9fEO_Kscy9ozp49O6xFpr31fKQ8-8',
       hidden: userRole === 'admin',
       subItems: [
         { id: 'attendance', label: 'List Attendance', icon: 'list_alt' },
@@ -1478,13 +1478,13 @@ export default function App() {
     { 
       id: 'database', 
       label: 'Database', 
-      icon: 'database',
+      icon: 'https://lh3.googleusercontent.com/d/1O7yBg74aerDDRlu8tUisGICCGQYrFCeP',
       subItems: [
         { id: 'store_database', label: 'Data Toko', icon: 'storefront' },
       ]
     },
-    { id: 'employee_database', label: 'Employee DB', icon: 'badge', hidden: userRole === 'admin' },
-    { id: 'inbox', label: 'Inbox', icon: 'mail', hidden: userRole === 'admin' },
+    { id: 'employee_database', label: 'Employee DB', icon: 'https://lh3.googleusercontent.com/d/1vwuNuSar-tZ9eRzrIySbVreS0EvHIp9n', hidden: userRole === 'admin' },
+    { id: 'inbox', label: 'Inbox', icon: 'https://lh3.googleusercontent.com/d/1ym5twrVRkAz-gPudKvvky7mm20Idzz4P', hidden: userRole === 'admin' },
     { id: 'schedule', label: 'Schedule', icon: 'calendar_month', hidden: userRole === 'admin' },
     { 
       id: 'finance', 
@@ -1498,12 +1498,12 @@ export default function App() {
       ]
     },
     { id: 'inventory', label: 'Inventory', icon: 'inventory_2', hidden: userRole === 'admin' },
-    { id: 'production', label: 'Produksi', icon: 'https://lh3.googleusercontent.com/d/1xnGnOOO6RvjqUW4MTVx9-u7yDTE-qBxl', hidden: userRole === 'admin' },
+    { id: 'production', label: 'Produksi', icon: 'https://lh3.googleusercontent.com/d/1GZ3kO7wHiurhF18_NfU6vnxgTZV5TVsG', hidden: userRole === 'admin' },
     { id: 'client_monitor', label: 'Client Monitor', icon: 'monitor_heart', hidden: userRole === 'admin' },
     { 
       id: 'delivery', 
       label: 'Delivery', 
-      icon: 'local_shipping', 
+      icon: 'https://lh3.googleusercontent.com/d/1rwpcl0arTHsnXbXiS-QpIhWm-AaadZPo', 
       hidden: userRole === 'admin',
       subItems: [
         { id: 'delivery', label: 'Delivery Report', icon: 'dashboard' },
@@ -1519,10 +1519,10 @@ export default function App() {
     { 
       id: 'report', 
       label: 'Sales Report', 
-      icon: 'assessment',
+      icon: 'https://lh3.googleusercontent.com/d/1XPY76pMSatVBUaB7m7Gj67R0sD6vZbLL',
       hidden: false,
       subItems: [
-        { id: 'sales_report', label: 'Sales Report', icon: 'trending_up' },
+        { id: 'sales_report', label: 'Sales Report', icon: 'https://lh3.googleusercontent.com/d/1XPY76pMSatVBUaB7m7Gj67R0sD6vZbLL' },
         { id: 'report_order', label: 'Order', icon: 'receipt_long' },
       ]
     },
@@ -1889,7 +1889,7 @@ export default function App() {
             <div className="bg-white rounded-[32px] border border-stone-100 shadow-sm p-12 text-center">
               <div className="w-20 h-20 bg-orange-50 rounded-3xl flex items-center justify-center mx-auto mb-6 overflow-hidden">
                 <img 
-                  src="https://lh3.googleusercontent.com/d/1xnGnOOO6RvjqUW4MTVx9-u7yDTE-qBxl" 
+                  src="https://lh3.googleusercontent.com/d/1GZ3kO7wHiurhF18_NfU6vnxgTZV5TVsG" 
                   alt="Produksi" 
                   className="w-12 h-12 object-contain" 
                   referrerPolicy="no-referrer"
@@ -2052,9 +2052,18 @@ export default function App() {
                                   : 'text-stone-500 hover:bg-stone-50'
                               }`}
                             >
-                              <span className="material-symbols-outlined text-sm">
-                                {sub.icon}
-                              </span>
+                              {sub.icon.startsWith('http') ? (
+                                <img 
+                                  src={sub.icon} 
+                                  alt={sub.label} 
+                                  className="w-4 h-4 object-contain" 
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : (
+                                <span className="material-symbols-outlined text-sm">
+                                  {sub.icon}
+                                </span>
+                              )}
                               <span>{sub.label}</span>
                             </button>
                           ))}
@@ -2170,9 +2179,18 @@ export default function App() {
                               : 'text-stone-500 hover:bg-stone-100'
                           }`}
                         >
-                          <span className="material-symbols-outlined text-sm">
-                            {sub.icon}
-                          </span>
+                          {sub.icon.startsWith('http') ? (
+                            <img 
+                              src={sub.icon} 
+                              alt={sub.label} 
+                              className="w-4 h-4 object-contain" 
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <span className="material-symbols-outlined text-sm">
+                              {sub.icon}
+                            </span>
+                          )}
                           <span>{sub.label}</span>
                         </button>
                       ))}
@@ -2288,9 +2306,9 @@ export default function App() {
       {/* Bottom Navigation (Mobile) */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-stone-100 px-2 py-2 flex justify-around items-center md:hidden z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
         {[
-          { id: 'home', icon: 'home', label: currentUserEmployee?.nama ? `Hi ${currentUserEmployee.nama.split(' ')[0]}` : 'Home' },
+          { id: 'home', icon: 'https://lh3.googleusercontent.com/d/1EGN0qO_xzJumcMjgpbEe0_QUgfHKvBgJ', label: currentUserEmployee?.nama ? `Hi ${currentUserEmployee.nama.split(' ')[0]}` : 'Home' },
           { id: 'quick_menu', icon: 'apps', label: 'Menu' },
-          { id: 'inbox', icon: 'inbox', label: 'Inbox' }
+          { id: 'inbox', icon: 'https://lh3.googleusercontent.com/d/1ym5twrVRkAz-gPudKvvky7mm20Idzz4P', label: 'Inbox' }
         ].map((item) => {
           const isActive = item.id === 'quick_menu' ? isMobileQuickMenuOpen : (activeTab === item.id || (item.id === 'attendance' && activeTab === 'list_attendance'));
           return (
@@ -2309,9 +2327,18 @@ export default function App() {
               }`}
             >
               <div className={`w-12 h-8 rounded-full flex items-center justify-center transition-all ${isActive ? 'bg-orange-100' : 'bg-transparent'}`}>
-                <span className="material-symbols-outlined" style={{ fontVariationSettings: isActive ? "'FILL' 1" : "" }}>
-                  {item.icon}
-                </span>
+                {item.icon.startsWith('http') ? (
+                  <img 
+                    src={item.icon} 
+                    alt={item.label} 
+                    className="w-5 h-5 object-contain" 
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <span className="material-symbols-outlined" style={{ fontVariationSettings: isActive ? "'FILL' 1" : "" }}>
+                    {item.icon}
+                  </span>
+                )}
               </div>
               <span className="text-[10px] font-bold uppercase tracking-wider">{item.label}</span>
             </button>
@@ -2350,10 +2377,10 @@ export default function App() {
                 {[
                   { id: 'selfie_attendance', label: 'Absen Selfie', icon: 'photo_camera', color: 'bg-orange-500' },
                   { id: 'order_database', label: 'Data Orderan', icon: 'receipt_long', color: 'bg-emerald-500' },
-                  { id: 'delivery', label: 'Delivery Report', icon: 'local_shipping', color: 'bg-blue-500' },
+                  { id: 'delivery', label: 'Delivery Report', icon: 'https://lh3.googleusercontent.com/d/1rwpcl0arTHsnXbXiS-QpIhWm-AaadZPo', color: 'bg-blue-500', isImage: true, imageUrl: 'https://lh3.googleusercontent.com/d/1rwpcl0arTHsnXbXiS-QpIhWm-AaadZPo' },
                   { id: 'billing_report', label: 'Billing Report', icon: 'payments', color: 'bg-purple-500' },
-                  { id: 'sales_report', label: 'Sales Report', icon: 'trending_up', color: 'bg-stone-500' },
-                  { id: 'production', label: 'Produksi', icon: 'inventory', color: 'bg-orange-100', isImage: true, imageUrl: 'https://lh3.googleusercontent.com/d/1xnGnOOO6RvjqUW4MTVx9-u7yDTE-qBxl' }
+                  { id: 'sales_report', label: 'Sales Report', icon: 'https://lh3.googleusercontent.com/d/1XPY76pMSatVBUaB7m7Gj67R0sD6vZbLL', color: 'bg-stone-500', isImage: true, imageUrl: 'https://lh3.googleusercontent.com/d/1XPY76pMSatVBUaB7m7Gj67R0sD6vZbLL' },
+                  { id: 'production', label: 'Produksi', icon: 'inventory', color: 'bg-orange-100', isImage: true, imageUrl: 'https://lh3.googleusercontent.com/d/1GZ3kO7wHiurhF18_NfU6vnxgTZV5TVsG' }
                 ].filter(menu => {
                   if (currentUserEmployee?.division?.toLowerCase() === 'kurir') {
                     return !['sales_report', 'production'].includes(menu.id);
@@ -2369,9 +2396,9 @@ export default function App() {
                     className="flex flex-col items-center gap-2 active:scale-95 transition-transform"
                   >
                     <div className={`w-14 h-14 rounded-2xl ${menu.color} flex items-center justify-center text-white shadow-lg`}>
-                      {menu.isImage ? (
+                      {menu.isImage || menu.icon.startsWith('http') ? (
                         <img 
-                          src={menu.imageUrl} 
+                          src={menu.imageUrl || menu.icon} 
                           alt={menu.label} 
                           className="w-8 h-8 object-contain" 
                           referrerPolicy="no-referrer"
