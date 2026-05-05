@@ -254,6 +254,46 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   const [filterEndDate, setFilterEndDate] = useState('');
   const [printData, setPrintData] = useState<{ delivery: DeliveryRecord; order?: Order } | null>(null);
 
+  const convertImageToEscPos = async (url: string, targetWidth: number = 180) => {
+    return new Promise<number[]>((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const scale = targetWidth / img.width;
+        const height = Math.round(img.height * scale);
+        canvas.width = targetWidth;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { resolve([]); return; }
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, targetWidth, height);
+        const imageData = ctx.getImageData(0, 0, targetWidth, height);
+        const pixels = imageData.data;
+        const bytesWidth = Math.ceil(targetWidth / 8);
+        const commands = [0x1D, 0x76, 0x30, 0x00, bytesWidth & 0xFF, (bytesWidth >> 8) & 0xFF, height & 0xFF, (height >> 8) & 0xFF];
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < bytesWidth; x++) {
+            let byte = 0;
+            for (let b = 0; b < 8; b++) {
+              const pixelX = x * 8 + b;
+              if (pixelX < targetWidth) {
+                const i = (y * targetWidth + pixelX) * 4;
+                const brightness = (pixels[i] + pixels[i+1] + pixels[i+2]) / 3;
+                if (pixels[i+3] > 128 && brightness < 128) byte |= (1 << (7 - b));
+              }
+            }
+            commands.push(byte);
+          }
+        }
+        resolve(commands);
+      };
+      img.onerror = () => resolve([]);
+      img.src = url;
+    });
+  };
+
   const printViaBluetooth = async (data: { delivery: DeliveryRecord; order?: Order }) => {
     if (!btCharacteristic) return false;
 
@@ -277,14 +317,23 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       // Header
       addCmd(INIT);
       addCmd(ALIGN_CENTER);
+
+      // Logo SIKEPAL
+      const logoUrl = 'https://lh3.googleusercontent.com/d/1b-hkPOsHZ8_rW1f9aqABu7R5bw_ZJM0y';
+      const logoCmds = await convertImageToEscPos(logoUrl, 180);
+      if (logoCmds.length > 0) {
+        commands.push(...logoCmds);
+        addLine(); // Break after logo
+      }
+
       addLine('--------------------------------');
       addCmd(BOLD_ON);
       addCmd(SIZE_LARGE);
       addLine('SIKEPAL');
       addCmd(SIZE_NORMAL);
-      addLine('PREMIUM NASI KEPAL');
       addCmd(BOLD_OFF);
       addLine('Bukti Pengiriman');
+      addLine('Whatsapp : +62 813-1732-9814');
       addLine('--------------------------------');
       
       // Details
@@ -293,8 +342,6 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       addLine(`Kurir : ${data.delivery.namaKurir}`);
       addLine(`Tgl   : ${formatDate(data.delivery.tanggal)}`);
       addLine(`Jam   : ${data.delivery.jamBukti || '-'}`);
-      addLine(`Loc   : ${data.delivery.lokasiBukti?.split(',')[0] || ''}`);
-      addLine(`        ${data.delivery.lokasiBukti?.split(',')[1] || ''}`);
       addLine('--------------------------------');
       
       // Items
