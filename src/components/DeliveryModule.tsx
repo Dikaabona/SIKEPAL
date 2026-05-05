@@ -241,22 +241,49 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   const [filterEndDate, setFilterEndDate] = useState('');
   const [printData, setPrintData] = useState<{ delivery: DeliveryRecord; order?: Order } | null>(null);
   const [btCharacteristic, setBtCharacteristic] = useState<any>(null);
+  const [btDevice, setBtDevice] = useState<any>(null);
   const [isBtConnecting, setIsBtConnecting] = useState(false);
 
   // Bluetooth Connect Function
   const connectBluetooth = async () => {
+    if (btDevice && btDevice.gatt.connected) {
+      if (window.confirm('Putuskan koneksi printer?')) {
+        btDevice.gatt.disconnect();
+        setBtCharacteristic(null);
+        setBtDevice(null);
+        return;
+      }
+    }
+
     try {
       setIsBtConnecting(true);
       // @ts-ignore
       const device = await navigator.bluetooth.requestDevice({
         acceptAllDevices: true,
-        optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb', '0000ff00-0000-1000-8000-00805f9b34fb']
+        optionalServices: [
+          '000018f0-0000-1000-8000-00805f9b34fb', 
+          '0000ff00-0000-1000-8000-00805f9b34fb',
+          '0000fff0-0000-1000-8000-00805f9b34fb',
+          '0000ae30-0000-1000-8000-00805f9b34fb'
+        ]
       });
 
       const server = await device.gatt?.connect();
+      setBtDevice(device);
+      
+      // Handle sudden disconnects
+      device.addEventListener('gattserverdisconnected', () => {
+        setBtCharacteristic(null);
+        setBtDevice(null);
+      });
       
       // Try common thermal printer service UUIDs
-      const serviceIds = ['000018f0-0000-1000-8000-00805f9b34fb', '0000ff00-0000-1000-8000-00805f9b34fb'];
+      const serviceIds = [
+        '000018f0-0000-1000-8000-00805f9b34fb', 
+        '0000ff00-0000-1000-8000-00805f9b34fb',
+        '0000fff0-0000-1000-8000-00805f9b34fb',
+        '0000ae30-0000-1000-8000-00805f9b34fb'
+      ];
       let characteristic = null;
 
       for (const serviceId of serviceIds) {
@@ -371,16 +398,26 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
 
       // Chunk and write to characteristic
       const dataArray = new Uint8Array(commands);
-      const chunkSize = 20; // Default MTU
+      const chunkSize = 20; // MTU size
+      
       for (let i = 0; i < dataArray.length; i += chunkSize) {
         const chunk = dataArray.slice(i, i + chunkSize);
-        await btCharacteristic.writeValue(chunk);
+        
+        // Try writeValueWithoutResponse first if available, then fallback
+        if (btCharacteristic.properties.writeWithoutResponse) {
+          await btCharacteristic.writeValueWithoutResponse(chunk);
+        } else {
+          await btCharacteristic.writeValue(chunk);
+        }
+        
+        // Small delay to prevent buffer overflow on the printer
+        await new Promise(resolve => setTimeout(resolve, 25));
       }
       
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Bluetooth print error:', error);
-      alert('Gagal mencetak via Bluetooth.');
+      alert(`Gagal mencetak via Bluetooth: ${error.message || 'Error tidak diketahui'}`);
       return false;
     }
   };
