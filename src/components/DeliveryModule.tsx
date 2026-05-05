@@ -385,12 +385,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
         addLine('\nKet: ' + data.delivery.keterangan);
       }
 
-      // Footer / Tanda Tangan
-      addLine('\n\n\n');
-      addLine('PENERIMA            KURIR');
-      addLine('\n\n\n');
-      addLine('.................  ' + data.delivery.namaKurir);
-      
+      // Footer
       addLine('\n--------------------------------');
       addCmd(ALIGN_CENTER);
       addLine('Terima kasih!');
@@ -3054,21 +3049,11 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
             </div>
           )}
 
-          <div style={{ marginTop: '8mm', display: 'flex', justifyContent: 'space-between', padding: '0 2mm' }}>
-            <div style={{ textAlign: 'center', width: '22mm' }}>
-              <div style={{ fontSize: '8px', marginBottom: '8mm' }}>PENERIMA</div>
-              <div style={{ borderTop: '0.5px solid black', fontSize: '7px', paddingTop: '1mm' }}>Ttd & Nama</div>
-            </div>
-            <div style={{ textAlign: 'center', width: '22mm' }}>
-              <div style={{ fontSize: '8px', marginBottom: '8mm' }}>KURIR</div>
-              <div style={{ borderTop: '0.5px solid black', fontSize: '7px', paddingTop: '1mm', fontWeight: 900 }}>{printData.delivery.namaKurir}</div>
-            </div>
-          </div>
-
-          <div className="receipt-footer">
-            Terima kasih atas kerja kerasnya!<br/>
-            Sikepal Premium Nasi Kepal
-          </div>
+      {/* Receipt Footer */}
+      <div className="receipt-footer">
+        Terima kasih atas kerja kerasnya!<br/>
+        Sikepal Premium Nasi Kepal
+      </div>
         </div>
       )}
     </div>
