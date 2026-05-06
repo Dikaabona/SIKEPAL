@@ -232,6 +232,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
     metodePembayaran: 'Cash',
     fotoBukti: '',
     buktiTransfer: '',
+    buktiSisa: '',
     sisa: 0,
     sisaMap: {} as Record<string, number>,
     lokasiBukti: '',
@@ -642,7 +643,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
           
           if (isBulkPiutangFormOpen) {
             // Get current location for bulk photo
-            if (navigator.geolocation && cameraTarget === 'fotoBukti') {
+            if (navigator.geolocation && (cameraTarget === 'fotoBukti' || cameraTarget === 'buktiSisa')) {
               navigator.geolocation.getCurrentPosition(
                 (position) => {
                   const { latitude, longitude } = position.coords;
@@ -883,7 +884,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
             hargaSikepal: order.hargaSikepal || 0,
             metodePembayaran: bulkPiutangFormData.metodePembayaran || 'Cash',
             buktiTransfer: bulkPiutangFormData.buktiTransfer || null,
-            buktiSisa: null,
+            buktiSisa: bulkPiutangFormData.buktiSisa || null,
             waste: 0,
             tanggalPiutang: order.tanggal,
             keterangan: 'Proses Massal',
@@ -913,7 +914,11 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
         metodePembayaran: 'Cash',
         fotoBukti: '',
         buktiTransfer: '',
-        sisa: 0
+        buktiSisa: '',
+        sisa: 0,
+        sisaMap: {},
+        lokasiBukti: '',
+        jamBukti: ''
       });
       closeModal();
     } catch (error) {
@@ -2839,6 +2844,61 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                           )}
                           <span className="text-[10px] font-black uppercase tracking-widest text-stone-400">
                             {bulkPiutangFormData.fotoBukti ? 'Ganti Foto Bukti' : 'Ambil Kamera'}
+                          </span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2 flex justify-between items-center">
+                        Bukti Foto Sisa
+                        {bulkPiutangFormData.buktiSisa && !isCameraActive && (
+                          <span className="text-emerald-500 flex items-center gap-1"><span className="material-symbols-outlined text-xs">check_circle</span> TERSEDIA</span>
+                        )}
+                      </label>
+                      
+                      {isCameraActive && cameraTarget === 'buktiSisa' ? (
+                        <div className="relative rounded-3xl overflow-hidden bg-black aspect-video border-4 border-stone-900 shadow-xl">
+                          <video 
+                            ref={videoRef} 
+                            autoPlay 
+                            playsInline 
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4">
+                            <button
+                              type="button"
+                              onClick={capturePhoto}
+                              className="w-14 h-14 rounded-full bg-white flex items-center justify-center text-stone-900 shadow-lg hover:scale-110 transition-transform"
+                            >
+                              <span className="material-symbols-outlined text-3xl">photo_camera</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={stopCamera}
+                              className="w-14 h-14 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg hover:scale-110 transition-transform"
+                            >
+                              <span className="material-symbols-outlined text-3xl">close</span>
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => startCamera('buktiSisa')}
+                          className={`w-full py-10 rounded-[24px] border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all ${
+                            bulkPiutangFormData.buktiSisa ? 'border-emerald-200 bg-emerald-50/30' : 'border-stone-200 bg-stone-50 hover:bg-stone-100'
+                          }`}
+                        >
+                          {bulkPiutangFormData.buktiSisa ? (
+                            <img src={bulkPiutangFormData.buktiSisa} className="w-full h-32 object-cover rounded-xl mb-2" alt="Sisa" />
+                          ) : (
+                            <span className={`material-symbols-outlined text-3xl ${bulkPiutangFormData.buktiSisa ? 'text-emerald-500' : 'text-stone-300'}`}>
+                              {bulkPiutangFormData.buktiSisa ? 'image' : 'photo_camera'}
+                            </span>
+                          )}
+                          <span className="text-[10px] font-black uppercase tracking-widest text-stone-400">
+                            {bulkPiutangFormData.buktiSisa ? 'Ganti Foto Sisa' : 'Ambil Foto Sisa'}
                           </span>
                         </button>
                       )}

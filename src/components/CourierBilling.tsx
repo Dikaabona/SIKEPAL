@@ -8,89 +8,122 @@ interface CourierBillingProps {
   employees: Employee[];
   billingReports: BillingRecord[];
   company: string;
+  currentUserEmployee?: Employee | null;
+  onSync?: () => Promise<void>;
+  onUpdateRecord?: (id: string, updates: Partial<BillingRecord>) => Promise<void>;
+  onDeleteRecord?: (id: string) => Promise<void>;
+  onDuplicateRecord?: (id: string, newDate: string) => Promise<void>;
 }
 
-const CourierBilling: React.FC<CourierBillingProps> = ({ orders, employees, company }) => {
+const CourierBilling: React.FC<CourierBillingProps> = ({ 
+  orders, 
+  employees, 
+  billingReports, 
+  company, 
+  currentUserEmployee,
+  onSync,
+  onUpdateRecord,
+  onDeleteRecord,
+  onDuplicateRecord
+}) => {
   const [startDate, setStartDate] = useState(getLocalDateString());
   const [endDate, setEndDate] = useState(getLocalDateString());
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  const courierStats = useMemo(() => {
-    const stats: Record<string, {
-      nama: string;
-      totalOrders: number;
-      totalQty: number;
-      totalNilai: number;
-      totalLunas: number;
-      totalPiutang: number;
-      totalWaste: number;
-    }> = {};
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState<BillingRecord | null>(null);
+  const [duplicateDate, setDuplicateDate] = useState(getLocalDateString());
+  const [isSaving, setIsSaving] = useState(false);
 
-    // Filter orders by date range
-    const filteredOrders = orders.filter(order => {
-      // Only include Approved orders in billing stats
-      if (order.status !== 'Approved') return false;
-      const orderDate = order.tanggal;
-      return orderDate >= startDate && orderDate <= endDate;
-    });
+  const filteredReports = useMemo(() => {
+    return billingReports.filter(report => {
+      // Only show records from spreadsheet or synced ones
+      const isFromSpreadsheet = report.source === 'spreadsheet' || report.id.startsWith('sync_') || report.source === 'manual';
+      if (!isFromSpreadsheet) return false;
 
-    filteredOrders.forEach(order => {
-      const courierName = order.namaKurir || 'Tanpa Kurir';
-      if (!stats[courierName]) {
-        stats[courierName] = {
-          nama: courierName,
-          totalOrders: 0,
-          totalQty: 0,
-          totalNilai: 0,
-          totalLunas: 0,
-          totalPiutang: 0,
-          totalWaste: 0
-        };
+      // Filter for Kurir division
+      const isKurir = currentUserEmployee?.division?.toUpperCase() === 'KURIR' || 
+                      currentUserEmployee?.jabatan?.toUpperCase() === 'KURIR';
+      
+      if (isKurir && currentUserEmployee?.nama) {
+        if (report.namaKurir !== currentUserEmployee.nama) return false;
       }
 
-      const s = stats[courierName];
-      s.totalOrders += 1;
-      s.totalQty += order.jumlahKirim || 0;
-      
-      const totalNilaiOrder = (order.jumlahKirim || 0) * (order.hargaSikepal || 0);
-      s.totalNilai += totalNilaiOrder;
-      
-      if (order.pembayaran === 'TRUE') {
-        s.totalLunas += totalNilaiOrder;
-      } else {
-        s.totalPiutang += order.sisa || totalNilaiOrder;
+      const reportDate = report.tanggal;
+      const matchesDate = reportDate >= startDate && reportDate <= endDate;
+      const matchesSearch = report.namaKurir.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                           report.namaLokasi.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesDate && matchesSearch;
+    }).sort((a, b) => b.tanggal.localeCompare(a.tanggal));
+  }, [billingReports, startDate, endDate, searchQuery]);
+
+  // Paginated data
+  const paginatedReports = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredReports.slice(startIndex, startIndex + pageSize);
+  }, [filteredReports, currentPage, pageSize]);
+
+  const totalPages = Math.ceil(filteredReports.length / pageSize);
+
+  const handleSync = async () => {
+    if (!onSync) return;
+    setIsSyncing(true);
+    try {
+      await onSync();
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleEdit = (record: BillingRecord) => {
+    setSelectedRecord({ ...record });
+    setIsEditModalOpen(true);
+  };
+
+  const handleDuplicate = (record: BillingRecord) => {
+    setSelectedRecord(record);
+    setDuplicateDate(getLocalDateString());
+    setIsDuplicateModalOpen(true);
+  };
+
+  const confirmDelete = async (id: string) => {
+    if (window.confirm('Apakah Anda yakin ingin menghapus data ini?')) {
+      if (onDeleteRecord) {
+        await onDeleteRecord(id);
       }
-      
-      s.totalWaste += order.waste || 0;
-    });
+    }
+  };
 
-    return Object.values(stats).filter(s => 
-      s.nama.toLowerCase().includes(searchQuery.toLowerCase())
-    ).sort((a, b) => b.totalNilai - a.totalNilai);
-  }, [orders, startDate, endDate, searchQuery]);
+  const saveEdit = async () => {
+    if (!selectedRecord || !onUpdateRecord) return;
+    setIsSaving(true);
+    try {
+      await onUpdateRecord(selectedRecord.id, selectedRecord);
+      setIsEditModalOpen(false);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
-  const totals = useMemo(() => {
-    return courierStats.reduce((acc, curr) => ({
-      orders: acc.orders + curr.totalOrders,
-      qty: acc.qty + curr.totalQty,
-      nilai: acc.nilai + curr.totalNilai,
-      lunas: acc.lunas + curr.totalLunas,
-      piutang: acc.piutang + curr.totalPiutang,
-      waste: acc.waste + curr.totalWaste
-    }), { orders: 0, qty: 0, nilai: 0, lunas: 0, piutang: 0, waste: 0 });
-  }, [courierStats]);
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(value);
+  const confirmDuplicate = async () => {
+    if (!selectedRecord || !onDuplicateRecord) return;
+    setIsSaving(true);
+    try {
+      await onDuplicateRecord(selectedRecord.id, duplicateDate);
+      setIsDuplicateModalOpen(false);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight">Penagihan Kurir</h2>
           <p className="text-xs md:text-sm text-stone-500 font-medium">
@@ -99,6 +132,19 @@ const CourierBilling: React.FC<CourierBillingProps> = ({ orders, employees, comp
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={handleSync}
+            disabled={isSyncing}
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-md active:scale-95 disabled:opacity-50"
+          >
+            {isSyncing ? (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <span className="material-symbols-outlined text-[18px]">sync</span>
+            )}
+            Sinkronisasi
+          </button>
+
           <div className="flex items-center gap-2 bg-white border border-stone-200 rounded-2xl p-1 shadow-sm">
             <input 
               type="date" 
@@ -115,10 +161,26 @@ const CourierBilling: React.FC<CourierBillingProps> = ({ orders, employees, comp
             />
           </div>
           
+          <div className="flex items-center gap-2 bg-white border border-stone-200 rounded-2xl p-1 shadow-sm">
+            <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-2">Show:</span>
+            <select 
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="text-xs font-bold text-stone-600 bg-transparent pr-2 focus:outline-none"
+            >
+              {[10, 30, 50, 100, 500].map(size => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
+          </div>
+
           <div className="relative">
             <input 
               type="text" 
-              placeholder="Cari kurir..." 
+              placeholder="Cari kurir atau lokasi..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 pr-4 py-2.5 bg-white border border-stone-200 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none w-full md:w-64 transition-all"
@@ -128,125 +190,255 @@ const CourierBilling: React.FC<CourierBillingProps> = ({ orders, employees, comp
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-6 rounded-[32px] border border-stone-100 shadow-sm">
-          <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">Total Penjualan</p>
-          <h3 className="text-2xl font-black text-stone-800">{formatCurrency(totals.nilai)}</h3>
-          <div className="flex items-center gap-2 mt-2">
-            <span className="text-[10px] font-black px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">{totals.qty} Porsi</span>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-[32px] border border-stone-100 shadow-sm">
-          <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">Sudah Lunas</p>
-          <h3 className="text-2xl font-black text-green-600">{formatCurrency(totals.lunas)}</h3>
-          <div className="flex items-center gap-2 mt-2">
-            <div className="w-full bg-stone-100 h-1.5 rounded-full overflow-hidden">
-              <div 
-                className="bg-green-500 h-full transition-all duration-1000" 
-                style={{ width: `${totals.nilai > 0 ? (totals.lunas / totals.nilai) * 100 : 0}%` }}
-              />
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-[32px] border border-stone-100 shadow-sm">
-          <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">Total Piutang</p>
-          <h3 className="text-2xl font-black text-orange-600">{formatCurrency(totals.piutang)}</h3>
-          <div className="flex items-center gap-2 mt-2">
-            <span className="text-[10px] font-black px-2 py-0.5 bg-orange-50 text-orange-600 rounded-full">Outstanding</span>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-[32px] border border-stone-100 shadow-sm">
-          <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">Total Waste</p>
-          <h3 className="text-2xl font-black text-red-600">{totals.waste} Porsi</h3>
-          <div className="flex items-center gap-2 mt-2">
-            <span className="text-[10px] font-black px-2 py-0.5 bg-red-50 text-red-600 rounded-full">Kehilangan/Rusak</span>
-          </div>
-        </div>
-      </div>
-
       {/* Main Table */}
-      <div className="bg-white rounded-[32px] border border-stone-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-[32px] border border-stone-100 shadow-sm overflow-hidden flex flex-col">
         <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-stone-50/50">
+                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest border-b border-stone-100">Tanggal</th>
                 <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest border-b border-stone-100">Nama Kurir</th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest border-b border-stone-100 text-center">Orderan</th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest border-b border-stone-100 text-center">Total Qty</th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest border-b border-stone-100 text-right">Nilai Jual</th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest border-b border-stone-100 text-right">Lunas</th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest border-b border-stone-100 text-right">Piutang</th>
-                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest border-b border-stone-100 text-center">Waste</th>
+                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest border-b border-stone-100">Lokasi Penagihan</th>
+                <th className="px-6 py-4 text-[10px] font-black text-stone-400 uppercase tracking-widest border-b border-stone-100 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-50">
-              {courierStats.length > 0 ? (
-                courierStats.map((stat, idx) => (
-                  <tr key={idx} className="hover:bg-stone-50/50 transition-colors group">
+              {paginatedReports.length > 0 ? (
+                paginatedReports.map((report) => (
+                  <tr key={report.id} className="hover:bg-stone-50/50 transition-colors group">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-sm font-bold text-stone-600">{report.tanggal}</span>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-500 font-bold text-xs uppercase">
-                          {stat.nama.charAt(0)}
+                          {report.namaKurir.charAt(0)}
                         </div>
-                        <span className="text-sm font-bold text-stone-800">{stat.nama}</span>
+                        <span className="text-sm font-bold text-stone-800">{report.namaKurir}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-center whitespace-nowrap">
-                      <span className="text-xs font-bold text-stone-600 bg-stone-100 px-2 py-1 rounded-lg">
-                        {stat.totalOrders}
-                      </span>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold text-stone-800">{report.namaLokasi}</span>
+                        {report.keterangan && (
+                          <span className="text-[10px] text-stone-400 font-medium">{report.keterangan}</span>
+                        )}
+                      </div>
                     </td>
-                    <td className="px-6 py-4 text-center whitespace-nowrap font-medium text-sm text-stone-600">
-                      {stat.totalQty}
-                    </td>
-                    <td className="px-6 py-4 text-right whitespace-nowrap">
-                      <span className="text-sm font-black text-stone-800">
-                        {formatCurrency(stat.totalNilai)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right whitespace-nowrap">
-                      <span className="text-sm font-bold text-green-600">
-                        {formatCurrency(stat.totalLunas)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right whitespace-nowrap">
-                      <span className="text-sm font-bold text-orange-600">
-                        {formatCurrency(stat.totalPiutang)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-center whitespace-nowrap">
-                      <span className={`text-xs font-bold px-2 py-1 rounded-lg ${stat.totalWaste > 0 ? 'bg-red-50 text-red-600' : 'bg-stone-50 text-stone-400'}`}>
-                        {stat.totalWaste}
-                      </span>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-2">
+                        <button 
+                          onClick={() => handleEdit(report)}
+                          className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-colors"
+                          title="Edit"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">edit</span>
+                        </button>
+                        <button 
+                          onClick={() => handleDuplicate(report)}
+                          className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-100 transition-colors"
+                          title="Duplikat"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">content_copy</span>
+                        </button>
+                        <button 
+                          onClick={() => confirmDelete(report.id)}
+                          className="w-8 h-8 rounded-full bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-100 transition-colors"
+                          title="Hapus"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">delete</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-stone-400">
+                  <td colSpan={4} className="px-6 py-12 text-center text-stone-400">
                     <span className="material-symbols-outlined text-4xl mb-2 opacity-20">payments</span>
                     <p className="text-sm font-medium">Tidak ada data penagihan pada periode ini</p>
                   </td>
                 </tr>
               )}
             </tbody>
-            {courierStats.length > 0 && (
-              <tfoot className="bg-stone-50/50 font-black">
-                <tr>
-                  <td className="px-6 py-4 text-sm text-stone-800">TOTAL</td>
-                  <td className="px-6 py-4 text-center text-sm text-stone-800">{totals.orders}</td>
-                  <td className="px-6 py-4 text-center text-sm text-stone-800">{totals.qty}</td>
-                  <td className="px-6 py-4 text-right text-sm text-stone-800">{formatCurrency(totals.nilai)}</td>
-                  <td className="px-6 py-4 text-right text-sm text-green-600">{formatCurrency(totals.lunas)}</td>
-                  <td className="px-6 py-4 text-right text-sm text-orange-600">{formatCurrency(totals.piutang)}</td>
-                  <td className="px-6 py-4 text-center text-sm text-red-600">{totals.waste}</td>
-                </tr>
-              </tfoot>
-            )}
           </table>
         </div>
+
+        {/* Pagination Footer */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-stone-50 bg-stone-50/30 flex items-center justify-between">
+            <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest">
+              Halaman {currentPage} dari {totalPages}
+            </span>
+            <div className="flex items-center gap-1">
+              <button 
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 disabled:opacity-20 transition-all"
+              >
+                <span className="material-symbols-outlined text-sm">chevron_left</span>
+              </button>
+              
+              {[...Array(totalPages)].map((_, i) => {
+                const page = i + 1;
+                // Simple pagination logic to only show some pages if many
+                if (totalPages > 5 && Math.abs(page - currentPage) > 2 && page !== 1 && page !== totalPages) {
+                  if (page === 2 || page === totalPages - 1) return <span key={page} className="px-1 text-stone-300">...</span>;
+                  return null;
+                }
+                return (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-8 h-8 rounded-full text-[10px] font-black uppercase transition-all ${
+                      currentPage === page 
+                        ? 'bg-stone-900 text-white shadow-md' 
+                        : 'text-stone-400 hover:bg-stone-100'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+
+              <button 
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-900 disabled:opacity-20 transition-all"
+              >
+                <span className="material-symbols-outlined text-sm">chevron_right</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Edit Modal */}
+      {isEditModalOpen && selectedRecord && (
+        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-[40px] w-full max-w-md overflow-hidden shadow-2xl"
+          >
+            <div className="p-8 border-b border-stone-50 bg-stone-50/50 flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-black text-stone-900 uppercase">Edit Data Penagihan</h3>
+                <p className="text-xs text-stone-500 font-medium tracking-widest uppercase">ID: {selectedRecord.id.slice(-6)}</p>
+              </div>
+              <button onClick={() => setIsEditModalOpen(false)} className="w-10 h-10 rounded-full bg-white border border-stone-100 flex items-center justify-center text-stone-400">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <div className="p-8 space-y-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">Tanggal</label>
+                  <input 
+                    type="date"
+                    value={selectedRecord.tanggal}
+                    onChange={(e) => setSelectedRecord({ ...selectedRecord, tanggal: e.target.value })}
+                    className="w-full px-5 py-4 rounded-[24px] bg-stone-50 border border-stone-100 text-sm font-bold focus:ring-4 focus:ring-blue-100 outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">Nama Kurir</label>
+                  <select 
+                    value={selectedRecord.namaKurir}
+                    onChange={(e) => setSelectedRecord({ ...selectedRecord, namaKurir: e.target.value })}
+                    className="w-full px-5 py-4 rounded-[24px] bg-stone-50 border border-stone-100 text-sm font-bold focus:ring-4 focus:ring-blue-100 outline-none transition-all"
+                  >
+                    <option value="">Pilih Kurir</option>
+                    {employees.filter(e => e.division === 'Kurir' || e.jabatan?.toLowerCase().includes('kurir')).map(e => (
+                      <option key={e.id} value={e.nama}>{e.nama}</option>
+                    ))}
+                    {!employees.some(e => e.nama === selectedRecord.namaKurir) && (
+                      <option value={selectedRecord.namaKurir}>{selectedRecord.namaKurir}</option>
+                    )}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">Lokasi Penagihan</label>
+                  <input 
+                    type="text"
+                    value={selectedRecord.namaLokasi}
+                    onChange={(e) => setSelectedRecord({ ...selectedRecord, namaLokasi: e.target.value })}
+                    className="w-full px-5 py-4 rounded-[24px] bg-stone-50 border border-stone-100 text-sm font-bold focus:ring-4 focus:ring-blue-100 outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">Keterangan</label>
+                  <textarea 
+                    value={selectedRecord.keterangan || ''}
+                    onChange={(e) => setSelectedRecord({ ...selectedRecord, keterangan: e.target.value })}
+                    rows={3}
+                    className="w-full px-5 py-4 rounded-[24px] bg-stone-50 border border-stone-100 text-sm font-bold focus:ring-4 focus:ring-blue-100 outline-none transition-all resize-none"
+                    placeholder="Contoh: Titipan barang, barang rusak, dll"
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={saveEdit}
+                disabled={isSaving}
+                className="w-full py-4 bg-stone-900 text-white rounded-[24px] text-xs font-black uppercase tracking-widest hover:bg-stone-800 transition-all shadow-xl shadow-stone-200 flex items-center justify-center gap-2"
+              >
+                {isSaving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <span className="material-symbols-outlined text-[18px]">save</span>}
+                Simpan Perubahan
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Duplicate Modal */}
+      {isDuplicateModalOpen && selectedRecord && (
+        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-[40px] w-full max-w-md overflow-hidden shadow-2xl"
+          >
+            <div className="p-8 border-b border-stone-50 bg-stone-50/50 flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-black text-stone-900 uppercase">Duplikat Data</h3>
+                <p className="text-xs text-stone-500 font-medium tracking-widest uppercase">Target Lokasi: {selectedRecord.namaLokasi}</p>
+              </div>
+              <button onClick={() => setIsDuplicateModalOpen(false)} className="w-10 h-10 rounded-full bg-white border border-stone-100 flex items-center justify-center text-stone-400">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <div className="p-8 space-y-6">
+              <div>
+                <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">Pilih Tanggal Baru</label>
+                <input 
+                  type="date"
+                  value={duplicateDate}
+                  onChange={(e) => setDuplicateDate(e.target.value)}
+                  className="w-full px-5 py-4 rounded-[24px] bg-stone-50 border border-stone-100 text-sm font-bold focus:ring-4 focus:ring-blue-100 outline-none transition-all"
+                />
+              </div>
+
+              <div className="bg-stone-50 p-4 rounded-2xl border border-stone-100">
+                <p className="text-[10px] font-bold text-stone-500 leading-relaxed uppercase tracking-tight">
+                  Sistem akan membuat salinan data dengan kurir <span className="text-stone-900">{selectedRecord.namaKurir}</span> di lokasi <span className="text-stone-900">{selectedRecord.namaLokasi}</span> untuk tanggal yang Anda pilih.
+                </p>
+              </div>
+
+              <button
+                onClick={confirmDuplicate}
+                disabled={isSaving}
+                className="w-full py-4 bg-emerald-600 text-white rounded-[24px] text-xs font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 flex items-center justify-center gap-2"
+              >
+                {isSaving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <span className="material-symbols-outlined text-[18px]">content_copy</span>}
+                Duplikat Sekarang
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };

@@ -35,6 +35,7 @@ import AccountingModule from './components/AccountingModule';
 import ClientMonitor from './components/ClientMonitor';
 import Login from './components/Login';
 import { Session } from '@supabase/supabase-js';
+import Papa from 'papaparse';
 
 import SubmissionForm from './components/SubmissionForm';
 
@@ -942,6 +943,11 @@ export default function App() {
 
       // Safeguard: Remove UI-only fields that don't exist in the database
       const { jumlahKirim, originalNilai, ...reportToSave } = report as any;
+      
+      // Ensure source is set for manual reports if not already present
+      if (!reportToSave.source && !reportToSave.id?.startsWith('sync_')) {
+        reportToSave.source = 'manual';
+      }
 
       const { error } = await supabase.from('billing_reports').upsert(reportToSave);
       if (error) throw error;
@@ -1042,6 +1048,34 @@ export default function App() {
     } catch (error: any) {
       console.error('Error deleting billing report:', error);
       alert('Gagal menghapus billing report: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const handleDuplicateBillingReport = async (id: string, newDate: string) => {
+    try {
+      const source = billingReports.find(r => r.id === id);
+      if (!source) throw new Error('Data sumber tidak ditemukan');
+
+      // Create a copy without the old order link to avoid messing up cross-table logic if any
+      // but keeping it simple as per user request
+      const newRecord: BillingRecord = {
+        ...source,
+        id: `dup_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        tanggal: newDate,
+        createdAt: new Date().toISOString(),
+        orderId: undefined, // Don't duplicate the order link to avoid payment status conflicts
+        status: 'Completed',
+        source: 'manual'
+      };
+
+      const { error } = await supabase.from('billing_reports').insert([newRecord]);
+      if (error) throw error;
+      
+      await refreshData();
+      alert('Berhasil menduplikasi data penagihan.');
+    } catch (error: any) {
+      console.error('Error duplicating billing record:', error);
+      alert('Gagal duplikat: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -1390,6 +1424,133 @@ export default function App() {
     } catch (error) {
       console.error('Error deleting all orders:', error);
       alert('Gagal menghapus data orderan.');
+    }
+  };
+
+  const handleSyncCourierBilling = async () => {
+    try {
+      // The user provided link: https://docs.google.com/spreadsheets/d/1FdhqqzioWvySOgK0o4mw6q9-DTUJdLwoDToYr1xKgwA/edit?gid=1642384006
+      // We use the export URL format which is generally more reliable for retrieval
+      const spreadsheetId = '1FdhqqzioWvySOgK0o4mw6q9-DTUJdLwoDToYr1xKgwA';
+      const gid = '1642384006';
+      
+      // We'll try the export format first as it often works with "Anyone with link" access
+      const csvUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}`;
+      
+      console.log('Fetching CSV from:', csvUrl);
+      const response = await fetch(csvUrl);
+      
+      if (!response.ok) {
+        throw new Error(`Gagal mengambil data. Status: ${response.status}. Pastikan spreadsheet sudah "Published to the web" (File > Share > Publish to web) atau aksesnya diatur ke "Anyone with the link".`);
+      }
+
+      const csvText = await response.text();
+      
+      if (!csvText || csvText.includes('<!DOCTYPE html>')) {
+        throw new Error('Data yang diterima bukan format CSV. Pastikan spreadsheet sudah dipublikasikan ke web sebagai CSV (File > Share > Publish to web).');
+      }
+
+      return new Promise<void>((resolve, reject) => {
+        Papa.parse(csvText, {
+          header: true,
+          skipEmptyLines: true,
+          complete: async (results) => {
+            try {
+              const data = results.data as any[];
+              console.log('Parsed CSV Data:', data);
+
+              if (data.length === 0) {
+                alert('Tidak ada data dalam spreadsheet.');
+                resolve();
+                return;
+              }
+
+              // Map CSV data to BillingRecord
+              const rawRecords: BillingRecord[] = data.map((row, index) => {
+                // Flexible column matching
+                const tanggalRaw = row['Tanggal'] || row['tanggal'] || row['DATE'] || getLocalDateString();
+                
+                // Normalize DD/MM/YYYY to YYYY-MM-DD for system compatibility
+                let tanggal = tanggalRaw;
+                if (tanggalRaw.includes('/')) {
+                  const parts = tanggalRaw.split('/');
+                  if (parts.length === 3) {
+                    // Check if it's DD/MM/YYYY
+                    if (parts[0].length <= 2 && parts[2].length === 4) {
+                      tanggal = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                    }
+                  }
+                }
+
+                const namaKurir = row['Nama Kurir'] || row['nama kurir'] || row['KURIR'] || 'Unknown';
+                const namaLokasi = row['Lokasi Penagihan'] || row['lokasi penagihan'] || row['LOKASI'] || row['Nama Lokasi'] || 'Unknown';
+                const qty = Number(row['Qty'] || row['qty'] || row['JUMLAH']) || 0;
+                const keterangan = row['Keterangan'] || row['keterangan'] || '';
+
+                // Stable ID for upsert: combination of courier, location, and date
+                const stableId = `sync_${btoa(`${namaKurir}-${namaLokasi}-${tanggal}`).replace(/[/+=]/g, '')}`;
+
+                return {
+                  id: stableId,
+                  tanggal: tanggal,
+                  namaKurir: namaKurir,
+                  namaLokasi: namaLokasi,
+                  qtyPengiriman: qty,
+                  keterangan: keterangan,
+                  company: userCompany,
+                  status: 'Completed',
+                  createdAt: new Date().toISOString(),
+                  source: 'spreadsheet'
+                };
+              });
+
+              // Deduplicate records by ID to avoid Supabase error: "ON CONFLICT DO UPDATE command cannot affect row a second time"
+              const recordsMap = new Map<string, BillingRecord>();
+              rawRecords.forEach(record => {
+                // If duplicates exist in the same sync batch, the last one wins
+                recordsMap.set(record.id, record);
+              });
+              const records = Array.from(recordsMap.values());
+
+              if (records.length === 0) {
+                alert('Tidak ada data valid untuk disinkronisasi.');
+                resolve();
+                return;
+              }
+
+              console.log('Upserting records:', records);
+              const { error: upsertError } = await supabase.from('billing_reports').upsert(records, {
+                onConflict: 'id'
+              });
+              
+              if (upsertError) throw upsertError;
+
+              // Refresh local state
+              const { data: newData, error: fetchError } = await supabase.from('billing_reports')
+                .select('*')
+                .eq('company', userCompany);
+              
+              if (fetchError) throw fetchError;
+              
+              setBillingReports(newData.sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+              alert(`Berhasil menyinkronkan ${records.length} data penagihan.`);
+              resolve();
+            } catch (innerError: any) {
+              console.error('Inner sync error:', innerError);
+              alert('Gagal memproses data: ' + (innerError.message || 'Unknown error'));
+              resolve(); // Resolve to stop spinner, or reject if you want the catch to handle it
+            }
+          },
+          error: (err) => {
+            console.error('Papa Parse error:', err);
+            alert('Gagal parsing CSV: ' + err.message);
+            resolve();
+          }
+        });
+      });
+    } catch (error: any) {
+      console.error('Sync error:', error);
+      alert('Gagal sinkronisasi: ' + error.message);
     }
   };
 
@@ -1859,6 +2020,11 @@ export default function App() {
             employees={employees}
             billingReports={billingReports}
             company={userCompany}
+            currentUserEmployee={currentUserEmployee}
+            onSync={handleSyncCourierBilling}
+            onUpdateRecord={handleSaveBillingReport}
+            onDeleteRecord={handleDeleteBillingReport}
+            onDuplicateRecord={handleDuplicateBillingReport}
           />
         );
       case 'courier_cash':

@@ -61,6 +61,11 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [piutangFilterCourier, setPiutangFilterCourier] = useState('');
   const [selectedPiutangIds, setSelectedPiutangIds] = useState<string[]>([]);
 
+  const isKurir = useMemo(() => 
+    currentUserEmployee?.division?.toUpperCase() === 'KURIR' || 
+    currentUserEmployee?.jabatan?.toUpperCase() === 'KURIR'
+  , [currentUserEmployee]);
+
   // Date normalization helper for robust comparisons
   const normalizeDateString = (dateStr: string) => {
     if (!dateStr) return '';
@@ -72,31 +77,46 @@ const Dashboard: React.FC<DashboardProps> = ({
   const deliverySummary = useMemo(() => {
     let filtered = deliveries.filter(d => normalizeDateString(d.tanggal) === selectedSumDate);
     
-    // Filter specifically for KURIR division if logged in as one
-    const isKurir = currentUserEmployee?.division?.toUpperCase() === 'KURIR' || 
-                    currentUserEmployee?.jabatan?.toUpperCase() === 'KURIR';
-    
     if (isKurir && currentUserEmployee?.nama) {
       filtered = filtered.filter(d => d.namaKurir === currentUserEmployee.nama);
     }
 
     const uniqueLocations = new Set(filtered.map(d => d.namaLokasi)).size;
     const totalQty = filtered.reduce((acc, d) => acc + (Number(d.qtyPengiriman) || 0), 0);
-    return { uniqueLocations, totalQty };
-  }, [deliveries, selectedSumDate, currentUserEmployee]);
+
+    // Calculate targets from orders
+    let targetFilteredOrders = orders.filter(o => normalizeDateString(o.tanggal) === selectedSumDate && o.status === 'Approved');
+    if (isKurir && currentUserEmployee?.nama) {
+      targetFilteredOrders = targetFilteredOrders.filter(o => o.namaKurir === currentUserEmployee.nama);
+    }
+    const targetLocations = new Set(targetFilteredOrders.map(o => o.namaLokasi)).size;
+    const targetQty = targetFilteredOrders.reduce((acc, o) => acc + (Number(o.jumlahKirim) || 0), 0);
+
+    return { 
+      uniqueLocations, 
+      totalQty,
+      targetLocations,
+      targetQty,
+      isLocationsMatch: uniqueLocations === targetLocations,
+      isQtyMatch: totalQty === targetQty
+    };
+  }, [deliveries, orders, selectedSumDate, currentUserEmployee]);
 
   const billingSummary = useMemo(() => {
     let filtered = billingReports.filter(b => normalizeDateString(b.tanggal) === selectedSumDate);
 
-    // Filter specifically for KURIR division if logged in as one
-    const isKurir = currentUserEmployee?.division?.toUpperCase() === 'KURIR' || 
-                    currentUserEmployee?.jabatan?.toUpperCase() === 'KURIR';
-    
     if (isKurir && currentUserEmployee?.nama) {
       filtered = filtered.filter(b => b.namaKurir === currentUserEmployee.nama);
     }
 
     const penagihanRecords = filtered.filter(b => !b.metodePembayaran || b.metodePembayaran === 'Cash' || b.metodePembayaran === 'Transfer');
+    
+    // Separate into manual (from billing_report sub-menu) and synced (from penagihan_kurir sub-menu)
+    const manualReports = filtered.filter(b => b.source !== 'spreadsheet' && !b.id.startsWith('sync_'));
+    const syncedReports = filtered.filter(b => b.source === 'spreadsheet' || b.id.startsWith('sync_'));
+    
+    const manualLocations = new Set(manualReports.map(b => b.namaLokasi)).size;
+    const syncedLocations = new Set(syncedReports.map(b => b.namaLokasi)).size;
     const uniqueLocations = new Set(filtered.map(b => b.namaLokasi)).size;
     
     let cash = 0, transfer = 0, piutang = 0;
@@ -109,20 +129,19 @@ const Dashboard: React.FC<DashboardProps> = ({
 
     return { 
       uniqueLocations, 
+      manualLocations,
+      syncedLocations,
       count: penagihanRecords.length,
       cash,
       transfer,
       piutang,
-      total: cash + transfer + piutang
+      total: cash + transfer + piutang,
+      isMatch: manualLocations === syncedLocations
     };
   }, [billingReports, selectedSumDate, currentUserEmployee]);
 
   const filteredOrders = useMemo(() => {
     let filtered = orders.filter(o => normalizeDateString(o.tanggal) === selectedSumDate);
-    
-    // Filter specifically for KURIR division if logged in as one
-    const isKurir = currentUserEmployee?.division?.toUpperCase() === 'KURIR' || 
-                    currentUserEmployee?.jabatan?.toUpperCase() === 'KURIR';
     
     if (isKurir && currentUserEmployee?.nama) {
       filtered = filtered.filter(o => o.namaKurir === currentUserEmployee.nama);
@@ -187,6 +206,12 @@ const Dashboard: React.FC<DashboardProps> = ({
   }, [selectedSumDate, searchTerm]);
 
   useEffect(() => {
+    if (isKurir && currentUserEmployee?.nama) {
+      setPiutangFilterCourier(currentUserEmployee.nama);
+    }
+  }, [isKurir, currentUserEmployee]);
+
+  useEffect(() => {
     if (!selectedStoreForDetail) {
       setShowPiutangList(false);
       setPiutangSearchTerm('');
@@ -244,9 +269,30 @@ const Dashboard: React.FC<DashboardProps> = ({
     return R * c;
   };
 
-  const presentToday = attendanceRecords.filter(r => r.status === 'Hadir').length;
-  const totalEmployees = employees.length;
-  const lateToday = attendanceRecords.filter(r => r.notes?.toLowerCase().includes('late') || (r.clockIn && r.clockIn > '08:00')).length;
+  const presentToday = useMemo(() => {
+    let filtered = attendanceRecords.filter(r => r.status === 'Hadir' && normalizeDateString(r.date) === selectedSumDate);
+    if (isKurir && currentUserEmployee) {
+      filtered = filtered.filter(r => r.employeeId === currentUserEmployee.id);
+    }
+    return filtered.length;
+  }, [attendanceRecords, selectedSumDate, isKurir, currentUserEmployee]);
+
+  const totalEmployees = useMemo(() => {
+    if (isKurir) return 1;
+    return employees.length;
+  }, [employees, isKurir]);
+
+  const lateToday = useMemo(() => {
+    let filtered = attendanceRecords.filter(r => 
+      normalizeDateString(r.date) === selectedSumDate && 
+      (r.notes?.toLowerCase().includes('late') || (r.clockIn && r.clockIn > '08:00'))
+    );
+    if (isKurir && currentUserEmployee) {
+      filtered = filtered.filter(r => r.employeeId === currentUserEmployee.id);
+    }
+    return filtered.length;
+  }, [attendanceRecords, selectedSumDate, isKurir, currentUserEmployee]);
+
   const absentToday = totalEmployees - presentToday;
 
   const container = {
@@ -348,30 +394,6 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </motion.div>
 
-            {/* Bluetooth Connect Button (Home Screen Mobile) */}
-            <motion.div
-              variants={item}
-              className="mt-4 w-full"
-            >
-              <button
-                onClick={onConnectBluetooth}
-                disabled={isBtConnecting}
-                className={`w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm active:scale-95 ${
-                  btCharacteristic 
-                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' 
-                    : 'bg-stone-50 text-stone-600 border border-stone-100'
-                }`}
-              >
-                {isBtConnecting ? (
-                  <div className="w-3 h-3 border-2 border-stone-400 border-t-stone-900 rounded-full animate-spin" />
-                ) : (
-                  <span className="material-symbols-outlined text-sm">
-                    {btCharacteristic ? 'bluetooth_connected' : 'bluetooth'}
-                  </span>
-                )}
-                {btCharacteristic ? 'PRINTER VSC TERHUBUNG' : 'SAMBUNGKAN PRINTER VSC'}
-              </button>
-            </motion.div>
           </motion.div>
 
           {/* Summaries */}
@@ -381,51 +403,99 @@ const Dashboard: React.FC<DashboardProps> = ({
               {/* Delivery Locations */}
               <button 
                 onClick={() => onNavigate('delivery')}
-                className="bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border border-stone-100 active:scale-95 transition-all text-left"
+                className={`bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border active:scale-95 transition-all text-left ${
+                  deliverySummary.isLocationsMatch 
+                    ? 'border-stone-100' 
+                    : 'border-orange-200 bg-orange-50/10'
+                }`}
               >
-                <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
-                  <span className="material-symbols-outlined text-[12px]">storefront</span>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                  deliverySummary.isLocationsMatch ? 'bg-blue-50 text-blue-600' : 'bg-orange-100 text-orange-600'
+                }`}>
+                  <span className="material-symbols-outlined text-[12px]">
+                    {deliverySummary.isLocationsMatch ? 'storefront' : 'warning'}
+                  </span>
                 </div>
                 <div className="text-center">
                   <p className="text-[5.5px] font-black text-stone-400 uppercase leading-none mb-1">LOKASI (D)</p>
                   <div className="flex items-baseline justify-center gap-0.5 leading-none">
-                    <span className="text-xs font-black text-stone-900">{deliverySummary.uniqueLocations}</span>
-                    <span className="text-[6px] font-bold text-stone-400 uppercase">TITIK</span>
+                    <span className={`text-xs font-black ${deliverySummary.isLocationsMatch ? 'text-stone-900' : 'text-orange-600'}`}>
+                      {deliverySummary.uniqueLocations}
+                    </span>
+                    <span className="text-[6px] font-bold text-stone-400 uppercase">/ {deliverySummary.targetLocations}</span>
                   </div>
+                  {!deliverySummary.isLocationsMatch && (
+                    <p className="text-[4.5px] font-black text-orange-400 uppercase mt-0.5 leading-none tracking-tighter">Beda!</p>
+                  )}
+                  {deliverySummary.isLocationsMatch && deliverySummary.targetLocations > 0 && (
+                    <p className="text-[4.5px] font-black text-emerald-500 uppercase mt-0.5 leading-none tracking-tighter">Sesuai</p>
+                  )}
                 </div>
               </button>
 
               {/* Delivery Total Qty */}
               <button 
                 onClick={() => onNavigate('delivery')}
-                className="bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border border-stone-100 active:scale-95 transition-all text-left"
+                className={`bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border active:scale-95 transition-all text-left ${
+                  deliverySummary.isQtyMatch 
+                    ? 'border-stone-100' 
+                    : 'border-red-200 bg-red-50/10'
+                }`}
               >
-                <div className="w-6 h-6 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
-                  <span className="material-symbols-outlined text-[12px]">package_2</span>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                  deliverySummary.isQtyMatch ? 'bg-emerald-50 text-emerald-600' : 'bg-red-100 text-red-600'
+                }`}>
+                  <span className="material-symbols-outlined text-[12px]">
+                    {deliverySummary.isQtyMatch ? 'package_2' : 'report'}
+                  </span>
                 </div>
                 <div className="text-center">
                   <p className="text-[5.5px] font-black text-stone-400 uppercase leading-none mb-1">TOTAL QTY</p>
                   <div className="flex items-baseline justify-center gap-0.5 leading-none">
-                    <span className="text-xs font-black text-stone-900">{deliverySummary.totalQty}</span>
-                    <span className="text-[6px] font-bold text-stone-400 uppercase">PCS</span>
+                    <span className={`text-xs font-black ${deliverySummary.isQtyMatch ? 'text-stone-900' : 'text-red-600'}`}>
+                      {deliverySummary.totalQty}
+                    </span>
+                    <span className="text-[6px] font-bold text-stone-400 uppercase">/ {deliverySummary.targetQty}</span>
                   </div>
+                  {!deliverySummary.isQtyMatch && (
+                    <p className="text-[4.5px] font-black text-red-400 uppercase mt-0.5 leading-none tracking-tighter">Beda!</p>
+                  )}
+                  {deliverySummary.isQtyMatch && deliverySummary.targetQty > 0 && (
+                    <p className="text-[4.5px] font-black text-emerald-500 uppercase mt-0.5 leading-none tracking-tighter">Sesuai</p>
+                  )}
                 </div>
               </button>
 
               {/* Billing Locations */}
               <button 
                 onClick={() => onNavigate('billing_report')}
-                className="bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border border-stone-100 active:scale-95 transition-all text-left"
+                className={`bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border active:scale-95 transition-all text-left ${
+                  billingSummary.isMatch 
+                    ? 'border-stone-100' 
+                    : 'border-indigo-200 bg-indigo-50/10'
+                }`}
               >
-                <div className="w-6 h-6 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
-                  <span className="material-symbols-outlined text-[12px]">storefront</span>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                  billingSummary.isMatch ? 'bg-indigo-50 text-indigo-600' : 'bg-orange-100 text-orange-600'
+                }`}>
+                  <span className="material-symbols-outlined text-[12px]">
+                    {billingSummary.isMatch ? 'storefront' : 'warning'}
+                  </span>
                 </div>
                 <div className="text-center">
                   <p className="text-[5.5px] font-black text-stone-400 uppercase leading-none mb-1">LOKASI (B)</p>
                   <div className="flex items-baseline justify-center gap-0.5 leading-none">
-                    <span className="text-xs font-black text-stone-900">{billingSummary.uniqueLocations}</span>
-                    <span className="text-[6px] font-bold text-stone-400 uppercase">TITIK</span>
+                    <span className={`text-xs font-black ${billingSummary.isMatch ? 'text-stone-900' : 'text-orange-600'}`}>
+                      {billingSummary.manualLocations}
+                    </span>
+                    <span className="text-[6px] font-bold text-stone-400 uppercase">/ {billingSummary.syncedLocations}</span>
                   </div>
+                  {!billingSummary.isMatch && (
+                    <p className="text-[4.5px] font-black text-orange-400 uppercase mt-0.5 leading-none tracking-tighter">Beda!</p>
+                  )}
+                  {billingSummary.isMatch && billingSummary.syncedLocations > 0 && (
+                    <p className="text-[4.5px] font-black text-emerald-500 uppercase mt-0.5 leading-none tracking-tighter">Sesuai</p>
+                  )}
                 </div>
               </button>
 
@@ -860,11 +930,16 @@ const Dashboard: React.FC<DashboardProps> = ({
                         value={piutangFilterCourier}
                         onChange={(e) => setPiutangFilterCourier(e.target.value)}
                         className="w-full pl-9 pr-10 py-2 bg-stone-50 border border-stone-200 rounded-xl text-[11px] font-bold text-stone-700 outline-none focus:ring-2 focus:ring-orange-100 appearance-none transition-all"
+                        disabled={isKurir}
                       >
-                        <option value="">Semua Kurir</option>
-                        {Array.from(new Set(orders.map(o => o.namaKurir).filter(Boolean))).map(courier => (
-                          <option key={courier} value={courier || ''}>{courier}</option>
-                        ))}
+                        {!isKurir && <option value="">Semua Kurir</option>}
+                        {isKurir ? (
+                          <option value={currentUserEmployee?.nama || ''}>{currentUserEmployee?.nama}</option>
+                        ) : (
+                          Array.from(new Set(orders.map(o => o.namaKurir).filter(Boolean))).map(courier => (
+                            <option key={courier} value={courier || ''}>{courier}</option>
+                          ))
+                        )}
                       </select>
                       <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm pointer-events-none">expand_more</span>
                     </div>
@@ -875,6 +950,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                       .filter(o => 
                         o.namaLokasi === selectedStoreForDetail.namaToko && 
                         o.pembayaran === 'FALSE' &&
+                        (isKurir ? o.namaKurir === currentUserEmployee?.nama : true) &&
                         (piutangSearchTerm === '' || o.namaLokasi.toLowerCase().includes(piutangSearchTerm.toLowerCase())) &&
                         (piutangFilterCourier === '' || o.namaKurir === piutangFilterCourier)
                       )

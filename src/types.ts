@@ -271,6 +271,7 @@ export interface DeliveryRecord {
   buktiSisa?: string;
   waste?: number;
   tanggalPiutang?: string;
+  source?: string;
 }
 
 export interface BillingRecord {
@@ -294,6 +295,7 @@ export interface BillingRecord {
   buktiSisa?: string;
   waste?: number;
   tanggalPiutang?: string;
+  source?: string;
 }
 
 export interface CourierCashRecord {
