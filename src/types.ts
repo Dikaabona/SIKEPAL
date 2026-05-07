@@ -364,3 +364,13 @@ export interface BranchLocation {
   longitude: number;
   company: string;
 }
+
+export interface InfoSisaRecord {
+  id: string;
+  tanggal: string;
+  namaKurir: string;
+  tanggalNota: string;
+  keteranganSisa: string;
+  company: string;
+  createdAt: string;
+}

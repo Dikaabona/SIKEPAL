@@ -2,8 +2,8 @@ import React, { useState, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { compressImage } from '../utils/imageUtils';
 import { Icons } from '../constants';
-import { DeliveryRecord, Order, Store, UserRole, Employee } from '../types';
-import { formatDate, getLocalDateString, parseIndoDate } from '../lib/utils';
+import { DeliveryRecord, Order, Store, UserRole, Employee, InfoSisaRecord } from '../types';
+import { formatDate, getLocalDateString, parseIndoDate, getPaginationRange } from '../lib/utils';
 
 interface KeteranganInputProps {
   value: string;
@@ -79,6 +79,7 @@ interface DeliveryModuleProps {
   btCharacteristic?: any;
   isBtConnecting?: boolean;
   onConnectBluetooth?: () => void;
+  infoSisaRecords?: InfoSisaRecord[];
 }
 
 const DeliveryModule: React.FC<DeliveryModuleProps> = ({ 
@@ -103,7 +104,8 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
   onCancel,
   btCharacteristic,
   isBtConnecting,
-  onConnectBluetooth
+  onConnectBluetooth,
+  infoSisaRecords = []
 }) => {
   // Extract unique courier names from orders
   const courierOptions = useMemo(() => {
@@ -222,6 +224,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPiutangModalOpen, setIsPiutangModalOpen] = useState(false);
+  const [isInfoSisaModalOpen, setIsInfoSisaModalOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -472,6 +475,46 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
         .filter(d => d.metodePembayaran === 'Piutang')
         .reduce((sum, d) => sum + (Number(d.qtyPengiriman) || 0), 0);
 
+      const billingSisaRecords = filteredDeliveries.filter(d => 
+        d.tanggalPiutang && d.tanggalPiutang !== '-' && d.tanggalPiutang !== d.tanggal
+      );
+
+      const normalizeDate = (dateStr: string) => {
+        if (!dateStr || dateStr === '-') return '';
+        if (dateStr.includes('/')) {
+          const d = parseIndoDate(dateStr);
+          return d ? getLocalDateString(d) : dateStr;
+        }
+        return dateStr;
+      };
+
+      const compareStrings = (s1: string, s2: string) => 
+        (s1 || '').trim().toLowerCase() === (s2 || '').trim().toLowerCase();
+
+      const relevantInfoSisa = infoSisaRecords.filter(isr => {
+        const isrDate = normalizeDate(isr.tanggal);
+        const matchesDate = (!filterDate || isrDate >= filterDate) && (!filterEndDate || isrDate <= filterEndDate);
+        const matchesCourierName = !filterCourier || filterCourier === 'all' || compareStrings(isr.namaKurir, filterCourier);
+        return matchesDate && matchesCourierName;
+      });
+
+      let matchedCount = 0;
+      billingSisaRecords.forEach(bsr => {
+        const bsrDate = normalizeDate(bsr.tanggal);
+        const bsrPiutangDate = normalizeDate(bsr.tanggalPiutang);
+
+        const hasMatch = relevantInfoSisa.some(isr => {
+          const isrDate = normalizeDate(isr.tanggal);
+          const isrNotaDate = normalizeDate(isr.tanggalNota);
+          
+          return isrDate === bsrDate &&
+            compareStrings(isr.namaKurir, bsr.namaKurir) &&
+            isrNotaDate === bsrPiutangDate &&
+            compareStrings(isr.keteranganSisa, bsr.namaLokasi);
+        });
+        if (hasMatch) matchedCount++;
+      });
+
       return {
         totalNilai,
         totalSisa,
@@ -479,7 +522,10 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
         totalPenagihan,
         totalCash,
         totalTransfer,
-        totalPiutang
+        totalPiutang,
+        totalInfoSisa: billingSisaRecords.length,
+        matchedInfoSisa: matchedCount,
+        actualInfoSisaCount: relevantInfoSisa.length
       };
     } else if (title === "Delivery Report") {
       const uniqueLocations = new Set(filteredDeliveries.map(d => d.namaLokasi)).size;
@@ -492,7 +538,53 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
     }
     
     return null;
-  }, [filteredDeliveries, deliveries, title]);
+  }, [filteredDeliveries, deliveries, title, infoSisaRecords, filterDate, filterEndDate, filterCourier, employees]);
+
+  const infoSisaComparisonData = useMemo(() => {
+    if (title !== "Billing Report") return [];
+    
+    const billingSisaRecords = filteredDeliveries.filter(d => 
+      d.tanggalPiutang && d.tanggalPiutang !== '-' && d.tanggalPiutang !== d.tanggal
+    );
+
+    const normalizeDate = (dateStr: string) => {
+      if (!dateStr || dateStr === '-') return '';
+      if (dateStr.includes('/')) {
+        const d = parseIndoDate(dateStr);
+        return d ? getLocalDateString(d) : dateStr;
+      }
+      return dateStr;
+    };
+
+    const compareStrings = (s1: string, s2: string) => 
+      (s1 || '').trim().toLowerCase() === (s2 || '').trim().toLowerCase();
+
+    const relevantInfoSisa = infoSisaRecords.filter(isr => {
+      const isrDate = normalizeDate(isr.tanggal);
+      const matchesDate = (!filterDate || isrDate >= filterDate) && (!filterEndDate || isrDate <= filterEndDate);
+      const matchesCourierName = !filterCourier || filterCourier === 'all' || compareStrings(isr.namaKurir, filterCourier);
+      return matchesDate && matchesCourierName;
+    });
+
+    return billingSisaRecords.map(bsr => {
+      const bsrDate = normalizeDate(bsr.tanggal);
+      const bsrPiutangDate = normalizeDate(bsr.tanggalPiutang);
+
+      const match = relevantInfoSisa.find(isr => {
+        const isrDate = normalizeDate(isr.tanggal);
+        const isrNotaDate = normalizeDate(isr.tanggalNota);
+
+        return isrDate === bsrDate &&
+          compareStrings(isr.namaKurir, bsr.namaKurir) &&
+          isrNotaDate === bsrPiutangDate &&
+          compareStrings(isr.keteranganSisa, bsr.namaLokasi);
+      });
+      return {
+        delivery: bsr,
+        infoSisa: match || null
+      };
+    });
+  }, [filteredDeliveries, infoSisaRecords, title, filterDate, filterEndDate, filterCourier, employees]);
 
   // Piutang Modal States
   const [piutangSearchQuery, setPiutangSearchQuery] = useState('');
@@ -983,8 +1075,8 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       </div>
 
       {title === "Billing Report" && summary && (
-        <div className="grid grid-cols-3 gap-2 md:gap-6">
-          <div className="bg-white p-2 md:p-6 rounded-2xl md:rounded-[32px] border border-stone-100 shadow-sm hover:shadow-md transition-shadow">
+        <div className="grid grid-cols-3 lg:grid-cols-4 gap-2 md:gap-6">
+          <div className="col-span-3 lg:col-span-1 bg-white p-2 md:p-6 rounded-2xl md:rounded-[32px] border border-stone-100 shadow-sm hover:shadow-md transition-shadow">
             <div className="w-7 h-7 md:w-10 md:h-10 rounded-lg md:rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-2 md:mb-4">
               <span className="material-symbols-outlined text-base md:text-xl">account_balance_wallet</span>
             </div>
@@ -1010,7 +1102,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
             </div>
           </div>
 
-          <div className="bg-white p-2 md:p-6 rounded-2xl md:rounded-[32px] border border-stone-100 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+          <div className="col-span-1 lg:col-span-1 bg-white p-2 md:p-6 rounded-2xl md:rounded-[32px] border border-stone-100 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
             <div>
               <div className="w-7 h-7 md:w-10 md:h-10 rounded-lg md:rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-2 md:mb-4">
                 <span className="material-symbols-outlined text-base md:text-xl">store</span>
@@ -1023,7 +1115,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
             </div>
           </div>
           
-          <div className="bg-white p-2 md:p-6 rounded-2xl md:rounded-[32px] border border-stone-100 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+          <div className="col-span-1 lg:col-span-1 bg-white p-2 md:p-6 rounded-2xl md:rounded-[32px] border border-stone-100 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
             <div>
               <div className="w-7 h-7 md:w-10 md:h-10 rounded-lg md:rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mb-2 md:mb-4">
                 <span className="material-symbols-outlined text-base md:text-xl">receipt_long</span>
@@ -1032,6 +1124,27 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
               <div className="flex items-baseline gap-1 md:gap-2">
                 <span className="text-base md:text-2xl font-black text-stone-900 leading-none">{summary.totalPenagihan}</span>
                 <span className="text-[7px] md:text-[10px] text-stone-400 font-bold uppercase tracking-widest">Data</span>
+              </div>
+            </div>
+          </div>
+
+          <div 
+            onClick={() => setIsInfoSisaModalOpen(true)}
+            className="col-span-1 lg:col-span-1 bg-white p-2 md:p-6 rounded-2xl md:rounded-[32px] border border-stone-100 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between cursor-pointer group"
+          >
+            <div>
+              <div className="w-7 h-7 md:w-10 md:h-10 rounded-lg md:rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2 md:mb-4 group-hover:scale-110 transition-transform">
+                <span className="material-symbols-outlined text-base md:text-xl">history</span>
+              </div>
+              <div className="text-[7px] md:text-[10px] font-black text-stone-400 uppercase tracking-tight md:tracking-[0.2em] mb-1">Info Sisa</div>
+              <div className="flex items-baseline gap-1 md:gap-2">
+                <span className="text-base md:text-2xl font-black text-stone-900 leading-none">{summary.matchedInfoSisa || 0}</span>
+                <span className="text-[10px] md:text-sm font-bold text-stone-300">/</span>
+                <span className="text-sm md:text-xl font-bold text-stone-400">{summary.totalInfoSisa || 0}</span>
+                <span className="text-[7px] md:text-[10px] text-stone-400 font-bold uppercase tracking-widest ml-1 whitespace-nowrap">Matched</span>
+              </div>
+              <div className="mt-2 text-[6px] md:text-[9px] text-stone-400 font-medium whitespace-nowrap overflow-hidden text-ellipsis">
+                Tabel Info Sisa: {summary.actualInfoSisaCount || 0} data
               </div>
             </div>
           </div>
@@ -1368,7 +1481,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                       {(userRole === 'owner' || userRole === 'admin') && (
                         <td className="px-3 py-4">
                           <div className="flex items-center justify-center gap-1.5">
-                            {title === "Billing Report" && delivery.status !== 'Completed' && (
+                            {title === "Billing Report" && delivery.status !== 'Completed' && currentUserDivision?.toLowerCase() !== 'kurir' && (
                               <button
                                 onClick={() => onSaveDelivery({ ...delivery, status: 'Completed' })}
                                 className="w-8 h-8 rounded-lg bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-100 transition-all border border-green-100 shadow-sm"
@@ -1514,7 +1627,7 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
                           <span className="material-symbols-outlined text-lg">print</span>
                         </button>
                       )}
-                      {title === "Billing Report" && delivery.status !== 'Completed' && (
+                      {title === "Billing Report" && delivery.status !== 'Completed' && currentUserDivision?.toLowerCase() !== 'kurir' && (
                         <button
                           onClick={() => onSaveDelivery({ ...delivery, status: 'Completed' })}
                           className="w-9 h-9 rounded-xl bg-green-50 text-green-600 flex items-center justify-center shadow-sm border border-green-100 active:scale-90 transition-transform"
@@ -2127,6 +2240,121 @@ const DeliveryModule: React.FC<DeliveryModuleProps> = ({
       </AnimatePresence>
 
       <AnimatePresence>
+        {isInfoSisaModalOpen && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setIsInfoSisaModalOpen(false)}
+                className="absolute inset-0 bg-stone-900/60 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                className="relative bg-white w-full max-w-4xl max-h-[85vh] rounded-[40px] shadow-2xl overflow-hidden flex flex-col"
+              >
+                {/* Modal Header */}
+                <div className="p-4 md:p-8 border-b border-stone-100 flex items-center justify-between bg-gradient-to-r from-stone-50 to-white">
+                  <div>
+                    <h3 className="text-xl md:text-2xl font-black text-stone-900 uppercase tracking-tight">Detail Info Sisa</h3>
+                    <p className="text-[10px] md:text-sm font-medium text-stone-500">Matching records antara Billing Report & Info Sisa</p>
+                  </div>
+                  <button
+                    onClick={() => setIsInfoSisaModalOpen(false)}
+                    className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-stone-100 text-stone-500 flex items-center justify-center hover:bg-stone-200 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-xl md:text-2xl">close</span>
+                  </button>
+                </div>
+
+                {/* Modal Content */}
+                <div className="p-4 md:p-8 overflow-y-auto flex-1 bg-stone-50/20">
+                  <div className="grid grid-cols-1 gap-3 md:gap-4">
+                    {infoSisaComparisonData.length > 0 ? (
+                      infoSisaComparisonData.map((item, idx) => (
+                        <div 
+                          key={idx}
+                          className={`p-4 md:p-6 rounded-2xl md:rounded-[32px] border transition-all bg-white relative overflow-hidden ${
+                            item.infoSisa 
+                              ? 'border-emerald-100/50 shadow-sm shadow-emerald-50' 
+                              : 'border-red-100/50 shadow-sm shadow-red-50'
+                          }`}
+                        >
+                          {/* Accent Strip */}
+                          <div className={`absolute top-0 left-0 bottom-0 w-1 ${
+                            item.infoSisa ? 'bg-emerald-500' : 'bg-red-500'
+                          }`} />
+
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6">
+                            <div className="flex items-center gap-3 md:gap-5">
+                              <div className={`w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl flex items-center justify-center shrink-0 ${
+                                item.infoSisa ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
+                              }`}>
+                                <span className="material-symbols-outlined text-xl md:text-3xl">
+                                  {item.infoSisa ? 'check_circle' : 'warning'}
+                                </span>
+                              </div>
+                              <div>
+                                <div className="font-black text-stone-900 text-sm md:text-lg leading-tight">{item.delivery.namaLokasi}</div>
+                                <div className="text-[9px] md:text-xs font-bold text-stone-400 uppercase tracking-widest mt-0.5">
+                                  {item.delivery.namaKurir} • {formatDate(item.delivery.tanggal)}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-2 pt-3 md:pt-0 border-t md:border-t-0 border-stone-50 min-w-[140px]">
+                              <div className="flex flex-col md:items-end">
+                                <span className="text-[8px] md:text-[10px] font-black text-stone-300 uppercase tracking-widest leading-none mb-1">Tgl Piutang</span>
+                                <span className="text-[10px] md:text-xs font-bold text-stone-900">{formatDate(item.delivery.tanggalPiutang)}</span>
+                              </div>
+                              <div className={`text-[8px] md:text-[10px] px-2 py-1 md:px-3 md:py-1 rounded-lg md:rounded-full font-black uppercase tracking-widest ${
+                                item.infoSisa ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
+                              }`}>
+                                {item.infoSisa ? 'MATCHED' : 'UNMATCHED'}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {item.infoSisa && (
+                            <div className="mt-3 pt-3 border-t border-stone-50 flex items-center justify-between text-[9px] md:text-[11px]">
+                              <div className="text-emerald-700 font-bold flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[10px] md:text-[14px]">verified</span>
+                                Terdata di Info Sisa ({formatDate(item.infoSisa.tanggal)})
+                              </div>
+                              <div className="text-stone-300 font-medium font-mono">ID:{item.infoSisa.id.substring(0, 6)}</div>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="py-12 md:py-20 text-center">
+                        <div className="w-16 h-16 md:w-20 md:h-20 bg-stone-50 rounded-2xl md:rounded-[32px] flex items-center justify-center mx-auto mb-4 md:mb-6">
+                          <span className="material-symbols-outlined text-3xl md:text-4xl text-stone-200">error</span>
+                        </div>
+                        <h4 className="text-lg md:text-xl font-black text-stone-800 uppercase tracking-tight">Tidak ada data Sisa</h4>
+                        <p className="text-stone-400 text-xs md:text-sm font-medium max-w-[200px] md:max-w-xs mx-auto mt-2">
+                          Pilih tanggal atau filter lain untuk melihat matching data sisa.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="p-4 md:p-8 border-t border-stone-100 bg-white flex justify-end">
+                  <button
+                    onClick={() => setIsInfoSisaModalOpen(false)}
+                    className="w-full md:w-auto px-10 py-3.5 md:py-4 rounded-xl md:rounded-2xl bg-stone-900 text-white text-[11px] md:text-sm font-black uppercase tracking-widest shadow-lg shadow-stone-200 active:scale-95 transition-all"
+                  >
+                    Tutup
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+        )}
+
         {isModalOpen && (
         <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4 pb-24 md:p-4">
           <div className="bg-white rounded-[32px] w-full max-w-lg overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200 flex flex-col max-h-[75vh] md:max-h-[85vh]">

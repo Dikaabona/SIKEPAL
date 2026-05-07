@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Employee, Submission, Broadcast, AttendanceRecord, ShiftAssignment, UserRole, Shift, BranchLocation, Order, Store, DeliveryRecord, BillingRecord } from '../types';
+import { Employee, Submission, Broadcast, AttendanceRecord, ShiftAssignment, UserRole, Shift, BranchLocation, Order, Store, DeliveryRecord, BillingRecord, CourierCashRecord, InfoSisaRecord } from '../types';
 import { parseIndoDate, formatCurrency, getLocalDateString } from '../lib/utils';
 
 interface DashboardProps {
@@ -23,6 +23,8 @@ interface DashboardProps {
   stores: Store[];
   deliveries: DeliveryRecord[];
   billingReports: BillingRecord[];
+  courierCash: CourierCashRecord[];
+  infoSisaRecords: InfoSisaRecord[];
   preselectedStoreId?: string | null;
   onPreselectionHandled?: () => void;
   btCharacteristic?: any;
@@ -42,6 +44,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   stores,
   deliveries,
   billingReports,
+  courierCash,
+  infoSisaRecords,
   preselectedStoreId,
   onPreselectionHandled,
   btCharacteristic,
@@ -139,6 +143,27 @@ const Dashboard: React.FC<DashboardProps> = ({
       isMatch: manualLocations === syncedLocations
     };
   }, [billingReports, selectedSumDate, currentUserEmployee]);
+
+  const courierCashSummary = useMemo(() => {
+    let filtered = courierCash.filter(c => normalizeDateString(c.tanggal) === selectedSumDate);
+    
+    if (isKurir && currentUserEmployee?.nama) {
+      filtered = filtered.filter(c => c.nama_kurir === currentUserEmployee.nama);
+    }
+
+    let masuk = 0;
+    let keluar = 0;
+    filtered.forEach(c => {
+      if (c.tipe === 'Masuk') masuk += c.jumlah;
+      else if (c.tipe === 'Keluar') keluar += c.jumlah;
+    });
+
+    return {
+      masuk,
+      keluar,
+      saldo: masuk - keluar
+    };
+  }, [courierCash, selectedSumDate, isKurir, currentUserEmployee]);
 
   const filteredOrders = useMemo(() => {
     let filtered = orders.filter(o => normalizeDateString(o.tanggal) === selectedSumDate);
@@ -295,6 +320,50 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const absentToday = totalEmployees - presentToday;
 
+  const infoSisaSummary = useMemo(() => {
+    if (!infoSisaRecords) return { matched: 0, total: 0, actual: 0 };
+    
+    const compareStrings = (s1: string, s2: string) => 
+      (s1 || '').trim().toLowerCase() === (s2 || '').trim().toLowerCase();
+
+    // Billing records for current date (billing reports are treated as deliveries in some contexts)
+    let filteredDeliveries = billingReports.filter(d => normalizeDateString(d.tanggal) === selectedSumDate);
+    if (isKurir && currentUserEmployee?.nama) {
+      filteredDeliveries = filteredDeliveries.filter(d => compareStrings(d.namaKurir, currentUserEmployee.nama));
+    }
+    
+    const billingSisaRecords = filteredDeliveries.filter(d => 
+      d.tanggalPiutang && d.tanggalPiutang !== '-' && d.tanggalPiutang !== d.tanggal
+    );
+    const total = billingSisaRecords.length;
+    
+    const relevantInfoSisa = infoSisaRecords.filter(isr => {
+      const isrDate = normalizeDateString(isr.tanggal);
+      const matchesDate = isrDate === selectedSumDate;
+      const matchesCourier = !isKurir || !currentUserEmployee?.nama || compareStrings(isr.namaKurir, currentUserEmployee.nama);
+      return matchesDate && matchesCourier;
+    });
+
+    const matched = billingSisaRecords.filter(bsr => {
+      const bsrDate = normalizeDateString(bsr.tanggal);
+      const bsrPiutangDate = normalizeDateString(bsr.tanggalPiutang);
+
+      return relevantInfoSisa.some(isr => {
+        const isrDate = normalizeDateString(isr.tanggal);
+        const isrNotaDate = normalizeDateString(isr.tanggalNota);
+        
+        return isrDate === bsrDate &&
+          compareStrings(isr.namaKurir, bsr.namaKurir) &&
+          isrNotaDate === bsrPiutangDate &&
+          compareStrings(isr.keteranganSisa, bsr.namaLokasi);
+      });
+    }).length;
+
+    const actual = relevantInfoSisa.length;
+
+    return { matched, total, actual };
+  }, [billingReports, infoSisaRecords, selectedSumDate, isKurir, currentUserEmployee, normalizeDateString]);
+
   const container = {
     hidden: { opacity: 0 },
     show: {
@@ -399,7 +468,25 @@ const Dashboard: React.FC<DashboardProps> = ({
           {/* Summaries */}
           <motion.div variants={item} className="mt-6 space-y-3 px-0">
             {/* Top Metrics Grid (One Row - Mobile) */}
-            <div className="grid grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-3 gap-1.5">
+              {/* Absensi Metric (Mobile - NEW) */}
+              <button 
+                onClick={() => onNavigate('selfie_attendance')}
+                className={`bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border active:scale-95 transition-all ${attendanceStatus ? 'border-emerald-100' : 'border-red-100'}`}
+              >
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${attendanceStatus ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                  <span className="material-symbols-outlined text-[12px]">{attendanceStatus ? 'person_check' : 'person_cancel'}</span>
+                </div>
+                <div className="text-center">
+                  <p className="text-[5.5px] font-black text-stone-400 uppercase leading-none mb-1">ABSENSI</p>
+                  <div className="flex items-baseline justify-center gap-0.5 leading-none">
+                    <span className={`text-[8px] font-black uppercase ${attendanceStatus ? 'text-emerald-700' : 'text-red-700'}`}>
+                      {attendanceStatus ? 'MASUK' : 'BELUM'}
+                    </span>
+                  </div>
+                </div>
+              </button>
+
               {/* Delivery Locations */}
               <button 
                 onClick={() => onNavigate('delivery')}
@@ -516,84 +603,96 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               </button>
 
-              {/* Absensi Metric (Mobile - NEW) */}
+              {/* Info Sisa summary from Billing Report (Mobile - NEW) */}
               <button 
-                onClick={() => onNavigate('selfie_attendance')}
-                className={`bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border active:scale-95 transition-all ${attendanceStatus ? 'border-emerald-100' : 'border-red-100'}`}
+                onClick={() => onNavigate('billing_report')}
+                className="bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border border-emerald-100 active:scale-95 transition-all text-left"
               >
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${attendanceStatus ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
-                  <span className="material-symbols-outlined text-[12px]">{attendanceStatus ? 'person_check' : 'person_cancel'}</span>
+                <div className="w-6 h-6 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+                  <span className="material-symbols-outlined text-[12px]">history</span>
                 </div>
                 <div className="text-center">
-                  <p className="text-[5.5px] font-black text-stone-400 uppercase leading-none mb-1">ABSENSI</p>
+                  <p className="text-[5.5px] font-black text-stone-400 uppercase leading-none mb-1">INFO SISA</p>
                   <div className="flex items-baseline justify-center gap-0.5 leading-none">
-                    <span className={`text-[8px] font-black uppercase ${attendanceStatus ? 'text-emerald-700' : 'text-red-700'}`}>
-                      {attendanceStatus ? 'MASUK' : 'BELUM'}
-                    </span>
+                    <span className="text-xs font-black text-stone-900">{infoSisaSummary.matched}</span>
+                    <span className="text-[6px] font-bold text-stone-300">/</span>
+                    <span className="text-[10px] font-bold text-stone-400">{infoSisaSummary.total}</span>
                   </div>
-                </div>
-              </button>
-
-              {/* Sisa Metric (Mobile - NEW) */}
-              <div className="bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border border-stone-100">
-                <div className="w-6 h-6 rounded-full bg-orange-50 flex items-center justify-center text-orange-600">
-                   <span className="material-symbols-outlined text-[12px]">inventory_2</span>
-                </div>
-                <div className="text-center">
-                  <p className="text-[5.5px] font-black text-stone-400 uppercase leading-none mb-1">SISA</p>
-                  <div className="flex items-baseline justify-center gap-0.5 leading-none">
-                    <span className="text-xs font-black text-stone-900">{orderSummary.sisa}</span>
-                    <span className="text-[6px] font-bold text-stone-400 uppercase">PCS</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Kas Kurir Metric (Mobile - NEW) */}
-              <button 
-                onClick={() => onNavigate('courier_cash')}
-                className="bg-white rounded-[16px] py-1.5 px-0.5 shadow-sm flex flex-col items-center gap-1 border border-stone-100 active:scale-95 transition-all"
-              >
-                <div className="w-6 h-6 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
-                  <span className="material-symbols-outlined text-[12px]">payments</span>
-                </div>
-                <div className="text-center">
-                  <p className="text-[5.5px] font-black text-stone-400 uppercase leading-none mb-1">KAS KURIR</p>
-                  <div className="flex items-baseline justify-center gap-0.5 leading-none">
-                    <span className="text-[8px] font-black uppercase text-indigo-700">MODUL</span>
-                  </div>
+                  <p className="text-[4.5px] font-black text-stone-400 uppercase mt-0.5 leading-none tracking-tighter">
+                    Tabel: {infoSisaSummary.actual}
+                  </p>
                 </div>
               </button>
             </div>
 
-            {/* Payment Methods Full Width (Mobile) */}
-            <div className="bg-white rounded-[20px] p-3 shadow-md border border-stone-50">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
-                  <span className="material-symbols-outlined text-sm">account_balance_wallet</span>
-                </div>
+            {/* Financial Sections Grid (Mobile) */}
+            <div className="grid grid-cols-2 gap-2">
+              {/* Payment Methods (Mobile) */}
+              <div className="bg-white rounded-[20px] p-3 shadow-md border border-stone-50 flex flex-col justify-between">
                 <div>
-                  <p className="text-[7px] font-black text-stone-400 uppercase tracking-[0.2em] leading-none mb-0.5">METODE BAYAR</p>
-                  <p className="text-[6px] font-bold text-stone-300 uppercase tracking-widest leading-none">TOTAL HARI INI</p>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                      <span className="material-symbols-outlined text-sm">account_balance_wallet</span>
+                    </div>
+                    <div>
+                      <p className="text-[7px] font-black text-stone-400 uppercase tracking-[0.2em] leading-none mb-0.5">METODE BAYAR</p>
+                      <p className="text-[6px] font-bold text-stone-300 uppercase tracking-widest leading-none">TOTAL HARI INI</p>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center py-0.5 border-b border-stone-50">
+                      <span className="text-[6px] font-bold text-stone-400 uppercase">CASH:</span>
+                      <span className="text-[8px] font-black text-stone-800">{formatCurrency(billingSummary.cash).replace('Rp ', '')}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-0.5 border-b border-stone-50">
+                      <span className="text-[6px] font-bold text-stone-400 uppercase">TRANSFER:</span>
+                      <span className="text-[8px] font-black text-blue-600">{formatCurrency(billingSummary.transfer).replace('Rp ', '')}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-0.5 border-b border-stone-50">
+                      <span className="text-[6px] font-bold text-stone-400 uppercase">PIUTANG:</span>
+                      <span className="text-[8px] font-black text-orange-600">{formatCurrency(billingSummary.piutang).replace('Rp ', '')}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center pt-1 mt-1 border-t border-stone-100">
+                  <span className="text-[6px] font-black text-stone-500 uppercase">TOTAL</span>
+                  <span className="text-[10px] font-black text-stone-900">{formatCurrency(billingSummary.total).replace('Rp ', '')}</span>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                <div className="flex justify-between items-center py-0.5 border-b border-stone-50">
-                  <span className="text-[7px] font-bold text-stone-400 uppercase">CASH:</span>
-                  <span className="text-[9px] font-black text-stone-800">{formatCurrency(billingSummary.cash).replace('Rp ', '')}</span>
+
+              {/* Kas Kurir Info (Mobile - NEW Position) */}
+              <button 
+                onClick={() => onNavigate('courier_cash')}
+                className="bg-white rounded-[20px] p-3 shadow-md border border-stone-50 flex flex-col justify-between text-left active:scale-[0.98] transition-all"
+              >
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
+                      <span className="material-symbols-outlined text-sm">payments</span>
+                    </div>
+                    <div>
+                      <p className="text-[7px] font-black text-stone-400 uppercase tracking-[0.2em] leading-none mb-0.5">KAS KURIR</p>
+                      <p className="text-[6px] font-bold text-stone-300 uppercase tracking-widest leading-none">INFO MODUL</p>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center py-0.5 border-b border-stone-50">
+                      <span className="text-[6px] font-bold text-emerald-500 uppercase">MASUK:</span>
+                      <span className="text-[8px] font-black text-emerald-600">{formatCurrency(courierCashSummary.masuk).replace('Rp ', '')}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-0.5 border-b border-stone-50">
+                      <span className="text-[6px] font-bold text-red-500 uppercase">KELUAR:</span>
+                      <span className="text-[8px] font-black text-red-600">{formatCurrency(courierCashSummary.keluar).replace('Rp ', '')}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center py-0.5 border-b border-stone-50">
-                  <span className="text-[7px] font-bold text-stone-400 uppercase">TRANSFER:</span>
-                  <span className="text-[9px] font-black text-blue-600">{formatCurrency(billingSummary.transfer).replace('Rp ', '')}</span>
+                <div className="flex justify-between items-center pt-1 mt-1 border-t border-stone-100">
+                  <span className="text-[6px] font-black text-stone-500 uppercase">SALDO</span>
+                  <span className={`text-[10px] font-black ${courierCashSummary.saldo >= 0 ? 'text-stone-900' : 'text-red-600'}`}>
+                    {formatCurrency(courierCashSummary.saldo).replace('Rp ', '')}
+                  </span>
                 </div>
-                <div className="flex justify-between items-center py-0.5 border-b border-stone-50">
-                  <span className="text-[7px] font-bold text-stone-400 uppercase">TOTAL:</span>
-                  <span className="text-[9px] font-black text-stone-800">{formatCurrency(billingSummary.total).replace('Rp ', '')}</span>
-                </div>
-                <div className="flex justify-between items-center py-0.5 border-b border-stone-50">
-                  <span className="text-[7px] font-bold text-stone-400 uppercase">PIUTANG:</span>
-                  <span className="text-[9px] font-black text-orange-600">{formatCurrency(billingSummary.piutang).replace('Rp ', '')}</span>
-                </div>
-              </div>
+              </button>
             </div>
             {/* Order Statistics Summary (Mobile) */}
             <div className="bg-white rounded-[20px] p-2 shadow-md border border-stone-50">
@@ -616,11 +715,9 @@ const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                 ))}
               </div>
-              <div className="grid grid-cols-3 gap-1 pt-1 border-t border-stone-100">
+              <div className="grid grid-cols-1 gap-1 pt-1 border-t border-stone-100">
                 {[
-                  { label: "JUMLAH", val: orderSummary.jumlahKirim },
-                  { label: "SISA", val: orderSummary.sisa },
-                  { label: "%", val: percentageSisa.toFixed(2) + "%" },
+                  { label: "TOTAL RENCANA PENGIRIMAN", val: orderSummary.jumlahKirim },
                 ].map((item, idx) => (
                   <div key={idx} className="flex flex-col items-center">
                     <span className="text-[5px] font-black text-stone-800 uppercase tracking-wider leading-none mb-0.5">{item.label}</span>

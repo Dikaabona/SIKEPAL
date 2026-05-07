@@ -4,7 +4,8 @@ import { supabase } from './lib/supabase';
 import StoreDatabase from './components/StoreDatabase';
 import OrderDatabase from './components/OrderDatabase';
 import PiutangModule from './components/PiutangModule';
-import { ActiveTab, Employee, AttendanceRecord, Submission, Broadcast, LiveSchedule, Shift, ShiftAssignment, Store, Order, UserRole, DeliveryRecord, BillingRecord, CourierCashRecord, COAAccount, AccountingJournal, Division, Position, BranchLocation, SalesReportEntry } from './types';
+import InfoSisaModule from './components/InfoSisaModule';
+import { ActiveTab, Employee, AttendanceRecord, Submission, Broadcast, LiveSchedule, Shift, ShiftAssignment, Store, Order, UserRole, DeliveryRecord, BillingRecord, CourierCashRecord, COAAccount, AccountingJournal, Division, Position, BranchLocation, SalesReportEntry, InfoSisaRecord } from './types';
 import { Icons, DEFAULT_SHIFTS } from './constants';
 import { getLocalDateString } from './lib/utils';
 import Dashboard from './components/Dashboard';
@@ -285,6 +286,7 @@ export default function App() {
   const [deliveries, setDeliveries] = useState<DeliveryRecord[]>([]);
   const [billingReports, setBillingReports] = useState<BillingRecord[]>([]);
   const [courierCashRecords, setCourierCashRecords] = useState<CourierCashRecord[]>([]);
+  const [infoSisaRecords, setInfoSisaRecords] = useState<InfoSisaRecord[]>([]);
   const [coaAccounts, setCoaAccounts] = useState<COAAccount[]>([]);
   const [accountingJournals, setAccountingJournals] = useState<AccountingJournal[]>([]);
   const [divisions, setDivisions] = useState<Division[]>([]);
@@ -308,6 +310,12 @@ export default function App() {
 
   const userEmail = session?.user?.email?.toLowerCase().trim() || '';
   const currentUserEmployee = employees.find(e => e.email?.toLowerCase().trim() === userEmail) || null;
+
+  useEffect(() => {
+    if (currentUserEmployee) {
+      setUserRole(currentUserEmployee.role);
+    }
+  }, [currentUserEmployee]);
 
   // Check for missing employee data
   useEffect(() => {
@@ -386,6 +394,51 @@ export default function App() {
     } catch (error: any) {
       console.error('Error deleting sales report:', error);
       alert('Gagal menghapus sales report: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const fetchInfoSisa = async () => {
+    try {
+      const { data, error } = await supabase.from('info_sisa').select('*');
+      if (error) throw error;
+      if (data) setInfoSisaRecords(data);
+    } catch (e) {
+      console.warn('Info sisa table might not exist yet');
+      setInfoSisaRecords([]);
+    }
+  };
+
+  const handleSaveInfoSisa = async (record: InfoSisaRecord) => {
+    try {
+      const { error } = await supabase.from('info_sisa').upsert(record);
+      if (error) throw error;
+      await fetchInfoSisa();
+    } catch (error: any) {
+      console.error('Error saving info sisa:', error);
+      alert('Gagal menyimpan info sisa: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const handleDeleteInfoSisa = async (id: string) => {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus data ini?')) return;
+    try {
+      const { error } = await supabase.from('info_sisa').delete().eq('id', id);
+      if (error) throw error;
+      await fetchInfoSisa();
+    } catch (error: any) {
+      console.error('Error deleting info sisa:', error);
+      alert('Gagal menghapus info sisa: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const handleBulkDeleteInfoSisa = async (ids: string[]) => {
+    try {
+      const { error } = await supabase.from('info_sisa').delete().in('id', ids);
+      if (error) throw error;
+      await fetchInfoSisa();
+    } catch (error: any) {
+      console.error('Error bulk deleting info sisa:', error);
+      throw error;
     }
   };
 
@@ -623,6 +676,7 @@ export default function App() {
       deliveries: fetchDeliveries,
       billing_reports: fetchBillingReports,
       courier_cash: fetchCourierCash,
+      info_sisa: fetchInfoSisa,
       sales_reports: fetchSalesReportsInternal,
       coa_accounts: fetchCOA,
       accounting_journals: fetchJournals,
@@ -663,6 +717,7 @@ export default function App() {
           fetchDeliveries(),
           fetchBillingReports(),
           fetchCourierCash(),
+          fetchInfoSisa(),
           fetchSalesReports(),
           fetchCOA(),
           fetchJournals()
@@ -1667,14 +1722,15 @@ export default function App() {
       icon: 'https://lh3.googleusercontent.com/d/1rwpcl0arTHsnXbXiS-QpIhWm-AaadZPo', 
       hidden: userRole === 'admin',
       subItems: [
-        { id: 'delivery', label: 'Delivery Report', icon: 'dashboard' },
-        { id: 'order_database', label: 'Data Orderan', icon: 'receipt_long' },
-        { id: 'print_admin', label: 'Print Admin', icon: 'print' },
-        { id: 'billing_report', label: 'Billing report', icon: 'payments' },
+        { id: 'delivery', label: 'Delivery Report', icon: 'https://lh3.googleusercontent.com/d/1aL3l-W-4yH7-tSrHavytUOE_X8lJ-1Ac' },
+        { id: 'order_database', label: 'Data Orderan', icon: 'https://lh3.googleusercontent.com/d/1LmK6YckLSmUHjaSnei-MUDOjWYeJ87Ca' },
+        { id: 'print_admin', label: 'Print Admin', icon: 'https://lh3.googleusercontent.com/d/1dLMRQ1x-pOznkVaBN0i4TDll4ejzlM_Q' },
+        { id: 'billing_report', label: 'Billing report', icon: 'https://lh3.googleusercontent.com/d/1wOhvCwMYQtTLUq0dOsbsRLOlwaqjXVEe' },
         { id: 'piutang', label: 'Tagihan Piutang', icon: 'account_balance_wallet' },
         { id: 'penagihan_kurir', label: 'Penagihan Kurir', icon: 'account_balance_wallet' },
-        { id: 'courier_cash', label: 'Kas Kurir', icon: 'payments' },
-        { id: 'daily_report', label: 'Daily Report', icon: 'summarize' },
+        { id: 'info_sisa', label: 'Info Sisa', icon: 'inventory_2' },
+        { id: 'courier_cash', label: 'Kas Kurir', icon: 'https://lh3.googleusercontent.com/d/1wTNz-PDFHQjI-WKYt4nbOFt_g_OAWz0R' },
+        { id: 'daily_report', label: 'Daily Report', icon: 'https://lh3.googleusercontent.com/d/1gw6RtXQK5FCe9uAe9QCqx_kG0yiF06XM' },
       ]
     },
     { 
@@ -1743,6 +1799,8 @@ export default function App() {
             stores={stores}
             deliveries={deliveries}
             billingReports={billingReports}
+            courierCash={courierCashRecords}
+            infoSisaRecords={infoSisaRecords}
             preselectedStoreId={preselectedStoreId}
             onPreselectionHandled={() => setPreselectedStoreId(null)}
             btCharacteristic={btCharacteristic}
@@ -1946,6 +2004,7 @@ export default function App() {
             btCharacteristic={btCharacteristic}
             isBtConnecting={isBtConnecting}
             onConnectBluetooth={connectBluetooth}
+            infoSisaRecords={infoSisaRecords}
             onCancel={() => {
               if (returnStoreId) {
                 setPreselectedStoreId(returnStoreId);
@@ -2003,6 +2062,7 @@ export default function App() {
             btCharacteristic={btCharacteristic}
             isBtConnecting={isBtConnecting}
             onConnectBluetooth={connectBluetooth}
+            infoSisaRecords={infoSisaRecords}
             onCancel={() => {
               if (returnStoreId) {
                 setPreselectedStoreId(returnStoreId);
@@ -2039,6 +2099,20 @@ export default function App() {
             currentUserDivision={currentUserEmployee?.division}
             onSave={handleSaveCourierCash}
             onDelete={handleDeleteCourierCash}
+          />
+        );
+      case 'info_sisa':
+        return (
+          <InfoSisaModule
+            records={infoSisaRecords}
+            employees={employees}
+            company={userCompany}
+            userRole={userRole}
+            currentUserName={currentUserEmployee?.nama}
+            currentUserDivision={currentUserEmployee?.division}
+            onSave={handleSaveInfoSisa}
+            onDelete={handleDeleteInfoSisa}
+            onBulkDelete={handleBulkDeleteInfoSisa}
           />
         );
       case 'production':
@@ -2187,7 +2261,7 @@ export default function App() {
                           <img 
                             src={item.icon} 
                             alt={item.label} 
-                            className="w-6 h-6 object-contain" 
+                            className="w-[50px] h-[50px] object-contain flex-shrink-0" 
                             referrerPolicy="no-referrer"
                           />
                         ) : (
@@ -2222,7 +2296,7 @@ export default function App() {
                                 <img 
                                   src={sub.icon} 
                                   alt={sub.label} 
-                                  className="w-4 h-4 object-contain" 
+                                  className="w-[50px] h-[50px] object-contain flex-shrink-0" 
                                   referrerPolicy="no-referrer"
                                 />
                               ) : (
@@ -2313,7 +2387,7 @@ export default function App() {
                       <img 
                         src={item.icon} 
                         alt={item.label} 
-                        className="w-6 h-6 object-contain" 
+                        className="w-[50px] h-[50px] object-contain flex-shrink-0" 
                         referrerPolicy="no-referrer"
                       />
                     ) : (
@@ -2349,7 +2423,7 @@ export default function App() {
                             <img 
                               src={sub.icon} 
                               alt={sub.label} 
-                              className="w-4 h-4 object-contain" 
+                              className="w-[50px] h-[50px] object-contain flex-shrink-0" 
                               referrerPolicy="no-referrer"
                             />
                           ) : (
@@ -2545,6 +2619,7 @@ export default function App() {
                   { id: 'order_database', label: 'Data Orderan', icon: 'receipt_long', color: 'bg-emerald-500' },
                   { id: 'delivery', label: 'Delivery Report', icon: 'https://lh3.googleusercontent.com/d/1rwpcl0arTHsnXbXiS-QpIhWm-AaadZPo', color: 'bg-blue-500', isImage: true, imageUrl: 'https://lh3.googleusercontent.com/d/1rwpcl0arTHsnXbXiS-QpIhWm-AaadZPo' },
                   { id: 'billing_report', label: 'Billing Report', icon: 'payments', color: 'bg-purple-500' },
+                  { id: 'courier_cash', label: 'Kas Kurir Modul', icon: 'https://lh3.googleusercontent.com/d/1wTNz-PDFHQjI-WKYt4nbOFt_g_OAWz0R', color: 'bg-indigo-500', isImage: true, imageUrl: 'https://lh3.googleusercontent.com/d/1wTNz-PDFHQjI-WKYt4nbOFt_g_OAWz0R' },
                   { id: 'sales_report', label: 'Sales Report', icon: 'https://lh3.googleusercontent.com/d/1XPY76pMSatVBUaB7m7Gj67R0sD6vZbLL', color: 'bg-stone-500', isImage: true, imageUrl: 'https://lh3.googleusercontent.com/d/1XPY76pMSatVBUaB7m7Gj67R0sD6vZbLL' },
                   { id: 'production', label: 'Produksi', icon: 'inventory', color: 'bg-orange-100', isImage: true, imageUrl: 'https://lh3.googleusercontent.com/d/1GZ3kO7wHiurhF18_NfU6vnxgTZV5TVsG' }
                 ].filter(menu => {
@@ -2566,7 +2641,7 @@ export default function App() {
                         <img 
                           src={menu.imageUrl || menu.icon} 
                           alt={menu.label} 
-                          className="w-8 h-8 object-contain" 
+                          className="w-[50px] h-[50px] object-contain flex-shrink-0" 
                           referrerPolicy="no-referrer"
                         />
                       ) : (
